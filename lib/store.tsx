@@ -12,8 +12,17 @@ import {
   type ReactNode,
 } from "react";
 import { arrayMove } from "@dnd-kit/sortable";
-import type { Board, Campanha, CardConteudo, Etapa, Marca, TipoCampanha } from "./types";
+import type {
+  Board,
+  Campanha,
+  CardConteudo,
+  Etapa,
+  Marca,
+  TipoCampanha,
+  TipoConteudo,
+} from "./types";
 import { ETAPAS } from "./config";
+import { criarProjetoVazio } from "./projeto";
 import { assinarBoard, carregarBoard, salvarBoard } from "./storage";
 import { agora, gerarId } from "./util";
 
@@ -205,14 +214,20 @@ function achatar(grupos: Map<Etapa, CardConteudo[]>): CardConteudo[] {
 }
 
 /** Cria um card novo e vazio para uma campanha e etapa. */
-function criarCardVazio(campanhaId: string, etapa: Etapa): CardConteudo {
+function criarCardVazio(
+  campanhaId: string,
+  etapa: Etapa,
+  tipo: TipoConteudo = "post"
+): CardConteudo {
   const ts = agora();
+  const ehProjeto = tipo === "projeto";
   return {
     id: gerarId(),
     campanhaId,
-    titulo: "Novo conteudo",
-    tipo: "post",
-    canais: ["instagram"],
+    titulo: ehProjeto ? "Novo projeto" : "Novo conteudo",
+    tipo,
+    // Projeto nao publica em canais; comeca sem nenhum marcado.
+    canais: ehProjeto ? [] : ["instagram"],
     etapa,
     tema: "",
     dataPublicacao: undefined,
@@ -223,6 +238,8 @@ function criarCardVazio(campanhaId: string, etapa: Etapa): CardConteudo {
     teleprompter: "",
     legenda: "",
     responsavel: "",
+    // Projeto ja nasce com as fases sugeridas (Pesquisa, Producao, Revisao).
+    projeto: ehProjeto ? criarProjetoVazio() : undefined,
     criadoEm: ts,
     atualizadoEm: ts,
   };
@@ -259,7 +276,7 @@ interface BoardStore {
   cardPorId: (id: string) => CardConteudo | undefined;
   cardsDaCampanha: (campanhaId: string) => CardConteudo[];
   temasDaCampanha: (campanhaId: string) => string[];
-  adicionarCard: (campanhaId: string, etapa: Etapa) => CardConteudo;
+  adicionarCard: (campanhaId: string, etapa: Etapa, tipo?: TipoConteudo) => CardConteudo;
   adicionarCardCompleto: (card: CardConteudo) => void;
   atualizarCard: (card: CardConteudo) => void;
   excluirCard: (id: string) => void;
@@ -283,6 +300,10 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   // Identificador desta aba/sessao, para ignorar no realtime a propria escrita.
   const clienteId = useRef<string>(gerarId());
   const timerSalvar = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Momento (ms) da ultima gravacao local concluida. Usado para ignorar, por
+  // uma curta janela, um payload de realtime que poderia reverter o que
+  // acabamos de salvar (eco de uma versao um pouco mais antiga de outro editor).
+  const salvoEm = useRef(0);
   // Marca quando a proxima mudanca de board veio do load/realtime (nao do
   // usuario), para nao re-salvar (evita eco) nem persistir o estado recem-lido.
   const origemRemota = useRef(false);
@@ -310,6 +331,10 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     const cancelar = assinarBoard((dados, remoteId) => {
       if (remoteId === clienteId.current) return; // ignora a propria escrita
       if (timerSalvar.current) return; // ha edicao local pendente: nao sobrescreve
+      // Acabei de salvar: ignora por uma curta janela para um eco mais antigo de
+      // outro editor nao reverter o que escrevi (modelo de blob, ultimo a salvar
+      // vence; isso protege a edicao recem-feita, ex: um projeto sendo editado).
+      if (Date.now() - salvoEm.current < 2500) return;
       origemRemota.current = true;
       dispatch({ tipo: "INICIALIZAR", board: dados });
     });
@@ -331,6 +356,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     if (timerSalvar.current) clearTimeout(timerSalvar.current);
     timerSalvar.current = setTimeout(() => {
       timerSalvar.current = null;
+      salvoEm.current = Date.now();
       void salvarBoard(board, clienteId.current);
     }, 500);
     return () => {
@@ -344,6 +370,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       if (timerSalvar.current) {
         clearTimeout(timerSalvar.current);
         timerSalvar.current = null;
+        salvoEm.current = Date.now();
         void salvarBoard(boardRef.current, clienteId.current);
       }
     };
@@ -365,11 +392,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ----- Cards -----
-  const adicionarCard = useCallback((campanhaId: string, etapa: Etapa): CardConteudo => {
-    const card = criarCardVazio(campanhaId, etapa);
-    dispatch({ tipo: "ADD_CARD", card });
-    return card;
-  }, []);
+  const adicionarCard = useCallback(
+    (campanhaId: string, etapa: Etapa, tipo?: TipoConteudo): CardConteudo => {
+      const card = criarCardVazio(campanhaId, etapa, tipo);
+      dispatch({ tipo: "ADD_CARD", card });
+      return card;
+    },
+    []
+  );
 
   const adicionarCardCompleto = useCallback((card: CardConteudo) => {
     dispatch({ tipo: "ADD_CARD", card });

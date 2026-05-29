@@ -5,6 +5,7 @@ import { X, ClipboardPaste, Sparkles, Plus } from "lucide-react";
 import { CANAIS, COLUNAS, TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { FORMATO_SUGERIDO, parseClaude, type ConteudoColado } from "@/lib/parseClaude";
+import { criarProjetoVazio } from "@/lib/projeto";
 import type { CardConteudo, Etapa } from "@/lib/types";
 import { agora, gerarId } from "@/lib/util";
 
@@ -54,12 +55,14 @@ export default function ColarDoClaude({
 
   function montarCard(c: ConteudoColado): CardConteudo {
     const ts = agora();
+    const tipo = c.tipo ?? "post";
+    const ehProjeto = tipo === "projeto";
     return {
       id: gerarId(),
       campanhaId,
       titulo: c.titulo || "Conteudo colado",
-      tipo: c.tipo ?? "post",
-      canais: c.canais.length ? c.canais : ["instagram"],
+      tipo,
+      canais: ehProjeto ? [] : c.canais.length ? c.canais : ["instagram"],
       etapa,
       tema: c.tema,
       dataPublicacao: c.dataPublicacao,
@@ -68,6 +71,7 @@ export default function ColarDoClaude({
       teleprompter: c.teleprompter,
       legenda: c.legenda,
       responsavel: c.responsavel,
+      projeto: ehProjeto ? criarProjetoVazio() : undefined,
       criadoEm: ts,
       atualizadoEm: ts,
     };

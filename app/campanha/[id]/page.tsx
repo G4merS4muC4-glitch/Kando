@@ -59,6 +59,11 @@ export default function PaginaCampanha() {
     setSelecionadoId(card.id);
   }
 
+  function novoProjeto() {
+    const card = adicionarCard(id, "ideias", "projeto");
+    setSelecionadoId(card.id);
+  }
+
   // Estados de carregamento e campanha inexistente.
   if (!pronto) {
     return <p className="px-4 py-6 text-sm text-marca-cinza">Carregando...</p>;
@@ -83,6 +88,7 @@ export default function PaginaCampanha() {
       <BarraCampanha
         campanha={campanha}
         onNovo={() => novoConteudo("ideias")}
+        onNovoProjeto={novoProjeto}
         onColar={() => setColarAberto(true)}
       >
         <Filtros filtros={filtros} onChange={aplicarFiltros} temas={temas} />

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Sparkles, ListChecks } from "lucide-react";
 import type { ReactNode } from "react";
 import { TIPOS_CAMPANHA } from "@/lib/config";
 import type { Campanha } from "@/lib/types";
@@ -14,11 +14,13 @@ import MarcaBadge from "./MarcaBadge";
 export default function BarraCampanha({
   campanha,
   onNovo,
+  onNovoProjeto,
   onColar,
   children,
 }: {
   campanha: Campanha;
   onNovo: () => void;
+  onNovoProjeto: () => void;
   onColar: () => void;
   children: ReactNode; // busca e filtros
 }) {
@@ -63,6 +65,15 @@ export default function BarraCampanha({
           >
             <Sparkles size={16} aria-hidden />
             Colar do Claude
+          </button>
+          <button
+            type="button"
+            onClick={onNovoProjeto}
+            title="Criar um projeto com fases e tarefas"
+            className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/50 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-azulEscuro hover:bg-marca-branco focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
+          >
+            <ListChecks size={16} aria-hidden />
+            Projeto
           </button>
           <button
             type="button"

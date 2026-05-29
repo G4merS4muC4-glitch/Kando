@@ -26,9 +26,11 @@ import {
 import { useBoard } from "@/lib/store";
 import type { Canal, CardConteudo, Etapa, TipoConteudo } from "@/lib/types";
 import { agora, formatarData } from "@/lib/util";
+import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
+import AbaProjeto from "./projeto/AbaProjeto";
 
-type Aba = "visao" | "briefing" | "roteiro" | "legenda";
+type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda";
 
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: "visao", rotulo: "Visao Geral" },
@@ -81,6 +83,19 @@ export default function ModalCard({
     return () => window.removeEventListener("keydown", aoTeclar);
   }, [onFechar]);
 
+  const ehProjeto = card.tipo === "projeto";
+
+  // A aba Projeto so existe para cards do tipo projeto. Se o tipo mudar enquanto
+  // a aba Projeto esta aberta, volta para a Visao Geral.
+  useEffect(() => {
+    if (aba === "projeto" && !ehProjeto) setAba("visao");
+  }, [aba, ehProjeto]);
+
+  // Lista de abas: insere "Projeto" logo apos "Visao Geral" quando for projeto.
+  const abas: { id: Aba; rotulo: string }[] = ehProjeto
+    ? [ABAS[0], { id: "projeto", rotulo: "Projeto" }, ...ABAS.slice(1)]
+    : ABAS;
+
   /**
    * Atualiza um campo e persiste imediatamente (auto-save).
    * A mesclagem usa sempre a versao mais recente do card vinda da store (fonte
@@ -100,6 +115,18 @@ export default function ModalCard({
       ...card,
       etapa: nova,
       postadoEm: nova === "publicado" ? (card.postadoEm ?? agora()) : undefined,
+    });
+  }
+
+  /**
+   * Troca o tipo. Ao virar projeto, garante as fases sugeridas (sem apagar um
+   * projeto que ja exista, caso o usuario alterne os tipos de ida e volta).
+   */
+  function mudarTipo(tipo: TipoConteudo) {
+    atualizarCard({
+      ...card,
+      tipo,
+      projeto: tipo === "projeto" ? (card.projeto ?? criarProjetoVazio()) : card.projeto,
     });
   }
 
@@ -252,7 +279,7 @@ export default function ModalCard({
 
         {/* Abas */}
         <div className="flex border-b border-marca-cinza/30 bg-marca-branco px-2" role="tablist">
-          {ABAS.map((a) => (
+          {abas.map((a) => (
             <button
               key={a.id}
               type="button"
@@ -274,7 +301,9 @@ export default function ModalCard({
         </div>
 
         {/* Conteudo das abas (altura fixa do modal: o miolo rola, o tamanho nao muda) */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+          {aba === "projeto" && ehProjeto && <AbaProjeto card={card} />}
+
           {aba === "visao" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Campo rotulo="Titulo" className="sm:col-span-2">
@@ -313,7 +342,7 @@ export default function ModalCard({
               <Campo rotulo="Tipo de conteudo">
                 <select
                   value={card.tipo}
-                  onChange={(e) => atualizarCampo("tipo", e.target.value as TipoConteudo)}
+                  onChange={(e) => mudarTipo(e.target.value as TipoConteudo)}
                   className={inputClasse}
                 >
                   {TIPOS_ORDEM.map((t) => (

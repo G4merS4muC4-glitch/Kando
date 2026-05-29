@@ -42,6 +42,14 @@ npm run start
 - Campanhas (criar, editar, excluir) por marca e tipo (geral ou bimestral).
 - Quadro com seis colunas: Ideias, Briefing e Roteiro, Em Producao, Revisao de
   Marca, Aprovado e Agendado, Publicado.
+- Tipos de conteudo: Reels, Post, Carrossel, Stories, Material Rico, E-book e
+  Projeto.
+- Projeto: um card com um fluxo de producao proprio. Abre a aba "Projeto" com
+  fases (etapas de producao) ligadas como um fluxo, e dentro de cada fase voce
+  cria tarefas simples ("Ver medidas") com um marcador de concluido. Um anel de
+  progresso geral e uma barra por fase mostram o quanto ja foi feito; da para
+  arrastar tarefas entre as fases. No quadro, o card de projeto mostra o
+  progresso no lugar dos canais. Crie pelo botao "Projeto" na barra da campanha.
 - Criar, editar, arrastar e excluir cards. Arrastar persiste a etapa.
 - Acao rapida no card: concluir (vai para Aprovado), postar (vai para Publicado)
   e reabrir. Conteudo postado fica verde com um check grande sobreposto.
@@ -117,7 +125,7 @@ linha de tracos `---`):
 
 ```
 Titulo: ...
-Tipo: Reels | Post | Carrossel | Stories
+Tipo: Reels | Post | Carrossel | Stories | Material Rico | E-book | Projeto
 Canais: Instagram, Facebook, LinkedIn, YouTube
 Tema: ...
 Data: dd/mm/aaaa

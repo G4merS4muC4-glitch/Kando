@@ -3,6 +3,9 @@ import {
   GalleryHorizontal,
   Image,
   CircleDot,
+  FileText,
+  BookOpen,
+  ListChecks,
   Instagram,
   Facebook,
   Linkedin,
@@ -69,10 +72,21 @@ export const TIPOS: Record<TipoConteudo, TipoConfig> = {
   carrossel: { label: "Carrossel", cor: "#044B8C", icone: GalleryHorizontal },
   post: { label: "Post", cor: "#002952", icone: Image },
   stories: { label: "Stories", cor: "#8790AB", icone: CircleDot },
+  materialRico: { label: "Material Rico", cor: "#6D4FC0", icone: FileText },
+  ebook: { label: "E-book", cor: "#0E7490", icone: BookOpen },
+  projeto: { label: "Projeto", cor: "#475569", icone: ListChecks },
 };
 
 /** Ordem dos tipos para uso em selects e filtros. */
-export const TIPOS_ORDEM: TipoConteudo[] = ["reels", "post", "carrossel", "stories"];
+export const TIPOS_ORDEM: TipoConteudo[] = [
+  "reels",
+  "post",
+  "carrossel",
+  "stories",
+  "materialRico",
+  "ebook",
+  "projeto",
+];
 
 /** Aparencia de cada canal. As cores seguem as plataformas para leitura rapida. */
 export interface CanalConfig {

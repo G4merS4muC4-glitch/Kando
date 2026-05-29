@@ -3,7 +3,14 @@
  * Todos os tipos sao explicitos (TypeScript estrito, sem uso de any).
  */
 
-export type TipoConteudo = "reels" | "post" | "carrossel" | "stories";
+export type TipoConteudo =
+  | "reels"
+  | "post"
+  | "carrossel"
+  | "stories"
+  | "materialRico"
+  | "ebook"
+  | "projeto";
 
 // Canais de publicacao (Instagram e Facebook juntos, alem de LinkedIn e YouTube).
 export type Canal = "instagram" | "facebook" | "linkedin" | "youtube";
@@ -54,8 +61,32 @@ export interface CardConteudo {
   legenda: string; // legenda final do post
   responsavel?: string;
   postadoEm?: string; // ISO datetime de quando foi marcado como postado
+  projeto?: ProjetoDados; // fluxo de producao (apenas quando tipo === "projeto")
   criadoEm: string; // ISO datetime
   atualizadoEm: string; // ISO datetime
+}
+
+/**
+ * Projeto (card do tipo "projeto"): um mini fluxo de producao dentro do card.
+ * As fases sao as etapas de producao (lanes) e cada tarefa e um item simples
+ * com texto e um marcador de concluido. Tudo e JSON puro e serializavel (sem
+ * Date, Map ou funcoes), guardado dentro do proprio card.
+ */
+export interface ProjetoTarefa {
+  id: string; // gerarId()
+  texto: string; // ex: "Ver medidas"
+  feita: boolean;
+  feitaEm?: string; // ISO datetime de quando foi marcada (para analise futura)
+}
+
+export interface ProjetoFase {
+  id: string; // gerarId()
+  nome: string; // ex: "Pesquisa", "Producao"
+  tarefas: ProjetoTarefa[]; // a ordem da lista e a posicao no array
+}
+
+export interface ProjetoDados {
+  fases: ProjetoFase[]; // a ordem das fases e a posicao no array
 }
 
 /** Estado completo. Estrutura isolada para facilitar futura migracao para banco. */

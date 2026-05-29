@@ -23,7 +23,7 @@ export interface ConteudoColado {
 
 /** Texto de ajuda mostrado no modal: como pedir ao Claude um conteudo colavel. */
 export const FORMATO_SUGERIDO = `Titulo: ...
-Tipo: Reels | Post | Carrossel | Stories
+Tipo: Reels | Post | Carrossel | Stories | Material Rico | E-book | Projeto
 Canais: Instagram, Facebook, LinkedIn, YouTube
 Tema: ...
 Data: dd/mm/aaaa
@@ -91,6 +91,9 @@ function detectarTipo(texto: string): TipoConteudo | undefined {
   if (t.includes("carrossel") || t.includes("carousel")) return "carrossel";
   if (t.includes("reels") || t.includes("reel")) return "reels";
   if (t.includes("stories") || t.includes("story")) return "stories";
+  if (t.includes("projeto") || t.includes("project")) return "projeto";
+  if (t.includes("ebook") || t.includes("e-book")) return "ebook";
+  if (t.includes("material")) return "materialRico";
   if (t.includes("post")) return "post";
   return undefined;
 }
