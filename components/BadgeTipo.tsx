@@ -10,6 +10,9 @@ export default function BadgeTipo({
   tamanho?: "normal" | "pequeno";
 }) {
   const conf = TIPOS[tipo];
+  // Defensivo: se vier um tipo desconhecido (ex: JSON externo de metricas com um
+  // valor inesperado), nao renderiza o selo em vez de quebrar a tela.
+  if (!conf) return null;
   const Icone = conf.icone;
   const ehPequeno = tamanho === "pequeno";
 

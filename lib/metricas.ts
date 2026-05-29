@@ -98,7 +98,7 @@ export interface MetricasInstagram {
 /** Handles padrao por perfil (usados no prompt; ajustaveis pelo time). */
 export const HANDLE_PADRAO: Record<PerfilMetrica, string> = {
   brusoft: "@brusoft.inf",
-  evotalks: "@evotalks",
+  evotalks: "@evotalks.oficial",
 };
 
 const CONTEXTO_MARCA: Record<PerfilMetrica, string> = {
@@ -215,17 +215,8 @@ export function parseMetricas(
   if (m.perfil !== "brusoft" && m.perfil !== "evotalks") {
     return { ok: false, erro: "O campo 'perfil' precisa ser 'brusoft' ou 'evotalks'." };
   }
-  if (!m.resumo || typeof m.resumo !== "object") {
-    return { ok: false, erro: "Faltou o bloco 'resumo' com os indicadores principais." };
-  }
-  const temSerie =
-    (Array.isArray(m.serie_seguidores) && m.serie_seguidores.length > 0) ||
-    (Array.isArray(m.serie_alcance) && m.serie_alcance.length > 0);
-  if (!temSerie) {
-    return {
-      ok: false,
-      erro: "Faltou pelo menos uma serie temporal (serie_seguidores ou serie_alcance).",
-    };
-  }
+  // Tolerante a ausencias: campos que o Insights nao tinha podem vir null ou
+  // omitidos (o dashboard mostra "Sem dados" no lugar, sem quebrar). So exige
+  // que seja um JSON do formato certo com um perfil valido.
   return { ok: true, dados: m };
 }

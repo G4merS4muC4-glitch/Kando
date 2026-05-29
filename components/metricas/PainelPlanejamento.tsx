@@ -17,8 +17,9 @@ export default function PainelPlanejamento({
   dados: MetricasInstagram;
   perfil: PerfilMetrica;
 }) {
-  const insights = dados.insights ?? [];
-  const recomendacoes = dados.recomendacoes ?? [];
+  // Filtra vazios: campos parciais podem trazer null/strings vazias na lista.
+  const insights = (dados.insights ?? []).filter((t) => typeof t === "string" && t.trim() !== "");
+  const recomendacoes = (dados.recomendacoes ?? []).filter((r) => r && r.titulo);
 
   // Cadencia sugerida: formato de maior alcance e de maior engajamento.
   const porAlcance = TIPOS_METRICA.filter((t) => dados.alcance_por_tipo?.[t] != null).sort(
