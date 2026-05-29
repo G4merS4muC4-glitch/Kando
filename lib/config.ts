@@ -103,7 +103,7 @@ export interface MarcaConfig {
 
 export const MARCAS: Record<Marca, MarcaConfig> = {
   brusoft: { label: "Brusoft", cor: "#FA611E", corSuave: "#FFF1E9" },
-  evotalks: { label: "Evotalks", cor: "#7C3AED", corSuave: "#F1EBFC" },
+  evotalks: { label: "Evotalks", cor: "#1bbf5d", corSuave: "#E2F7EC" },
 };
 
 export const MARCAS_ORDEM: Marca[] = ["brusoft", "evotalks"];

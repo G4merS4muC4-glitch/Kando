@@ -308,7 +308,13 @@ export default function Calendario() {
         {/* Previa enquanto arrasta */}
         <DragOverlay>
           {cardArrastado ? (
-            <ChipPreview titulo={cardArrastado.titulo} corTipo={TIPOS[cardArrastado.tipo].cor} />
+            <ChipPreview
+              titulo={cardArrastado.titulo}
+              cor={(() => {
+                const m = marcaDoCard(cardArrastado);
+                return m ? MARCAS[m].cor : "#8790AB";
+              })()}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -510,7 +516,7 @@ function ChipCard({
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
   const corMarca = marca ? MARCAS[marca].cor : "#8790AB";
-  const corTipo = TIPOS[card.tipo].cor;
+  const TipoIcone = TIPOS[card.tipo].icone;
   const postado = card.etapa === "publicado";
 
   return (
@@ -520,31 +526,25 @@ function ChipCard({
       {...listeners}
       type="button"
       onClick={() => onAbrir(card.id)}
-      style={{ borderLeftColor: corMarca, opacity: isDragging ? 0.4 : 1 }}
-      className={`animate-pop flex w-full items-center gap-1.5 rounded-marca border border-l-4 border-marca-cinza/25 bg-white px-1.5 py-1 text-left text-[11px] font-medium text-marca-preto shadow-sm transition hover:shadow-cardHover ${
+      style={{ backgroundColor: corMarca, opacity: isDragging ? 0.4 : 1 }}
+      className={`animate-pop flex w-full items-center gap-1.5 rounded-marca px-1.5 py-1 text-left text-[11px] font-semibold text-white shadow-sm transition hover:brightness-95 hover:shadow-cardHover ${
         grande ? "py-1.5 text-xs" : ""
-      } ${postado ? "bg-marca-verdeClaro" : ""}`}
+      }`}
       title={card.titulo}
     >
-      <span
-        className="inline-block h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: corTipo }}
-        aria-hidden
-      />
+      <TipoIcone size={12} className="shrink-0 text-white/90" aria-hidden />
       <span className="truncate">{card.titulo}</span>
-      {postado && <CheckCircle2 size={12} className="ml-auto shrink-0 text-marca-verde" aria-hidden />}
+      {postado && <CheckCircle2 size={12} className="ml-auto shrink-0 text-white" aria-hidden />}
     </button>
   );
 }
 
-function ChipPreview({ titulo, corTipo }: { titulo: string; corTipo: string }) {
+function ChipPreview({ titulo, cor }: { titulo: string; cor: string }) {
   return (
-    <div className="flex max-w-[220px] items-center gap-1.5 rounded-marca border border-marca-laranja bg-white px-2 py-1.5 text-xs font-medium text-marca-preto shadow-cardHover">
-      <span
-        className="inline-block h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: corTipo }}
-        aria-hidden
-      />
+    <div
+      className="flex max-w-[220px] items-center gap-1.5 rounded-marca px-2 py-1.5 text-xs font-semibold text-white shadow-cardHover"
+      style={{ backgroundColor: cor }}
+    >
       <span className="truncate">{titulo}</span>
     </div>
   );
