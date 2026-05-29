@@ -16,6 +16,7 @@ export interface ConteudoColado {
   dataPublicacao?: string;
   briefing: string;
   roteiro: string;
+  teleprompter: string;
   legenda: string;
   responsavel?: string;
 }
@@ -28,9 +29,20 @@ Tema: ...
 Data: dd/mm/aaaa
 Briefing: ...
 Roteiro: ...
+Teleprompter: (apenas as falas, sem indicacoes de cena)
 Legenda: ...`;
 
-type Campo = "titulo" | "tipo" | "canais" | "tema" | "data" | "briefing" | "roteiro" | "legenda" | "responsavel";
+type Campo =
+  | "titulo"
+  | "tipo"
+  | "canais"
+  | "tema"
+  | "data"
+  | "briefing"
+  | "roteiro"
+  | "teleprompter"
+  | "legenda"
+  | "responsavel";
 
 /** Limite de caracteres do titulo, usado nos dois caminhos do parser. */
 const MAX_TITULO = 120;
@@ -48,6 +60,7 @@ const MAPA_CAMPOS: { campo: Campo; chaves: string[] }[] = [
   { campo: "data", chaves: ["data de publicacao", "data", "publicacao", "agendamento", "quando", "agendar"] },
   { campo: "briefing", chaves: ["briefing", "brief", "objetivo", "contexto", "resumo"] },
   { campo: "roteiro", chaves: ["roteiro", "script", "fala", "estrutura", "slides", "storyboard"] },
+  { campo: "teleprompter", chaves: ["teleprompter", "tp", "texto do teleprompter", "texto do tp"] },
   { campo: "legenda", chaves: ["legenda", "caption", "copy", "descricao"] },
   { campo: "responsavel", chaves: ["responsavel", "autor", "owner"] },
 ];
@@ -171,6 +184,7 @@ function interpretarBloco(bloco: string): ConteudoColado | null {
       canais: [],
       briefing: "",
       roteiro: bloco.trim(),
+      teleprompter: "",
       legenda: "",
     };
   }
@@ -178,10 +192,11 @@ function interpretarBloco(bloco: string): ConteudoColado | null {
   const titulo = texto("titulo") || preambulo[0] || "Conteudo colado";
   const briefing = texto("briefing");
   const roteiro = texto("roteiro");
+  const teleprompter = texto("teleprompter");
   const legenda = texto("legenda");
   // Rede de seguranca: se nenhum campo de conteudo foi preenchido, preserva o
   // texto original do bloco no roteiro (evita perda silenciosa de conteudo).
-  const semConteudo = !briefing && !roteiro && !legenda;
+  const semConteudo = !briefing && !roteiro && !teleprompter && !legenda;
 
   return {
     titulo: titulo.slice(0, MAX_TITULO),
@@ -191,6 +206,7 @@ function interpretarBloco(bloco: string): ConteudoColado | null {
     dataPublicacao: detectarData(texto("data")),
     briefing,
     roteiro: semConteudo ? bloco.trim() : roteiro,
+    teleprompter,
     legenda,
     responsavel: texto("responsavel") || undefined,
   };

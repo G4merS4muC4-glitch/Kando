@@ -65,6 +65,7 @@ export default function ColarDoClaude({
       dataPublicacao: c.dataPublicacao,
       briefing: c.briefing,
       roteiro: c.roteiro,
+      teleprompter: c.teleprompter,
       legenda: c.legenda,
       responsavel: c.responsavel,
       criadoEm: ts,

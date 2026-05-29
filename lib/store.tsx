@@ -220,6 +220,7 @@ function criarCardVazio(campanhaId: string, etapa: Etapa): CardConteudo {
     midiaUrl: "",
     briefing: "",
     roteiro: "",
+    teleprompter: "",
     legenda: "",
     responsavel: "",
     criadoEm: ts,

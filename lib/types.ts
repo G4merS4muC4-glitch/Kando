@@ -49,7 +49,8 @@ export interface CardConteudo {
   statusPub?: "agendado" | "publicado" | "erro"; // status da auto-publicacao
   erroPub?: string; // mensagem da ultima falha de publicacao
   briefing: string; // objetivo, publico, gancho, CTA
-  roteiro: string; // fala do Reels ou estrutura dos slides do carrossel
+  roteiro: string; // roteiro completo: cenas, estrutura, indicacoes, slides
+  teleprompter?: string; // apenas as falas (texto limpo para ler no teleprompter)
   legenda: string; // legenda final do post
   responsavel?: string;
   postadoEm?: string; // ISO datetime de quando foi marcado como postado

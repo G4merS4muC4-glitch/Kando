@@ -58,6 +58,7 @@ export default function ModalCard({
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [teleprompterAberto, setTeleprompterAberto] = useState(false);
   const [copiado, setCopiado] = useState(false);
+  const [copiadoTp, setCopiadoTp] = useState(false);
   const [copiadoLegenda, setCopiadoLegenda] = useState(false);
   const tituloRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +137,17 @@ export default function ModalCard({
       await navigator.clipboard.writeText(card.legenda);
       setCopiadoLegenda(true);
       window.setTimeout(() => setCopiadoLegenda(false), 1800);
+    } catch {
+      // Navegador sem permissao de clipboard: ignora silenciosamente.
+    }
+  }
+
+  /** Copia o texto do teleprompter (apenas as falas). */
+  async function copiarTeleprompter() {
+    try {
+      await navigator.clipboard.writeText(card.teleprompter ?? "");
+      setCopiadoTp(true);
+      window.setTimeout(() => setCopiadoTp(false), 1800);
     } catch {
       // Navegador sem permissao de clipboard: ignora silenciosamente.
     }
@@ -452,17 +464,18 @@ export default function ModalCard({
           )}
 
           {aba === "roteiro" && (
-            <div>
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-                    Roteiro
-                  </span>
-                  <span className="text-xs text-marca-cinza">
-                    Fala do Reels ou estrutura dos slides do carrossel.
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
+            <div className="space-y-6">
+              {/* Roteiro completo (planejamento: cenas, estrutura, indicacoes) */}
+              <div>
+                <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                      Roteiro completo
+                    </span>
+                    <span className="text-xs text-marca-cinza">
+                      Cenas, estrutura, indicacoes e slides (planejamento).
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={copiarRoteiro}
@@ -472,26 +485,58 @@ export default function ModalCard({
                     {copiado ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
                     {copiado ? "Copiado" : "Copiar"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setTeleprompterAberto(true)}
-                    disabled={!card.roteiro.trim()}
-                    className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <MonitorPlay size={15} aria-hidden />
-                    Teleprompter
-                  </button>
                 </div>
+                <textarea
+                  value={card.roteiro}
+                  onChange={(e) => atualizarCampo("roteiro", e.target.value)}
+                  className={`${inputClasse} min-h-[200px] resize-y leading-relaxed`}
+                  placeholder="Descreva cena a cena (Reels) ou slide a slide (carrossel), com as indicacoes."
+                />
               </div>
-              <textarea
-                value={card.roteiro}
-                onChange={(e) => atualizarCampo("roteiro", e.target.value)}
-                className={`${inputClasse} min-h-[320px] resize-y rounded-marca bg-marca-branco text-base leading-loose`}
-                placeholder="Descreva cena a cena (Reels) ou slide a slide (carrossel)."
-              />
-              <p className="mt-1.5 text-xs text-marca-cinza">
-                Dica: use o Teleprompter para ler a fala enquanto grava.
-              </p>
+
+              {/* Texto do teleprompter (apenas as falas) */}
+              <div>
+                <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                      Texto do teleprompter
+                    </span>
+                    <span className="text-xs text-marca-cinza">
+                      Apenas as falas, sem indicacoes. E o que aparece ao abrir o Teleprompter.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={copiarTeleprompter}
+                      disabled={!card.teleprompter?.trim()}
+                      className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-sm font-semibold text-marca-azulEscuro transition hover:bg-marca-branco disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {copiadoTp ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
+                      {copiadoTp ? "Copiado" : "Copiar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTeleprompterAberto(true)}
+                      disabled={!card.teleprompter?.trim() && !card.roteiro.trim()}
+                      className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MonitorPlay size={15} aria-hidden />
+                      Teleprompter
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={card.teleprompter ?? ""}
+                  onChange={(e) => atualizarCampo("teleprompter", e.target.value)}
+                  className={`${inputClasse} min-h-[240px] resize-y bg-marca-branco text-base leading-loose`}
+                  placeholder="Apenas a fala, do jeito que voce vai narrar (sem 'Cena 1', sem indicacoes)."
+                />
+                <p className="mt-1.5 text-xs text-marca-cinza">
+                  Dica: deixe so a fala aqui para ler limpo no Teleprompter. Se ficar vazio, o
+                  Teleprompter mostra o roteiro completo.
+                </p>
+              </div>
             </div>
           )}
 
@@ -589,7 +634,10 @@ export default function ModalCard({
     </div>
 
     {teleprompterAberto && (
-      <Teleprompter texto={card.roteiro} onFechar={fecharTeleprompter} />
+      <Teleprompter
+        texto={card.teleprompter?.trim() ? card.teleprompter : card.roteiro}
+        onFechar={fecharTeleprompter}
+      />
     )}
     </>
   );
