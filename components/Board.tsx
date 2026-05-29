@@ -139,7 +139,9 @@ export default function Board({
       onDragEnd={aoTerminarArrasto}
       onDragCancel={aoCancelar}
     >
-      <div className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-3 pb-4 pt-4 sm:snap-none sm:gap-4 sm:px-4">
+      {/* Mobile: colunas empilhadas, a pagina rola inteira (cards sem corte).
+          Desktop: Kanban horizontal com rolagem por coluna. */}
+      <div className="flex flex-col gap-4 px-3 pb-8 pt-4 sm:h-full sm:flex-row sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:px-4 sm:pb-4">
 
         {COLUNAS.map((coluna) => (
           <Coluna

@@ -29,7 +29,7 @@ export default function Filtros({
   return (
     <div className="flex flex-1 flex-wrap items-center gap-2">
       {/* Busca por titulo */}
-      <div className="relative min-w-[180px] flex-1">
+      <div className="relative w-full sm:w-auto sm:min-w-[180px] sm:flex-1">
         <Search
           size={16}
           className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-marca-cinza"

@@ -50,8 +50,9 @@ export default function BarraCampanha({
           </div>
         </div>
 
-        {/* Busca e filtros */}
-        {children}
+        {/* Busca e filtros. No mobile, ocupam uma linha propria (sem corte); no
+            desktop ficam inline entre o nome e as acoes. */}
+        <div className="order-last w-full sm:order-none sm:flex-1">{children}</div>
 
         {/* Acoes */}
         <div className="flex shrink-0 items-center gap-2">

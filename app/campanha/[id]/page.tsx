@@ -79,7 +79,7 @@ export default function PaginaCampanha() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto sm:overflow-y-hidden">
       <BarraCampanha
         campanha={campanha}
         onNovo={() => novoConteudo("ideias")}
@@ -88,7 +88,7 @@ export default function PaginaCampanha() {
         <Filtros filtros={filtros} onChange={aplicarFiltros} temas={temas} />
       </BarraCampanha>
 
-      <main className="min-h-0 flex-1">
+      <main className="flex-1 sm:min-h-0">
         <Board cards={cardsFiltrados} onAbrir={setSelecionadoId} onNovo={novoConteudo} />
       </main>
 

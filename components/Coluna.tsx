@@ -27,7 +27,7 @@ export default function Coluna({
 
   return (
     <section
-      className="flex h-full w-[86vw] max-w-[340px] shrink-0 snap-start flex-col sm:w-[300px] sm:max-w-none"
+      className="flex w-full shrink-0 flex-col sm:h-full sm:w-[300px]"
       aria-label={coluna.titulo}
     >
       {/* Cabecalho da coluna */}
@@ -56,7 +56,7 @@ export default function Coluna({
       {/* Lista de cards (area de drop) */}
       <div
         ref={setNodeRef}
-        className={`flex min-h-[120px] flex-1 flex-col gap-2 overflow-y-auto rounded-marca p-1 transition-colors ${
+        className={`flex min-h-[80px] flex-col gap-2 rounded-marca p-1 transition-colors sm:min-h-[120px] sm:flex-1 sm:overflow-y-auto ${
           isOver ? "bg-marca-laranja/10 ring-2 ring-marca-laranja/60" : "bg-transparent"
         }`}
       >
