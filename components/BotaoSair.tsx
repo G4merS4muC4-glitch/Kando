@@ -45,7 +45,7 @@ export default function BotaoSair() {
         className="flex items-center gap-1.5 rounded-marca px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
       >
         <LogOut size={16} aria-hidden />
-        Sair
+        <span className="hidden sm:inline">Sair</span>
       </button>
     </div>
   );

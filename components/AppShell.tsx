@@ -21,7 +21,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <BoardProvider>
       <AvisoErroCarregar />
-      <div className="flex h-screen flex-col bg-marca-branco">
+      <div className="flex h-dvh flex-col bg-marca-branco">
         <Topo />
         <div className="min-h-0 flex-1">{children}</div>
       </div>

@@ -191,7 +191,7 @@ export default function Teleprompter({
       <div
         ref={areaRef}
         onClick={() => setTocando((t) => !t)}
-        className="flex-1 cursor-pointer overflow-y-auto scroll-smooth px-5 py-12 sm:px-16 sm:py-16"
+        className="flex-1 cursor-pointer overflow-y-auto overscroll-contain px-5 py-12 sm:px-16 sm:py-16"
       >
         <div
           className="mx-auto max-w-4xl"

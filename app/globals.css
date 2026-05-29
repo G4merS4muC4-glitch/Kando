@@ -13,11 +13,20 @@ body {
   height: 100%;
 }
 
+html {
+  /* Evita o iOS reescalar fontes na rotacao. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--marca-branco);
   color: var(--marca-preto);
   font-family: "Sora", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Reduz o "balanco"/pull-to-refresh e o scroll horizontal acidental no mobile. */
+  overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 /* Barra de rolagem discreta nas colunas do quadro. */

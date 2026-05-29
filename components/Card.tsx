@@ -55,7 +55,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   return (
     <div
       ref={ref}
-      className={`group relative shrink-0 cursor-grab touch-none overflow-hidden rounded-marca border p-3 text-marca-preto shadow-card outline-none transition-shadow hover:shadow-cardHover focus-visible:ring-2 focus-visible:ring-marca-laranja active:cursor-grabbing ${
+      className={`group relative shrink-0 cursor-grab overflow-hidden rounded-marca border p-3 text-marca-preto shadow-card outline-none transition-shadow hover:shadow-cardHover focus-visible:ring-2 focus-visible:ring-marca-laranja active:cursor-grabbing ${
         postado ? "border-marca-verde bg-marca-verdeClaro" : "border-marca-cinza/30 bg-white"
       } ${className}`}
       {...rest}

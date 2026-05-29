@@ -5,7 +5,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -41,8 +42,11 @@ export default function Board({
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [larguraArrasto, setLarguraArrasto] = useState<number | undefined>(undefined);
 
+  // Mouse: arrasta com um pequeno movimento. Toque: segura ~0,2s para arrastar
+  // (assim o deslize do dedo rola o quadro normalmente, sem agarrar o card).
   const sensores = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -135,7 +139,8 @@ export default function Board({
       onDragEnd={aoTerminarArrasto}
       onDragCancel={aoCancelar}
     >
-      <div className="flex h-full gap-4 overflow-x-auto px-4 pb-4 pt-4">
+      <div className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-3 pb-4 pt-4 sm:snap-none sm:gap-4 sm:px-4">
+
         {COLUNAS.map((coluna) => (
           <Coluna
             key={coluna.id}

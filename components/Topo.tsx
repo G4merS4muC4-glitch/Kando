@@ -77,9 +77,10 @@ function LinkNav({
           ? "bg-marca-laranja text-white"
           : "text-white/80 hover:bg-white/10 hover:text-white"
       }`}
+      title={typeof children === "string" ? children : undefined}
     >
       {icone}
-      {children}
+      <span className="hidden sm:inline">{children}</span>
     </Link>
   );
 }

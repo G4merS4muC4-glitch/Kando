@@ -42,7 +42,7 @@ export default function PaginaLogin() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-marca-azulEscuro px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-marca-azulEscuro px-4">
       <div className="w-full max-w-sm rounded-marca bg-white p-8 shadow-modal">
         {/* Marca */}
         <div className="mb-6 flex flex-col items-center text-center">

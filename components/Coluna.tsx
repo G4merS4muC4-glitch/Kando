@@ -26,7 +26,10 @@ export default function Coluna({
   const { setNodeRef, isOver } = useDroppable({ id: coluna.id });
 
   return (
-    <section className="flex h-full w-[300px] shrink-0 flex-col" aria-label={coluna.titulo}>
+    <section
+      className="flex h-full w-[86vw] max-w-[340px] shrink-0 snap-start flex-col sm:w-[300px] sm:max-w-none"
+      aria-label={coluna.titulo}
+    >
       {/* Cabecalho da coluna */}
       <header className="mb-2 px-1">
         <div className="flex items-center justify-between gap-2">
