@@ -12,9 +12,18 @@ import {
   Youtube,
   Repeat,
   CalendarRange,
+  CheckCircle2,
+  Ban,
   type LucideIcon,
 } from "lucide-react";
-import type { Canal, Etapa, Marca, TipoCampanha, TipoConteudo } from "./types";
+import type {
+  Canal,
+  Etapa,
+  Marca,
+  StatusCampanha,
+  TipoCampanha,
+  TipoConteudo,
+} from "./types";
 
 /**
  * Configuracao central do app.
@@ -135,3 +144,22 @@ export const TIPOS_CAMPANHA: Record<TipoCampanha, TipoCampanhaConfig> = {
 };
 
 export const TIPOS_CAMPANHA_ORDEM: TipoCampanha[] = ["geral", "bimestral"];
+
+/** Aparencia das situacoes arquivadas de uma campanha (concluida/cancelada). */
+export interface StatusCampanhaConfig {
+  label: string;
+  cor: string;
+  icone: LucideIcon;
+}
+
+export const STATUS_CAMPANHA: Record<Exclude<StatusCampanha, "ativa">, StatusCampanhaConfig> = {
+  concluida: { label: "Concluida", cor: "#16A34A", icone: CheckCircle2 },
+  cancelada: { label: "Cancelada", cor: "#8790AB", icone: Ban },
+};
+
+/** Indica se a situacao representa uma campanha arquivada (concluida/cancelada). */
+export function campanhaArquivada(
+  status: StatusCampanha | undefined
+): status is Exclude<StatusCampanha, "ativa"> {
+  return status === "concluida" || status === "cancelada";
+}

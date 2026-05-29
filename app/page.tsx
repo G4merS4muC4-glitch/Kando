@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, FolderOpen } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM } from "@/lib/config";
+import { Plus, FolderOpen, Archive } from "lucide-react";
+import { MARCAS, MARCAS_ORDEM, campanhaArquivada } from "@/lib/config";
 import { useBoard } from "@/lib/store";
-import type { MarcaFiltro } from "@/lib/types";
+import type { Campanha, MarcaFiltro, StatusFiltro } from "@/lib/types";
 import CampanhaCard from "@/components/CampanhaCard";
 import ModalCampanha from "@/components/ModalCampanha";
+
+const STATUS_OPCOES: { id: StatusFiltro; rotulo: string }[] = [
+  { id: "ativas", rotulo: "Ativas" },
+  { id: "arquivadas", rotulo: "Arquivadas" },
+  { id: "todas", rotulo: "Todas" },
+];
 
 /**
  * Tela inicial: grade unica de campanhas com filtro de marca.
@@ -15,15 +21,33 @@ import ModalCampanha from "@/components/ModalCampanha";
 export default function Inicial() {
   const { campanhas, cardsDaCampanha, campanhaPorId, pronto } = useBoard();
   const [marcaFiltro, setMarcaFiltro] = useState<MarcaFiltro>("todas");
+  const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("ativas");
   const [criando, setCriando] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
-  const campanhasFiltradas = useMemo(() => {
-    if (marcaFiltro === "todas") return campanhas;
-    return campanhas.filter((c) => c.marca === marcaFiltro);
-  }, [campanhas, marcaFiltro]);
+  const porMarca = useMemo(
+    () => (marcaFiltro === "todas" ? campanhas : campanhas.filter((c) => c.marca === marcaFiltro)),
+    [campanhas, marcaFiltro]
+  );
+  const ativas = useMemo(() => porMarca.filter((c) => !campanhaArquivada(c.status)), [porMarca]);
+  const arquivadas = useMemo(() => porMarca.filter((c) => campanhaArquivada(c.status)), [porMarca]);
 
   const campanhaEmEdicao = editandoId ? campanhaPorId(editandoId) : undefined;
+
+  function grade(lista: Campanha[]) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {lista.map((campanha) => (
+          <CampanhaCard
+            key={campanha.id}
+            campanha={campanha}
+            cards={cardsDaCampanha(campanha.id)}
+            onEditar={setEditandoId}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">
@@ -49,7 +73,7 @@ export default function Inicial() {
         </div>
 
         {/* Filtro de marca */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <FiltroMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
             Todas
           </FiltroMarca>
@@ -65,32 +89,61 @@ export default function Inicial() {
           ))}
         </div>
 
-        {/* Grade de campanhas */}
+        {/* Filtro de situacao */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-marca-cinza">
+            Situacao:
+          </span>
+          {STATUS_OPCOES.map((o) => {
+            const ativo = statusFiltro === o.id;
+            const qtd = o.id === "ativas" ? ativas.length : o.id === "arquivadas" ? arquivadas.length : ativas.length + arquivadas.length;
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setStatusFiltro(o.id)}
+                aria-pressed={ativo}
+                className={`flex items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
+                  ativo
+                    ? "border-transparent bg-marca-azulEscuro text-white"
+                    : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
+                }`}
+              >
+                {o.rotulo}
+                <span className={`text-xs ${ativo ? "text-white/70" : "text-marca-cinza/70"}`}>{qtd}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Grade de campanhas, conforme a situacao escolhida */}
         {!pronto ? (
           <p className="text-sm text-marca-cinza">Carregando campanhas...</p>
-        ) : campanhasFiltradas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-marca border border-dashed border-marca-cinza/40 py-16 text-center">
-            <FolderOpen size={36} className="mb-3 text-marca-cinza" aria-hidden />
-            <p className="text-sm text-marca-cinza">Nenhuma campanha por aqui ainda.</p>
-            <button
-              type="button"
-              onClick={() => setCriando(true)}
-              className="mt-3 flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
-            >
-              <Plus size={16} aria-hidden />
-              Criar a primeira campanha
-            </button>
-          </div>
+        ) : statusFiltro === "arquivadas" ? (
+          arquivadas.length === 0 ? (
+            <p className="rounded-marca border border-dashed border-marca-cinza/40 px-4 py-12 text-center text-sm text-marca-cinza">
+              Nenhuma campanha arquivada por aqui.
+            </p>
+          ) : (
+            grade(arquivadas)
+          )
+        ) : statusFiltro === "ativas" ? (
+          ativas.length === 0 ? (
+            <CaixaCriar onCriar={() => setCriando(true)} />
+          ) : (
+            grade(ativas)
+          )
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {campanhasFiltradas.map((campanha) => (
-              <CampanhaCard
-                key={campanha.id}
-                campanha={campanha}
-                cards={cardsDaCampanha(campanha.id)}
-                onEditar={setEditandoId}
-              />
-            ))}
+          <div className="space-y-8">
+            {ativas.length > 0 ? grade(ativas) : <CaixaCriar onCriar={() => setCriando(true)} />}
+            {arquivadas.length > 0 && (
+              <div>
+                <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-marca-cinza">
+                  <Archive size={15} aria-hidden /> Arquivadas
+                </h2>
+                {grade(arquivadas)}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -108,6 +161,24 @@ export default function Inicial() {
           onFechar={() => setEditandoId(null)}
         />
       )}
+    </div>
+  );
+}
+
+/** Caixa de estado vazio com botao para criar a primeira campanha. */
+function CaixaCriar({ onCriar }: { onCriar: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-marca border border-dashed border-marca-cinza/40 py-16 text-center">
+      <FolderOpen size={36} className="mb-3 text-marca-cinza" aria-hidden />
+      <p className="text-sm text-marca-cinza">Nenhuma campanha ativa por aqui ainda.</p>
+      <button
+        type="button"
+        onClick={onCriar}
+        className="mt-3 flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+      >
+        <Plus size={16} aria-hidden />
+        Criar a primeira campanha
+      </button>
     </div>
   );
 }

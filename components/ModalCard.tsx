@@ -11,6 +11,8 @@ import {
   CircleCheck,
   Send,
   RotateCcw,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import {
   CANAIS,
@@ -130,6 +132,16 @@ export default function ModalCard({
     });
   }
 
+  /** Marca o card para o robo publicar no horario (Facebook e/ou Instagram). */
+  function agendarAuto() {
+    atualizarCard({ ...card, statusPub: "agendado", erroPub: undefined });
+  }
+
+  /** Cancela o agendamento automatico (volta ao estado normal). */
+  function cancelarAuto() {
+    atualizarCard({ ...card, statusPub: undefined, erroPub: undefined });
+  }
+
   // Estabiliza o onFechar do teleprompter para nao recriar o listener de Esc.
   const fecharTeleprompter = useCallback(() => setTeleprompterAberto(false), []);
 
@@ -189,6 +201,17 @@ export default function ModalCard({
     : LIMITE_LEGENDA_PADRAO;
   const totalLegenda = card.legenda.length;
   const legendaExcedida = totalLegenda > limiteLegenda;
+
+  // Pre-condicoes para a publicacao automatica (Meta cuida so de FB e IG).
+  const temCanalMeta = card.canais.some((c) => c === "facebook" || c === "instagram");
+  const temMidia = (card.midiaUrl ?? "").trim() !== "";
+  const temQuando = !!card.dataPublicacao && !!card.horaPublicacao;
+  const podeAgendar = temCanalMeta && temMidia && temQuando;
+  const faltam = [
+    !temCanalMeta && "marque Facebook ou Instagram",
+    !temMidia && "cole o link da midia",
+    !temQuando && "defina data e horario",
+  ].filter(Boolean) as string[];
 
   return (
     <>
@@ -437,44 +460,72 @@ export default function ModalCard({
                 />
               </Campo>
 
-              {/* Publicacao automatica (FB/IG): por enquanto guarda os dados; o robô
-                  de publicacao entra na proxima fase, junto com a integracao Meta. */}
-              <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 sm:col-span-2">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-                  Publicacao automatica (Facebook e Instagram)
-                </p>
-                <p className="mb-3 text-xs text-marca-cinza">
-                  Cole o link publico da midia (imagem ou video). Com data, horario e canais
-                  preenchidos, o post sera publicado sozinho quando a integracao com a Meta
-                  estiver ligada.
-                </p>
-                <Campo rotulo="Link da midia (imagem ou video)">
-                  <input
-                    type="url"
-                    value={card.midiaUrl ?? ""}
-                    onChange={(e) => atualizarCampo("midiaUrl", e.target.value)}
-                    className={inputClasse}
-                    placeholder="https://..."
-                  />
-                </Campo>
-                {card.statusPub && (
-                  <p
-                    className="mt-2 text-xs font-semibold"
-                    style={{
-                      color:
-                        card.statusPub === "erro"
-                          ? "#EC1313"
-                          : card.statusPub === "publicado"
-                            ? "#16A34A"
-                            : "#044B8C",
-                    }}
-                  >
-                    {card.statusPub === "agendado" && "Agendado para auto-publicacao."}
-                    {card.statusPub === "publicado" && "Publicado automaticamente."}
-                    {card.statusPub === "erro" && `Falha ao publicar: ${card.erroPub ?? ""}`}
+              {/* Publicacao automatica (FB/IG): o robo publica no horario agendado. */}
+              {card.tipo !== "projeto" && (
+                <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 sm:col-span-2">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+                    Publicacao automatica (Facebook e Instagram)
                   </p>
-                )}
-              </div>
+                  <p className="mb-3 text-xs text-marca-cinza">
+                    Cole o link publico da midia (imagem ou video), marque os canais e defina
+                    data e horario. O robo publica sozinho no horario marcado.
+                  </p>
+                  <Campo rotulo="Link da midia (imagem ou video)">
+                    <input
+                      type="url"
+                      value={card.midiaUrl ?? ""}
+                      onChange={(e) => atualizarCampo("midiaUrl", e.target.value)}
+                      className={inputClasse}
+                      placeholder="https://..."
+                    />
+                  </Campo>
+
+                  {/* Acao de agendamento conforme o status atual */}
+                  <div className="mt-3 border-t border-marca-cinza/20 pt-3">
+                    {card.statusPub === "publicado" ? (
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-marca-verde">
+                        <CheckCircle2 size={14} aria-hidden />
+                        Publicado automaticamente
+                        {card.postadoEm ? ` em ${formatarData(card.postadoEm.slice(0, 10))}` : ""}.
+                      </p>
+                    ) : card.statusPub === "agendado" ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-marca-azulClaro">
+                          <Clock size={14} aria-hidden />
+                          Agendado para {formatarData(card.dataPublicacao)} as {card.horaPublicacao}.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={cancelarAuto}
+                          className="rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-xs font-semibold text-marca-cinza transition hover:text-marca-azulEscuro"
+                        >
+                          Cancelar agendamento
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        {card.statusPub === "erro" && (
+                          <p className="mb-2 text-xs font-semibold text-marca-vermelho">
+                            Falha ao publicar: {card.erroPub}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={agendarAuto}
+                          disabled={!podeAgendar}
+                          className="flex items-center gap-1.5 rounded-marca bg-marca-azulEscuro px-3 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Send size={15} aria-hidden />
+                          {card.statusPub === "erro" ? "Tentar de novo" : "Agendar publicacao automatica"}
+                        </button>
+                        {!podeAgendar && (
+                          <p className="mt-1.5 text-xs text-marca-cinza">Para agendar: {faltam.join(", ")}.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

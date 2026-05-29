@@ -29,6 +29,9 @@ export type Marca = "brusoft" | "evotalks";
 // Tipo de campanha: a geral (sempre rodando) e a bimestral (por periodo).
 export type TipoCampanha = "geral" | "bimestral";
 
+// Situacao da campanha. Arquivada = concluida (terminou bem) ou cancelada.
+export type StatusCampanha = "ativa" | "concluida" | "cancelada";
+
 /** Campanha: agrupa os conteudos. O quadro Kanban vive dentro de uma campanha. */
 export interface Campanha {
   id: string;
@@ -38,6 +41,8 @@ export interface Campanha {
   descricao?: string;
   inicio?: string; // data ISO (yyyy-mm-dd)
   fim?: string; // data ISO (yyyy-mm-dd)
+  status?: StatusCampanha; // ausente = "ativa" (compatibilidade com dados antigos)
+  arquivadaEm?: string; // ISO datetime de quando foi arquivada (concluida/cancelada)
   criadoEm: string; // ISO datetime
   atualizadoEm: string; // ISO datetime
 }
@@ -105,3 +110,6 @@ export interface FiltrosState {
 
 /** Filtro de marca na tela inicial de campanhas. */
 export type MarcaFiltro = Marca | "todas";
+
+/** Filtro de situacao na tela inicial de campanhas. */
+export type StatusFiltro = "ativas" | "arquivadas" | "todas";

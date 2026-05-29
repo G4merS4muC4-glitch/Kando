@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CalendarDays } from "lucide-react";
+import { LayoutGrid, CalendarDays, BarChart3 } from "lucide-react";
 import BotaoSair from "./BotaoSair";
 
 /**
@@ -13,6 +13,7 @@ export default function Topo() {
   const caminho = usePathname();
   const naInicial = caminho === "/";
   const noCalendario = caminho?.startsWith("/calendario");
+  const noMetricas = caminho?.startsWith("/metricas");
 
   return (
     <header className="sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md">
@@ -49,6 +50,13 @@ export default function Topo() {
               icone={<CalendarDays size={16} aria-hidden />}
             >
               Calendario
+            </LinkNav>
+            <LinkNav
+              href="/metricas"
+              ativo={!!noMetricas}
+              icone={<BarChart3 size={16} aria-hidden />}
+            >
+              Metricas
             </LinkNav>
           </nav>
           <BotaoSair />

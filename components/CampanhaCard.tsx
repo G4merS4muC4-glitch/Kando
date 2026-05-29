@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Pencil, FileStack, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
-import { TIPOS_CAMPANHA } from "@/lib/config";
+import { STATUS_CAMPANHA, TIPOS_CAMPANHA, campanhaArquivada } from "@/lib/config";
 import type { Campanha, CardConteudo } from "@/lib/types";
 import { formatarData, prazoVencido } from "@/lib/util";
 import MarcaBadge from "./MarcaBadge";
@@ -26,6 +26,8 @@ export default function CampanhaCard({
   const progresso = total > 0 ? Math.round((postados / total) * 100) : 0;
   const tipoConf = TIPOS_CAMPANHA[campanha.tipo];
   const IconeTipo = tipoConf.icone;
+  const status = campanha.status ?? "ativa";
+  const arquivada = campanhaArquivada(status);
 
   const periodo =
     campanha.inicio && campanha.fim
@@ -37,11 +39,27 @@ export default function CampanhaCard({
   return (
     <Link
       href={`/campanha/${campanha.id}`}
-      className="group flex flex-col rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card outline-none transition hover:-translate-y-0.5 hover:shadow-cardHover focus-visible:ring-2 focus-visible:ring-marca-laranja"
+      className={`group flex flex-col rounded-marca border bg-white p-4 shadow-card outline-none transition hover:-translate-y-0.5 hover:shadow-cardHover focus-visible:ring-2 focus-visible:ring-marca-laranja ${
+        arquivada ? "border-marca-cinza/30 opacity-75 hover:opacity-100" : "border-marca-cinza/30"
+      }`}
     >
-      {/* Topo: marca e editar */}
+      {/* Topo: marca, situacao e editar */}
       <div className="mb-3 flex items-start justify-between gap-2">
-        <MarcaBadge marca={campanha.marca} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <MarcaBadge marca={campanha.marca} />
+          {arquivada && (
+            <span
+              className="inline-flex items-center gap-1 rounded-marca px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: STATUS_CAMPANHA[status].cor }}
+            >
+              {(() => {
+                const Icone = STATUS_CAMPANHA[status].icone;
+                return <Icone size={11} aria-hidden />;
+              })()}
+              {STATUS_CAMPANHA[status].label}
+            </span>
+          )}
+        </div>
         <button
           type="button"
           aria-label="Editar campanha"

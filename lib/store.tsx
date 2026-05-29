@@ -18,6 +18,7 @@ import type {
   CardConteudo,
   Etapa,
   Marca,
+  StatusCampanha,
   TipoCampanha,
   TipoConteudo,
 } from "./types";
@@ -38,6 +39,7 @@ type Acao =
   | { tipo: "INICIALIZAR"; board: Board }
   | { tipo: "ADD_CAMPANHA"; campanha: Campanha }
   | { tipo: "UPD_CAMPANHA"; campanha: Campanha }
+  | { tipo: "STATUS_CAMPANHA"; id: string; status: StatusCampanha }
   | { tipo: "DEL_CAMPANHA"; id: string }
   | { tipo: "ADD_CARD"; card: CardConteudo }
   | { tipo: "UPD_CARD"; card: CardConteudo }
@@ -59,6 +61,22 @@ function reducer(estado: Board, acao: Acao): Board {
         ...estado,
         campanhas: estado.campanhas.map((c) =>
           c.id === acao.campanha.id ? { ...acao.campanha, atualizadoEm: agora() } : c
+        ),
+      };
+
+    case "STATUS_CAMPANHA":
+      // Arquiva (concluida/cancelada) ou reabre (ativa) uma campanha.
+      return {
+        ...estado,
+        campanhas: estado.campanhas.map((c) =>
+          c.id === acao.id
+            ? {
+                ...c,
+                status: acao.status,
+                arquivadaEm: acao.status === "ativa" ? undefined : agora(),
+                atualizadoEm: agora(),
+              }
+            : c
         ),
       };
 
@@ -270,6 +288,8 @@ interface BoardStore {
   // Campanhas
   adicionarCampanha: (parcial?: Partial<Campanha>) => Campanha;
   atualizarCampanha: (campanha: Campanha) => void;
+  arquivarCampanha: (id: string, status: "concluida" | "cancelada") => void;
+  reabrirCampanha: (id: string) => void;
   excluirCampanha: (id: string) => void;
   campanhaPorId: (id: string) => Campanha | undefined;
   // Cards
@@ -387,6 +407,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     dispatch({ tipo: "UPD_CAMPANHA", campanha });
   }, []);
 
+  const arquivarCampanha = useCallback((id: string, status: "concluida" | "cancelada") => {
+    dispatch({ tipo: "STATUS_CAMPANHA", id, status });
+  }, []);
+
+  const reabrirCampanha = useCallback((id: string) => {
+    dispatch({ tipo: "STATUS_CAMPANHA", id, status: "ativa" });
+  }, []);
+
   const excluirCampanha = useCallback((id: string) => {
     dispatch({ tipo: "DEL_CAMPANHA", id });
   }, []);
@@ -459,6 +487,8 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       erroCarregar,
       adicionarCampanha,
       atualizarCampanha,
+      arquivarCampanha,
+      reabrirCampanha,
       excluirCampanha,
       adicionarCard,
       adicionarCardCompleto,
@@ -478,6 +508,8 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       erroCarregar,
       adicionarCampanha,
       atualizarCampanha,
+      arquivarCampanha,
+      reabrirCampanha,
       excluirCampanha,
       adicionarCard,
       adicionarCardCompleto,

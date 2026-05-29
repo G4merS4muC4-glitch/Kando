@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Trash2, Save } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM, TIPOS_CAMPANHA, TIPOS_CAMPANHA_ORDEM } from "@/lib/config";
+import { X, Trash2, Save, CheckCircle2, Ban, RotateCcw } from "lucide-react";
+import {
+  MARCAS,
+  MARCAS_ORDEM,
+  STATUS_CAMPANHA,
+  TIPOS_CAMPANHA,
+  TIPOS_CAMPANHA_ORDEM,
+  campanhaArquivada,
+} from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import type { Campanha, Marca, TipoCampanha } from "@/lib/types";
 
@@ -22,8 +29,11 @@ export default function ModalCampanha({
   onFechar: () => void;
   onCriada?: (marca: Marca) => void; // avisa a marca da campanha recem-criada
 }) {
-  const { adicionarCampanha, atualizarCampanha, excluirCampanha } = useBoard();
+  const { adicionarCampanha, atualizarCampanha, arquivarCampanha, reabrirCampanha, excluirCampanha } =
+    useBoard();
   const editando = Boolean(campanha);
+  const status = campanha?.status ?? "ativa";
+  const arquivada = campanhaArquivada(status);
 
   const [nome, setNome] = useState(campanha?.nome ?? "");
   const [marca, setMarca] = useState<Marca>(campanha?.marca ?? "brusoft");
@@ -173,6 +183,69 @@ export default function ModalCampanha({
               />
             </Campo>
           </div>
+
+          {/* Situacao: concluir, cancelar (arquivar) ou reabrir a campanha. */}
+          {editando && campanha && (
+            <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+                Situacao da campanha
+              </p>
+              {arquivada ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-marca px-2 py-1 text-xs font-bold uppercase tracking-wide text-white"
+                    style={{ backgroundColor: STATUS_CAMPANHA[status].cor }}
+                  >
+                    {(() => {
+                      const Icone = STATUS_CAMPANHA[status].icone;
+                      return <Icone size={13} aria-hidden />;
+                    })()}
+                    {STATUS_CAMPANHA[status].label}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reabrirCampanha(campanha.id);
+                      onFechar();
+                    }}
+                    className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-sm font-semibold text-marca-azulEscuro transition hover:bg-white"
+                  >
+                    <RotateCcw size={15} aria-hidden />
+                    Reabrir campanha
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      arquivarCampanha(campanha.id, "concluida");
+                      onFechar();
+                    }}
+                    className="flex items-center gap-1.5 rounded-marca bg-marca-verde px-3 py-1.5 text-sm font-bold text-white transition hover:bg-marca-verdeEscuro"
+                  >
+                    <CheckCircle2 size={15} aria-hidden />
+                    Concluir e arquivar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      arquivarCampanha(campanha.id, "cancelada");
+                      onFechar();
+                    }}
+                    className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-sm font-semibold text-marca-cinza transition hover:text-marca-azulEscuro"
+                  >
+                    <Ban size={15} aria-hidden />
+                    Cancelar campanha
+                  </button>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-marca-cinza">
+                Arquivar tira a campanha da lista de ativas, sem apagar nada. Da para reabrir quando
+                quiser.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Rodape */}

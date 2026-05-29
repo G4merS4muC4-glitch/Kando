@@ -111,6 +111,23 @@ Observacao: o plano gratis da Vercel (Hobby) e voltado a uso pessoal; para uso
 comercial o indicado e o plano Pro. Alternativas gratuitas: Cloudflare Pages ou
 Netlify.
 
+## Publicar direto no Facebook e Instagram (automatico)
+
+Os cards podem ser publicados sozinhos no horario agendado, no Facebook e no
+Instagram. No card (aba Visao Geral, secao "Publicacao automatica") voce marca
+os canais, cola o link publico da midia, define data e horario e clica em
+"Agendar publicacao automatica" (o card fica com status "agendado").
+
+Um robo no Supabase (Edge Function `supabase/functions/publicar-posts`, chamado
+pelo agendador `supabase/cron.sql` a cada 5 minutos) verifica os cards agendados
+cujo horario chegou e publica via Graph API da Meta. Ao publicar, o card vira
+"Publicado" (verde); se falhar, mostra o motivo para tentar de novo.
+
+A configuracao do app da Meta e dos tokens (passo manual, feito uma vez) esta no
+guia **`META_SETUP.md`**. Os tokens ficam apenas nos secrets das Edge Functions,
+nunca no app nem no banco acessado pelo time. LinkedIn e YouTube nao entram nesta
+automacao.
+
 ## Migrar para um banco relacional no futuro
 
 Hoje o quadro inteiro e salvo como um documento JSON (simples e ideal para um
