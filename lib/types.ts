@@ -44,6 +44,10 @@ export interface CardConteudo {
   etapa: Etapa;
   tema?: string; // campanha ou tema (ex: "Ciberseguranca")
   dataPublicacao?: string; // data ISO (yyyy-mm-dd)
+  horaPublicacao?: string; // "HH:MM" do post (combina com dataPublicacao na auto-publicacao)
+  midiaUrl?: string; // link publico da imagem/video (necessario para publicar no FB/IG)
+  statusPub?: "agendado" | "publicado" | "erro"; // status da auto-publicacao
+  erroPub?: string; // mensagem da ultima falha de publicacao
   briefing: string; // objetivo, publico, gancho, CTA
   roteiro: string; // fala do Reels ou estrutura dos slides do carrossel
   legenda: string; // legenda final do post

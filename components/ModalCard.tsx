@@ -386,6 +386,54 @@ export default function ModalCard({
                   </p>
                 )}
               </Campo>
+
+              <Campo rotulo="Horario (auto-publicacao)">
+                <input
+                  type="time"
+                  value={card.horaPublicacao ?? ""}
+                  onChange={(e) => atualizarCampo("horaPublicacao", e.target.value)}
+                  className={inputClasse}
+                />
+              </Campo>
+
+              {/* Publicacao automatica (FB/IG): por enquanto guarda os dados; o robô
+                  de publicacao entra na proxima fase, junto com a integracao Meta. */}
+              <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 sm:col-span-2">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+                  Publicacao automatica (Facebook e Instagram)
+                </p>
+                <p className="mb-3 text-xs text-marca-cinza">
+                  Cole o link publico da midia (imagem ou video). Com data, horario e canais
+                  preenchidos, o post sera publicado sozinho quando a integracao com a Meta
+                  estiver ligada.
+                </p>
+                <Campo rotulo="Link da midia (imagem ou video)">
+                  <input
+                    type="url"
+                    value={card.midiaUrl ?? ""}
+                    onChange={(e) => atualizarCampo("midiaUrl", e.target.value)}
+                    className={inputClasse}
+                    placeholder="https://..."
+                  />
+                </Campo>
+                {card.statusPub && (
+                  <p
+                    className="mt-2 text-xs font-semibold"
+                    style={{
+                      color:
+                        card.statusPub === "erro"
+                          ? "#EC1313"
+                          : card.statusPub === "publicado"
+                            ? "#16A34A"
+                            : "#044B8C",
+                    }}
+                  >
+                    {card.statusPub === "agendado" && "Agendado para auto-publicacao."}
+                    {card.statusPub === "publicado" && "Publicado automaticamente."}
+                    {card.statusPub === "erro" && `Falha ao publicar: ${card.erroPub ?? ""}`}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

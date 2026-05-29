@@ -216,6 +216,8 @@ function criarCardVazio(campanhaId: string, etapa: Etapa): CardConteudo {
     etapa,
     tema: "",
     dataPublicacao: undefined,
+    horaPublicacao: "",
+    midiaUrl: "",
     briefing: "",
     roteiro: "",
     legenda: "",
