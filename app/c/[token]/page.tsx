@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Lock, MonitorPlay, Check, Loader2, AlertTriangle, Calendar, User } from "lucide-react";
+import {
+  Lock,
+  MonitorPlay,
+  Check,
+  Loader2,
+  AlertTriangle,
+  Calendar,
+  User,
+  ChevronRight,
+} from "lucide-react";
 import { CANAIS, MARCAS } from "@/lib/config";
 import { formatarData } from "@/lib/util";
 import { faseProgresso } from "@/lib/projeto";
@@ -23,8 +32,9 @@ type Estado =
 
 type Salvamento = "idle" | "salvando" | "salvo" | "erro";
 
-/** Painel publico do visitante (sem login). Mostra um ou varios cards (com
- *  seletor) e, se permitido, deixa editar o teleprompter de cada um. */
+/** Painel publico do visitante (sem login). Um ou varios cards: no desktop uma
+ *  barra lateral com a lista e o conteudo ao lado; no mobile, cards empilhados
+ *  que expandem ao tocar. */
 export default function PaginaVisitante() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
@@ -65,7 +75,6 @@ export default function PaginaVisitante() {
     void carregar();
   }, [carregar]);
 
-  // Ao trocar de card, zera o aviso de salvamento.
   useEffect(() => {
     setSalvando("idle");
   }, [selecionadoId]);
@@ -92,8 +101,7 @@ export default function PaginaVisitante() {
     }
   }
 
-  function onMudarTp(v: string) {
-    const cardId = selecionadoId;
+  function onMudarTp(cardId: string, v: string) {
     setTpPorCard((m) => ({ ...m, [cardId]: v }));
     if (!edicao) return;
     setSalvando("salvando");
@@ -175,168 +183,72 @@ export default function PaginaVisitante() {
     );
   }
 
-  const card = cards.find((c) => c.id === selecionadoId) ?? cards[0];
-  const tpTexto = tpPorCard[card.id] ?? card.teleprompter ?? "";
-  const textoTp = tpTexto || card.teleprompter || card.roteiro || "";
+  const selecionado = cards.find((c) => c.id === selecionadoId) ?? cards[0];
+  const textoTpSel = tpPorCard[selecionado.id] ?? selecionado.teleprompter ?? "";
+  const textoTpCheio = textoTpSel || selecionado.teleprompter || selecionado.roteiro || "";
+  const umCard = cards.length === 1;
+
+  function conteudoDe(card: CardPublico) {
+    return (
+      <ConteudoCard
+        card={card}
+        cor={cor}
+        edicao={edicao}
+        tpTexto={tpPorCard[card.id] ?? card.teleprompter ?? ""}
+        salvando={salvando}
+        onMudarTp={(v) => onMudarTp(card.id, v)}
+        onAbrirTp={() => setTpAberto(true)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-marca-branco">
       <div className="h-1.5 w-full" style={{ backgroundColor: cor }} />
-      <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
-        <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-marca-cinza">
+      <div className={`mx-auto px-4 py-6 sm:px-6 ${umCard ? "max-w-2xl" : "max-w-5xl"}`}>
+        <div className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-marca-cinza">
           <span style={{ color: cor }}>Kando</span>
           <span>por {MARCAS[marca]?.label ?? "Brusoft"}</span>
+          {!umCard && <span className="text-marca-cinza/60">- {cards.length} cards</span>}
         </div>
 
-        {/* Seletor de cards quando ha mais de um */}
-        {cards.length > 1 && (
-          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-            {cards.map((c) => {
-              const ativo = c.id === card.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setSelecionadoId(c.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-marca border px-2.5 py-1.5 text-sm font-medium transition ${
-                    ativo
-                      ? "border-transparent text-white"
-                      : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
-                  }`}
-                  style={ativo ? { backgroundColor: cor } : undefined}
-                >
-                  <BadgeTipo tipo={c.tipo} tamanho="pequeno" />
-                  <span className="max-w-[40vw] truncate">{c.titulo || "Sem titulo"}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <BadgeTipo tipo={card.tipo} />
-          <h1 className="text-xl font-bold leading-tight text-marca-azulEscuro">
-            {card.titulo || "Sem titulo"}
-          </h1>
-        </div>
-
-        {card.visaoGeral && (
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-marca-cinza">
-            {card.visaoGeral.canais.length > 0 && (
-              <span className="flex items-center gap-1.5">
-                {card.visaoGeral.canais.map((canal) => {
-                  const Icone = CANAIS[canal]?.icone;
-                  return Icone ? (
-                    <Icone key={canal} size={16} style={{ color: CANAIS[canal].cor }} aria-label={CANAIS[canal].label} />
-                  ) : null;
-                })}
-              </span>
-            )}
-            {card.visaoGeral.dataPublicacao && (
-              <span className="flex items-center gap-1">
-                <Calendar size={14} aria-hidden /> {formatarData(card.visaoGeral.dataPublicacao)}
-              </span>
-            )}
-            {card.visaoGeral.responsavel && (
-              <span className="flex items-center gap-1">
-                <User size={14} aria-hidden /> {card.visaoGeral.responsavel}
-              </span>
-            )}
-            {card.visaoGeral.tema && (
-              <span className="rounded-marca border border-marca-cinza/40 bg-white px-2 py-0.5 text-xs text-marca-azulClaro">
-                {card.visaoGeral.tema}
-              </span>
-            )}
-          </div>
-        )}
-
-        {card.briefing !== undefined && <Bloco titulo="Briefing" texto={card.briefing} />}
-        {card.roteiro !== undefined && <Bloco titulo="Roteiro" texto={card.roteiro} />}
-
-        {card.teleprompter !== undefined && (
-          <section className="mb-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-                Teleprompter
-              </span>
-              <button
-                type="button"
-                onClick={() => setTpAberto(true)}
-                disabled={!textoTp.trim()}
-                className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95 disabled:opacity-40"
-              >
-                <MonitorPlay size={15} aria-hidden /> Teleprompter
-              </button>
+        {umCard ? (
+          conteudoDe(selecionado)
+        ) : (
+          <>
+            {/* DESKTOP: barra lateral de cards + conteudo ao lado */}
+            <div className="hidden sm:flex sm:gap-5">
+              <aside className="w-64 shrink-0 space-y-2">
+                {cards.map((c) => (
+                  <ItemLista
+                    key={c.id}
+                    card={c}
+                    ativo={c.id === selecionado.id}
+                    cor={cor}
+                    onClick={() => setSelecionadoId(c.id)}
+                  />
+                ))}
+              </aside>
+              <div className="min-w-0 flex-1">{conteudoDe(selecionado)}</div>
             </div>
-            {edicao ? (
-              <>
-                <textarea
-                  value={tpTexto}
-                  onChange={(e) => onMudarTp(e.target.value)}
-                  placeholder="Ajuste as falas aqui."
-                  className="min-h-[220px] w-full resize-y rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-base leading-loose text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
-                />
-                <div className="mt-1.5 flex items-center justify-between text-xs text-marca-cinza">
-                  <span>Os ajustes refletem para o time.</span>
-                  <span className="flex items-center gap-1">
-                    {salvando === "salvando" && "Salvando..."}
-                    {salvando === "salvo" && (
-                      <>
-                        <Check size={13} aria-hidden className="text-marca-verde" /> Salvo
-                      </>
-                    )}
-                    {salvando === "erro" && <span className="text-marca-vermelho">Erro ao salvar</span>}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <p className="whitespace-pre-wrap rounded-marca border border-marca-cinza/30 bg-white px-3 py-3 text-base leading-loose text-marca-preto">
-                {textoTp.trim() || "Sem texto."}
-              </p>
-            )}
-          </section>
-        )}
 
-        {card.legenda !== undefined && <Bloco titulo="Legenda" texto={card.legenda} />}
-
-        {card.projeto && card.projeto.fases.length > 0 && (
-          <section className="mb-4">
-            <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-              Fluxo de producao
-            </span>
-            <div className="space-y-3">
-              {card.projeto.fases.map((fase) => {
-                const p = faseProgresso(fase);
-                return (
-                  <div key={fase.id} className="rounded-marca border border-marca-cinza/30 bg-white p-3">
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className="text-sm font-bold text-marca-azulEscuro">{fase.nome}</span>
-                      <span className="text-[11px] text-marca-cinza">{p.feitas}/{p.total}</span>
-                    </div>
-                    <ul className="space-y-1">
-                      {fase.tarefas.map((t) => (
-                        <li key={t.id} className="flex items-center gap-2 text-sm">
-                          <span
-                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-white ${
-                              t.feita ? "border-marca-verde bg-marca-verde" : "border-marca-cinza/50"
-                            }`}
-                          >
-                            {t.feita && <Check size={11} strokeWidth={3} aria-hidden />}
-                          </span>
-                          <span className={t.feita ? "text-marca-cinza line-through" : "text-marca-preto"}>
-                            {t.texto || "Tarefa"}
-                          </span>
-                        </li>
-                      ))}
-                      {fase.tarefas.length === 0 && (
-                        <li className="text-xs text-marca-cinza/70">Sem tarefas.</li>
-                      )}
-                    </ul>
+            {/* MOBILE: cards empilhados; o ativo expande mostrando o conteudo */}
+            <div className="space-y-2 sm:hidden">
+              {cards.map((c) =>
+                c.id === selecionado.id ? (
+                  <div
+                    key={c.id}
+                    className="rounded-marca border-2 bg-white p-3 animate-slideUp"
+                    style={{ borderColor: cor }}
+                  >
+                    {conteudoDe(c)}
                   </div>
-                );
-              })}
+                ) : (
+                  <ItemLista key={c.id} card={c} ativo={false} cor={cor} onClick={() => setSelecionadoId(c.id)} />
+                )
+              )}
             </div>
-          </section>
+          </>
         )}
 
         <p className="mt-6 text-center text-[11px] text-marca-cinza/70">
@@ -344,7 +256,187 @@ export default function PaginaVisitante() {
         </p>
       </div>
 
-      {tpAberto && <Teleprompter texto={textoTp} onFechar={() => setTpAberto(false)} />}
+      {tpAberto && <Teleprompter texto={textoTpCheio} onFechar={() => setTpAberto(false)} />}
+    </div>
+  );
+}
+
+/** Item clicavel da lista de cards (barra lateral no desktop, linha no mobile). */
+function ItemLista({
+  card,
+  ativo,
+  cor,
+  onClick,
+}: {
+  card: CardPublico;
+  ativo: boolean;
+  cor: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-marca border bg-white px-3 py-2.5 text-left transition ${
+        ativo ? "border-transparent shadow-card" : "border-marca-cinza/30 hover:border-marca-cinza/60"
+      }`}
+      style={ativo ? { borderColor: cor, boxShadow: `inset 0 0 0 1px ${cor}` } : undefined}
+    >
+      <BadgeTipo tipo={card.tipo} tamanho="pequeno" />
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-marca-preto">
+        {card.titulo || "Sem titulo"}
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-marca-cinza" aria-hidden />
+    </button>
+  );
+}
+
+/** Conteudo completo de um card (blocos liberados + edicao do teleprompter). */
+function ConteudoCard({
+  card,
+  cor,
+  edicao,
+  tpTexto,
+  salvando,
+  onMudarTp,
+  onAbrirTp,
+}: {
+  card: CardPublico;
+  cor: string;
+  edicao: boolean;
+  tpTexto: string;
+  salvando: Salvamento;
+  onMudarTp: (v: string) => void;
+  onAbrirTp: () => void;
+}) {
+  const textoTp = tpTexto || card.teleprompter || card.roteiro || "";
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <BadgeTipo tipo={card.tipo} />
+        <h1 className="text-xl font-bold leading-tight text-marca-azulEscuro">
+          {card.titulo || "Sem titulo"}
+        </h1>
+      </div>
+
+      {card.visaoGeral && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-marca-cinza">
+          {card.visaoGeral.canais.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              {card.visaoGeral.canais.map((canal) => {
+                const Icone = CANAIS[canal]?.icone;
+                return Icone ? (
+                  <Icone key={canal} size={16} style={{ color: CANAIS[canal].cor }} aria-label={CANAIS[canal].label} />
+                ) : null;
+              })}
+            </span>
+          )}
+          {card.visaoGeral.dataPublicacao && (
+            <span className="flex items-center gap-1">
+              <Calendar size={14} aria-hidden /> {formatarData(card.visaoGeral.dataPublicacao)}
+            </span>
+          )}
+          {card.visaoGeral.responsavel && (
+            <span className="flex items-center gap-1">
+              <User size={14} aria-hidden /> {card.visaoGeral.responsavel}
+            </span>
+          )}
+          {card.visaoGeral.tema && (
+            <span className="rounded-marca border border-marca-cinza/40 bg-white px-2 py-0.5 text-xs text-marca-azulClaro">
+              {card.visaoGeral.tema}
+            </span>
+          )}
+        </div>
+      )}
+
+      {card.briefing !== undefined && <Bloco titulo="Briefing" texto={card.briefing} />}
+      {card.roteiro !== undefined && <Bloco titulo="Roteiro" texto={card.roteiro} />}
+
+      {card.teleprompter !== undefined && (
+        <section className="mb-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+              Teleprompter
+            </span>
+            <button
+              type="button"
+              onClick={onAbrirTp}
+              disabled={!textoTp.trim()}
+              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95 disabled:opacity-40"
+            >
+              <MonitorPlay size={15} aria-hidden /> Teleprompter
+            </button>
+          </div>
+          {edicao ? (
+            <>
+              <textarea
+                value={tpTexto}
+                onChange={(e) => onMudarTp(e.target.value)}
+                placeholder="Ajuste as falas aqui."
+                className="min-h-[220px] w-full resize-y rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-base leading-loose text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
+              />
+              <div className="mt-1.5 flex items-center justify-between text-xs text-marca-cinza">
+                <span>Os ajustes refletem para o time.</span>
+                <span className="flex items-center gap-1">
+                  {salvando === "salvando" && "Salvando..."}
+                  {salvando === "salvo" && (
+                    <>
+                      <Check size={13} aria-hidden className="text-marca-verde" /> Salvo
+                    </>
+                  )}
+                  {salvando === "erro" && <span className="text-marca-vermelho">Erro ao salvar</span>}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="whitespace-pre-wrap rounded-marca border border-marca-cinza/30 bg-white px-3 py-3 text-base leading-loose text-marca-preto">
+              {textoTp.trim() || "Sem texto."}
+            </p>
+          )}
+        </section>
+      )}
+
+      {card.legenda !== undefined && <Bloco titulo="Legenda" texto={card.legenda} />}
+
+      {card.projeto && card.projeto.fases.length > 0 && (
+        <section className="mb-4">
+          <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+            Fluxo de producao
+          </span>
+          <div className="space-y-3">
+            {card.projeto.fases.map((fase) => {
+              const p = faseProgresso(fase);
+              return (
+                <div key={fase.id} className="rounded-marca border border-marca-cinza/30 bg-white p-3">
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-sm font-bold text-marca-azulEscuro">{fase.nome}</span>
+                    <span className="text-[11px] text-marca-cinza">{p.feitas}/{p.total}</span>
+                  </div>
+                  <ul className="space-y-1">
+                    {fase.tarefas.map((t) => (
+                      <li key={t.id} className="flex items-center gap-2 text-sm">
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-white ${
+                            t.feita ? "border-marca-verde bg-marca-verde" : "border-marca-cinza/50"
+                          }`}
+                        >
+                          {t.feita && <Check size={11} strokeWidth={3} aria-hidden />}
+                        </span>
+                        <span className={t.feita ? "text-marca-cinza line-through" : "text-marca-preto"}>
+                          {t.texto || "Tarefa"}
+                        </span>
+                      </li>
+                    ))}
+                    {fase.tarefas.length === 0 && (
+                      <li className="text-xs text-marca-cinza/70">Sem tarefas.</li>
+                    )}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
