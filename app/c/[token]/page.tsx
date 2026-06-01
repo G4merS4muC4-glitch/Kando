@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Lock, MonitorPlay, Check, Loader2, AlertTriangle, Calendar, User } from "lucide-react";
-import { CANAIS, MARCAS, TIPOS } from "@/lib/config";
+import { CANAIS, MARCAS } from "@/lib/config";
 import { formatarData } from "@/lib/util";
 import { faseProgresso } from "@/lib/projeto";
 import type { CardPublico } from "@/lib/share";
@@ -23,19 +23,20 @@ type Estado =
 
 type Salvamento = "idle" | "salvando" | "salvo" | "erro";
 
-/** Painel publico do visitante (sem login). Leitura dos blocos liberados e, se
- *  permitido, edicao do teleprompter com salvamento automatico. */
+/** Painel publico do visitante (sem login). Mostra um ou varios cards (com
+ *  seletor) e, se permitido, deixa editar o teleprompter de cada um. */
 export default function PaginaVisitante() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
 
   const [estado, setEstado] = useState<Estado>("carregando");
-  const [card, setCard] = useState<CardPublico | null>(null);
+  const [cards, setCards] = useState<CardPublico[]>([]);
+  const [selecionadoId, setSelecionadoId] = useState<string>("");
   const [edicao, setEdicao] = useState(false);
   const [marca, setMarca] = useState<Marca>("brusoft");
   const [pin, setPin] = useState("");
   const [pinErro, setPinErro] = useState<string | null>(null);
-  const [tpTexto, setTpTexto] = useState("");
+  const [tpPorCard, setTpPorCard] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState<Salvamento>("idle");
   const [tpAberto, setTpAberto] = useState(false);
   const timerSalvar = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,10 +47,14 @@ export default function PaginaVisitante() {
       const j = await res.json();
       setEstado(j.estado as Estado);
       if (j.estado === "ok") {
-        setCard(j.card as CardPublico);
+        const lista = (j.cards as CardPublico[]) ?? [];
+        setCards(lista);
+        setSelecionadoId(lista[0]?.id ?? "");
         setEdicao(Boolean(j.edicaoTeleprompter));
         setMarca((j.marca as Marca) ?? "brusoft");
-        setTpTexto((j.card?.teleprompter as string) ?? "");
+        const mapa: Record<string, string> = {};
+        for (const c of lista) if (typeof c.teleprompter === "string") mapa[c.id] = c.teleprompter;
+        setTpPorCard(mapa);
       }
     } catch {
       setEstado("erro");
@@ -59,6 +64,11 @@ export default function PaginaVisitante() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Ao trocar de card, zera o aviso de salvamento.
+  useEffect(() => {
+    setSalvando("idle");
+  }, [selecionadoId]);
 
   async function enviarPin(e: React.FormEvent) {
     e.preventDefault();
@@ -83,7 +93,8 @@ export default function PaginaVisitante() {
   }
 
   function onMudarTp(v: string) {
-    setTpTexto(v);
+    const cardId = selecionadoId;
+    setTpPorCard((m) => ({ ...m, [cardId]: v }));
     if (!edicao) return;
     setSalvando("salvando");
     if (timerSalvar.current) clearTimeout(timerSalvar.current);
@@ -92,7 +103,7 @@ export default function PaginaVisitante() {
         const res = await fetch(`/api/share/${token}/teleprompter`, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ texto: v }),
+          body: JSON.stringify({ cardId, texto: v }),
         });
         const j = await res.json();
         if (j.ok) setSalvando("salvo");
@@ -108,7 +119,6 @@ export default function PaginaVisitante() {
 
   const cor = MARCAS[marca]?.cor ?? "#FA611E";
 
-  // ----- Estados sem conteudo -----
   if (estado === "carregando") {
     return (
       <Centro>
@@ -146,7 +156,7 @@ export default function PaginaVisitante() {
       </Centro>
     );
   }
-  if (estado !== "ok" || !card) {
+  if (estado !== "ok" || cards.length === 0) {
     const msg =
       estado === "inexistente"
         ? "Link nao encontrado."
@@ -165,18 +175,44 @@ export default function PaginaVisitante() {
     );
   }
 
-  // ----- Conteudo liberado -----
+  const card = cards.find((c) => c.id === selecionadoId) ?? cards[0];
+  const tpTexto = tpPorCard[card.id] ?? card.teleprompter ?? "";
   const textoTp = tpTexto || card.teleprompter || card.roteiro || "";
 
   return (
     <div className="min-h-dvh bg-marca-branco">
-      {/* Faixa da marca */}
       <div className="h-1.5 w-full" style={{ backgroundColor: cor }} />
       <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
         <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-marca-cinza">
           <span style={{ color: cor }}>Kando</span>
           <span>por {MARCAS[marca]?.label ?? "Brusoft"}</span>
         </div>
+
+        {/* Seletor de cards quando ha mais de um */}
+        {cards.length > 1 && (
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            {cards.map((c) => {
+              const ativo = c.id === card.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelecionadoId(c.id)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-marca border px-2.5 py-1.5 text-sm font-medium transition ${
+                    ativo
+                      ? "border-transparent text-white"
+                      : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
+                  }`}
+                  style={ativo ? { backgroundColor: cor } : undefined}
+                >
+                  <BadgeTipo tipo={c.tipo} tamanho="pequeno" />
+                  <span className="max-w-[40vw] truncate">{c.titulo || "Sem titulo"}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <BadgeTipo tipo={card.tipo} />
           <h1 className="text-xl font-bold leading-tight text-marca-azulEscuro">
@@ -184,7 +220,6 @@ export default function PaginaVisitante() {
           </h1>
         </div>
 
-        {/* Visao geral */}
         {card.visaoGeral && (
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-marca-cinza">
             {card.visaoGeral.canais.length > 0 && (
@@ -218,7 +253,6 @@ export default function PaginaVisitante() {
         {card.briefing !== undefined && <Bloco titulo="Briefing" texto={card.briefing} />}
         {card.roteiro !== undefined && <Bloco titulo="Roteiro" texto={card.roteiro} />}
 
-        {/* Teleprompter (editavel ou leitura) */}
         {card.teleprompter !== undefined && (
           <section className="mb-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -265,7 +299,6 @@ export default function PaginaVisitante() {
 
         {card.legenda !== undefined && <Bloco titulo="Legenda" texto={card.legenda} />}
 
-        {/* Projeto (somente leitura) */}
         {card.projeto && card.projeto.fases.length > 0 && (
           <section className="mb-4">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">

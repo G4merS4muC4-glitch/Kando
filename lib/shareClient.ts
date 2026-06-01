@@ -15,7 +15,7 @@ import {
 export { supabaseConfigurado };
 
 export interface NovoShare {
-  cardId: string;
+  cardIds: string[]; // o primeiro e o card de origem
   campanhaId?: string;
   visibilidade: VisibilidadeShare;
   edicaoTeleprompter: boolean;
@@ -28,7 +28,8 @@ export async function criarCompartilhamento(p: NovoShare): Promise<Compartilhame
   const pinHash = p.pin && p.pin.trim() ? await hashPin(p.pin.trim()) : null;
   const linha = {
     token: gerarToken(),
-    card_id: p.cardId,
+    card_id: p.cardIds[0],
+    card_ids: p.cardIds,
     campanha_id: p.campanhaId ?? null,
     visibilidade: p.visibilidade,
     edicao_teleprompter: p.edicaoTeleprompter,

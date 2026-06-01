@@ -1,7 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { criarClienteAdmin, segredoAssinatura } from "@/lib/supabase/admin";
 import { pinCookieValido } from "@/lib/shareServer";
-import { estaExpirado, higienizarTexto, MAX_TELEPROMPTER, type CompartilhamentoCompleto } from "@/lib/share";
+import {
+  estaExpirado,
+  higienizarTexto,
+  idsDoShare,
+  MAX_TELEPROMPTER,
+  type CompartilhamentoCompleto,
+} from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (bruto.length > MAX_BODY) {
     return NextResponse.json({ ok: false, erro: "Texto muito grande." }, { status: 413 });
   }
-  let corpo: { texto?: unknown };
+  let corpo: { texto?: unknown; cardId?: unknown };
   try {
     corpo = bruto ? JSON.parse(bruto) : {};
   } catch {
@@ -35,6 +41,9 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   }
   if (typeof corpo.texto !== "string") {
     return NextResponse.json({ ok: false, erro: "Texto invalido." }, { status: 400 });
+  }
+  if (typeof corpo.cardId !== "string" || !corpo.cardId) {
+    return NextResponse.json({ ok: false, erro: "Card invalido." }, { status: 400 });
   }
 
   const { data } = await admin
@@ -59,6 +68,11 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     }
   }
 
+  // O card alvo precisa pertencer a ESTE link (nao confia no que o cliente manda).
+  if (!idsDoShare(s).includes(corpo.cardId)) {
+    return NextResponse.json({ ok: false, erro: "Card fora do compartilhamento." }, { status: 403 });
+  }
+
   // Limite de taxa atomico (so consome a cota DEPOIS de autorizar).
   const { data: permitido, error: erroLim } = await admin.rpc("consumir_escrita", {
     p_token: token,
@@ -75,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   const limpo = higienizarTexto(corpo.texto.slice(0, MAX_TELEPROMPTER + 1));
   const nowIso = new Date().toISOString();
   const { data: n, error } = await admin.rpc("ajustar_teleprompter", {
-    p_card_id: s.card_id,
+    p_card_id: corpo.cardId,
     p_texto: limpo,
     p_em: nowIso,
   });

@@ -8,7 +8,8 @@
 
 create table if not exists public.compartilhamentos (
   token text primary key,
-  card_id text not null,
+  card_id text not null, -- card de origem (onde o link foi criado); usado para listar
+  card_ids text[], -- todos os cards do link (multi-card); se vazio, usa card_id
   campanha_id text,
   -- flags de visibilidade por bloco do card
   visibilidade jsonb not null default '{}'::jsonb,
@@ -25,6 +26,9 @@ create table if not exists public.compartilhamentos (
   janela_inicio timestamptz,
   ultima_escrita timestamptz
 );
+
+-- Para tabelas ja criadas antes do multi-card: adiciona a coluna se faltar.
+alter table public.compartilhamentos add column if not exists card_ids text[];
 
 create index if not exists idx_compartilhamentos_card on public.compartilhamentos (card_id);
 

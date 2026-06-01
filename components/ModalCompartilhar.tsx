@@ -19,7 +19,9 @@ import {
   revogarCompartilhamento,
   supabaseConfigurado,
 } from "@/lib/shareClient";
+import { useBoard } from "@/lib/store";
 import type { CardConteudo } from "@/lib/types";
+import BadgeTipo from "./BadgeTipo";
 
 const inputClasse =
   "w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40";
@@ -33,6 +35,16 @@ export default function ModalCompartilhar({
   onFechar: () => void;
 }) {
   const disponivel = supabaseConfigurado();
+  const { cardsDaCampanha } = useBoard();
+  const cardsCampanha = cardsDaCampanha(card.campanhaId);
+  const [selecionados, setSelecionados] = useState<string[]>([card.id]);
+  const cardIds = [card.id, ...selecionados.filter((id) => id !== card.id)];
+
+  function alternarCard(id: string) {
+    if (id === card.id) return; // o card de origem fica sempre incluido
+    setSelecionados((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  }
+
   const [lista, setLista] = useState<Compartilhamento[]>([]);
   const [visibilidade, setVisibilidade] = useState<VisibilidadeShare>({ ...VISIBILIDADE_PADRAO });
   const [edicaoTeleprompter, setEdicao] = useState(false);
@@ -99,7 +111,7 @@ export default function ModalCompartilhar({
     try {
       const expiraEm = expiraData ? new Date(`${expiraData}T23:59:59`).toISOString() : undefined;
       const novo = await criarCompartilhamento({
-        cardId: card.id,
+        cardIds,
         campanhaId: card.campanhaId,
         visibilidade,
         edicaoTeleprompter,
@@ -173,6 +185,43 @@ export default function ModalCompartilhar({
             </p>
           ) : (
             <>
+              {/* Cards incluidos no link */}
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+                  Cards neste link ({cardIds.length})
+                </p>
+                <div className="max-h-44 space-y-1 overflow-y-auto rounded-marca border border-marca-cinza/30 p-1.5">
+                  {cardsCampanha.map((c) => {
+                    const ehOrigem = c.id === card.id;
+                    const marcado = ehOrigem || selecionados.includes(c.id);
+                    return (
+                      <label
+                        key={c.id}
+                        className={`flex items-center gap-2 rounded-marca px-2 py-1.5 text-sm ${
+                          marcado ? "bg-marca-laranja/5" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={marcado}
+                          disabled={ehOrigem}
+                          onChange={() => alternarCard(c.id)}
+                          className="h-4 w-4 accent-marca-laranja"
+                        />
+                        <BadgeTipo tipo={c.tipo} tamanho="pequeno" />
+                        <span className="min-w-0 flex-1 truncate text-marca-preto">
+                          {c.titulo || "Sem titulo"}
+                        </span>
+                        {ehOrigem && <span className="shrink-0 text-[10px] text-marca-cinza">este</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-xs text-marca-cinza">
+                  Marque outros cards desta campanha para incluir no mesmo link.
+                </p>
+              </div>
+
               {/* Visibilidade por bloco */}
               <div>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">

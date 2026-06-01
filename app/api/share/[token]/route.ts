@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { criarClienteAdmin, segredoAssinatura } from "@/lib/supabase/admin";
 import { pinCookieValido } from "@/lib/shareServer";
-import { cardVisivel, estaExpirado, type CompartilhamentoCompleto } from "@/lib/share";
+import { cardVisivel, estaExpirado, idsDoShare, type CompartilhamentoCompleto } from "@/lib/share";
 import type { Board } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,14 +40,23 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     .eq("id", "principal")
     .maybeSingle();
   const board = (row?.dados ?? null) as Board | null;
-  const card = board?.cards.find((c) => c.id === s.card_id);
-  if (!card) return NextResponse.json({ estado: "inexistente" });
-  const campanha = board?.campanhas.find((c) => c.id === card.campanhaId);
+
+  const ids = idsDoShare(s);
+  // Mantem a ordem escolhida no link e descarta ids que nao existem mais.
+  const cards = ids
+    .map((id) => board?.cards.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .map((c) => cardVisivel(c, s.visibilidade));
+  if (cards.length === 0) return NextResponse.json({ estado: "inexistente" });
+
+  // Marca pela campanha do primeiro card encontrado.
+  const primeiro = board?.cards.find((c) => c.id === cards[0].id);
+  const campanha = board?.campanhas.find((c) => c.id === primeiro?.campanhaId);
 
   return NextResponse.json({
     estado: "ok",
     edicaoTeleprompter: s.edicao_teleprompter,
     marca: campanha?.marca ?? "brusoft",
-    card: cardVisivel(card, s.visibilidade),
+    cards,
   });
 }

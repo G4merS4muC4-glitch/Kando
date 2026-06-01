@@ -38,7 +38,8 @@ export const VISIBILIDADE_PADRAO: VisibilidadeShare = {
 /** Linha da tabela compartilhamentos (como vem do Supabase). */
 export interface Compartilhamento {
   token: string;
-  card_id: string;
+  card_id: string; // card de origem (onde foi criado)
+  card_ids: string[] | null; // todos os cards do link; se vazio, usa [card_id]
   campanha_id: string | null;
   visibilidade: VisibilidadeShare;
   edicao_teleprompter: boolean;
@@ -57,8 +58,15 @@ export interface CompartilhamentoCompleto extends Compartilhamento {
   ultima_escrita: string | null;
 }
 
+/** Lista de cards do compartilhamento (multi-card ou, no legado, o card_id). */
+export function idsDoShare(s: { card_ids: string[] | null; card_id: string }): string[] {
+  if (s.card_ids && s.card_ids.length > 0) return s.card_ids;
+  return s.card_id ? [s.card_id] : [];
+}
+
 /** Card filtrado para exibicao publica (so os blocos liberados). */
 export interface CardPublico {
+  id: string; // id do card (o visitante usa para editar o teleprompter certo)
   titulo: string;
   tipo: TipoConteudo;
   visaoGeral?: { canais: Canal[]; tema?: string; dataPublicacao?: string; responsavel?: string };
@@ -143,7 +151,7 @@ export function estaExpirado(expiraEm: string | null | undefined): boolean {
 
 /** Reduz o card aos blocos liberados (usado pelo endpoint publico). */
 export function cardVisivel(card: CardConteudo, vis: VisibilidadeShare): CardPublico {
-  const pub: CardPublico = { titulo: card.titulo, tipo: card.tipo };
+  const pub: CardPublico = { id: card.id, titulo: card.titulo, tipo: card.tipo };
   if (vis.visaoGeral) {
     pub.visaoGeral = {
       canais: card.canais,
