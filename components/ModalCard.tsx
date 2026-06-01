@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Clock,
   CheckCircle2,
+  Share2,
 } from "lucide-react";
 import {
   CANAIS,
@@ -31,6 +32,7 @@ import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
 import AbaProjeto from "./projeto/AbaProjeto";
+import ModalCompartilhar from "./ModalCompartilhar";
 
 type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda";
 
@@ -64,6 +66,7 @@ export default function ModalCard({
   const [copiado, setCopiado] = useState(false);
   const [copiadoTp, setCopiadoTp] = useState(false);
   const [copiadoLegenda, setCopiadoLegenda] = useState(false);
+  const [compartilharAberto, setCompartilharAberto] = useState(false);
   const tituloRef = useRef<HTMLInputElement>(null);
 
   // Foca o titulo ao abrir e bloqueia o scroll do fundo.
@@ -190,6 +193,16 @@ export default function ModalCard({
     } catch {
       // Navegador sem permissao de clipboard: ignora silenciosamente.
     }
+  }
+
+  /** Desfaz um ajuste de teleprompter feito por um link de compartilhamento. */
+  function reverterTeleprompter() {
+    atualizarCard({
+      ...card,
+      teleprompter: card.teleprompterAnterior ?? "",
+      teleprompterAnterior: undefined,
+      teleprompterAjustadoEm: undefined,
+    });
   }
 
   const postado = card.etapa === "publicado";
@@ -606,6 +619,21 @@ export default function ModalCard({
                     </button>
                   </div>
                 </div>
+                {card.teleprompterAjustadoEm && (
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-marca border border-marca-azulClaro/40 bg-marca-azulClaro/5 px-3 py-2 text-xs">
+                    <span className="font-semibold text-marca-azulClaro">
+                      Teleprompter ajustado via compartilhamento em{" "}
+                      {new Date(card.teleprompterAjustadoEm).toLocaleString("pt-BR")}.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={reverterTeleprompter}
+                      className="flex items-center gap-1 rounded-marca border border-marca-cinza/40 px-2.5 py-1 font-semibold text-marca-azulEscuro transition hover:bg-white"
+                    >
+                      <RotateCcw size={13} aria-hidden /> Reverter
+                    </button>
+                  </div>
+                )}
                 <textarea
                   value={card.teleprompter ?? ""}
                   onChange={(e) => atualizarCampo("teleprompter", e.target.value)}
@@ -659,6 +687,17 @@ export default function ModalCard({
 
         {/* Rodape: salvar, excluir, fechar */}
         <div className="flex items-center justify-between gap-3 border-t border-marca-cinza/30 bg-marca-branco px-5 py-3">
+          <div className="flex items-center gap-2">
+          {!confirmandoExclusao && (
+            <button
+              type="button"
+              onClick={() => setCompartilharAberto(true)}
+              className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulClaro"
+            >
+              <Share2 size={16} aria-hidden />
+              Compartilhar
+            </button>
+          )}
           {confirmandoExclusao ? (
             <div className="flex items-center gap-2 text-sm">
               <span className="font-medium text-marca-preto">Excluir este conteudo?</span>
@@ -688,6 +727,7 @@ export default function ModalCard({
               Excluir
             </button>
           )}
+          </div>
 
           <div className="flex items-center gap-3">
             <span className="hidden items-center gap-1 text-xs text-marca-cinza sm:flex">
@@ -718,6 +758,10 @@ export default function ModalCard({
         texto={card.teleprompter?.trim() ? card.teleprompter : card.roteiro}
         onFechar={fecharTeleprompter}
       />
+    )}
+
+    {compartilharAberto && (
+      <ModalCompartilhar card={card} onFechar={() => setCompartilharAberto(false)} />
     )}
     </>
   );

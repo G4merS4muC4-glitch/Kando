@@ -14,7 +14,9 @@ import AvisoErroCarregar from "./AvisoErroCarregar";
 export default function AppShell({ children }: { children: ReactNode }) {
   const caminho = usePathname();
 
-  if (caminho === "/login") {
+  // Login e o painel publico do visitante (/c/...) nao tem navegacao nem o estado
+  // do quadro: renderizam so o conteudo.
+  if (caminho === "/login" || caminho.startsWith("/c/")) {
     return <>{children}</>;
   }
 

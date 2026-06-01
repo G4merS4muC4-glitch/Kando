@@ -7,6 +7,14 @@ import { createServerClient } from "@supabase/ssr";
  * localStorage), nao protege nada e o app funciona normalmente.
  */
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // Rotas publicas: o painel do visitante (/c/...) e seus endpoints (/api/share).
+  // Nao exigem login (o controle de acesso e por token/PIN dentro do endpoint).
+  if (pathname.startsWith("/c/") || pathname.startsWith("/api/share")) {
+    return NextResponse.next();
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

@@ -128,6 +128,29 @@ guia **`META_SETUP.md`**. Os tokens ficam apenas nos secrets das Edge Functions,
 nunca no app nem no banco acessado pelo time. LinkedIn e YouTube nao entram nesta
 automacao.
 
+## Compartilhar um card por link publico
+
+No card, o botao **Compartilhar** gera um link publico (rota `/c/[token]`) que
+mostra apenas os blocos que voce escolher (visao geral, briefing, roteiro,
+teleprompter, legenda, projeto). Opcoes por link: **codigo (PIN)**, **validade**
+e **revogar** a qualquer momento.
+
+A unica excecao a regra de somente leitura: voce pode **liberar a edicao do
+teleprompter**. Aí o visitante (ex: o ator, no celular) ajusta so as falas, e a
+mudanca reflete no card do time em tempo real. O card guarda a versao anterior,
+entao da para **Reverter** o ajuste, e mostra quando o teleprompter foi alterado
+por um link.
+
+Como funciona por baixo: o acesso publico passa por endpoints no servidor
+(`app/api/share/...`) que usam a service role e so aceitam o que o link permite
+(escopo fechado, PIN quando houver, limite de taxa). Requer:
+
+1. Rodar `supabase/share.sql` no SQL Editor (cria a tabela `compartilhamentos`).
+2. Adicionar `SUPABASE_SERVICE_ROLE_KEY` nas variaveis de ambiente da Vercel
+   (server-only, ver `.env.local.example`).
+
+So funciona no site publicado (Supabase). No modo local o botao fica desabilitado.
+
 ## Migrar para um banco relacional no futuro
 
 Hoje o quadro inteiro e salvo como um documento JSON (simples e ideal para um

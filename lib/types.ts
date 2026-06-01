@@ -63,6 +63,8 @@ export interface CardConteudo {
   briefing: string; // objetivo, publico, gancho, CTA
   roteiro: string; // roteiro completo: cenas, estrutura, indicacoes, slides
   teleprompter?: string; // apenas as falas (texto limpo para ler no teleprompter)
+  teleprompterAnterior?: string; // versao anterior (rede de seguranca p/ reverter edicao via link)
+  teleprompterAjustadoEm?: string; // ISO datetime de quando foi ajustado por um compartilhamento
   legenda: string; // legenda final do post
   responsavel?: string;
   postadoEm?: string; // ISO datetime de quando foi marcado como postado
