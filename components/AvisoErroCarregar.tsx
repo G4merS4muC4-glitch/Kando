@@ -19,7 +19,7 @@ export default function AvisoErroCarregar() {
     >
       <span className="flex items-center gap-2">
         <AlertTriangle size={16} aria-hidden />
-        Nao foi possivel carregar os dados. Verifique a conexao e o login.
+        Não foi possível carregar os dados. Verifique a conexão e o login.
       </span>
       <button
         type="button"

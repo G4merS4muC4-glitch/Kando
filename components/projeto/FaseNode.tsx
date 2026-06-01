@@ -106,8 +106,8 @@ export default function FaseNode({
           </span>
           <button
             type="button"
-            aria-label="Opcoes da fase"
-            title="Opcoes da fase"
+            aria-label="Opções da fase"
+            title="Opções da fase"
             onClick={() => {
               setMenuAberto((v) => !v);
               setConfirmando(false);
@@ -135,8 +135,8 @@ export default function FaseNode({
               type="button"
               disabled={indice === 0}
               onClick={() => onMover(fase.id, "tras")}
-              aria-label="Mover fase para tras"
-              title="Mover fase para tras"
+              aria-label="Mover fase para trás"
+              title="Mover fase para trás"
               className="flex items-center gap-1 rounded-marca px-2 py-1.5 text-xs font-semibold text-marca-azulEscuro transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ChevronLeft size={13} aria-hidden /> Antes
@@ -167,7 +167,7 @@ export default function FaseNode({
                   onClick={() => setConfirmando(false)}
                   className="rounded-marca px-2 py-1 font-semibold text-marca-cinza hover:text-marca-azulEscuro"
                 >
-                  Nao
+                  Não
                 </button>
               </span>
             ) : (

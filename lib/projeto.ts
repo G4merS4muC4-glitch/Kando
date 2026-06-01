@@ -23,8 +23,8 @@ export function criarProjetoVazio(): ProjetoDados {
   return {
     fases: [
       { id: gerarId(), nome: "Pesquisa", tarefas: [] },
-      { id: gerarId(), nome: "Producao", tarefas: [] },
-      { id: gerarId(), nome: "Revisao", tarefas: [] },
+      { id: gerarId(), nome: "Produção", tarefas: [] },
+      { id: gerarId(), nome: "Revisão", tarefas: [] },
     ],
   };
 }

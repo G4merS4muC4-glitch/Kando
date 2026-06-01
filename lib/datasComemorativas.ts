@@ -42,44 +42,44 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: planejamento. Publico: gestores. Gancho: ano novo, TI nova. CTA: agendar um diagnostico gratuito de TI.",
+          "Objetivo: planejamento. Público: gestores. Gancho: ano novo, TI nova. CTA: agendar um diagnóstico gratuito de TI.",
         legenda:
-          "Ano novo comeca com planejamento. Que tal deixar a TI da sua empresa redonda para 2026?",
+          "Ano novo começa com planejamento. Que tal deixar a TI da sua empresa redonda para 2026?",
       },
       evotalks: {
-        titulo: "Resolucoes de atendimento para o novo ano",
+        titulo: "Resoluções de atendimento para o novo ano",
         tipo: "carrossel",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: engajamento. Publico: gestores de atendimento. Lista de metas de CX para o ano. CTA: salvar.",
-        legenda: "Ano novo, atendimento melhor. 5 metas de experiencia do cliente para colocar em pratica.",
+          "Objetivo: engajamento. Público: gestores de atendimento. Lista de metas de CX para o ano. CTA: salvar.",
+        legenda: "Ano novo, atendimento melhor. 5 metas de experiência do cliente para colocar em prática.",
       },
     },
   },
   {
     id: "protecao-dados",
-    nome: "Dia da Protecao de Dados",
+    nome: "Dia da Proteção de Dados",
     mes: 1,
     dia: 28,
     emoji: "🔒",
     sugestoes: {
       brusoft: {
-        titulo: "Dia da Protecao de Dados: sua empresa esta segura?",
+        titulo: "Dia da Proteção de Dados: sua empresa está segura?",
         tipo: "carrossel",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: autoridade em seguranca. Publico: gestores. Gancho: seus dados valem mais do que voce imagina. CTA: agendar diagnostico de LGPD.",
+          "Objetivo: autoridade em segurança. Público: gestores. Gancho: seus dados valem mais do que você imagina. CTA: agendar diagnóstico de LGPD.",
         legenda:
-          "Hoje e o Dia da Protecao de Dados. Sua empresa trata os dados dos clientes com o cuidado que a LGPD exige?",
+          "Hoje é o Dia da Proteção de Dados. Sua empresa trata os dados dos clientes com o cuidado que a LGPD exige?",
       },
       evotalks: {
-        titulo: "Protecao de dados no atendimento ao cliente",
+        titulo: "Proteção de dados no atendimento ao cliente",
         tipo: "post",
         canais: ["linkedin", "instagram"],
         briefing:
-          "Objetivo: confianca. Publico: gestores de atendimento. Gancho: cada conversa guarda dados sensiveis. CTA: conheca a seguranca da Evotalks.",
+          "Objetivo: confiança. Público: gestores de atendimento. Gancho: cada conversa guarda dados sensíveis. CTA: conheça a segurança da Evotalks.",
         legenda:
-          "No atendimento, cada mensagem carrega dados do cliente. No Dia da Protecao de Dados, reforce a confianca.",
+          "No atendimento, cada mensagem carrega dados do cliente. No Dia da Proteção de Dados, reforce a confiança.",
       },
     },
   },
@@ -104,7 +104,7 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         canais: ["instagram", "linkedin"],
         briefing:
           "Objetivo: institucional. Homenagear as mulheres do atendimento e CX. CTA: comentar e marcar.",
-        legenda: "Elas estao na linha de frente do atendimento. Feliz Dia da Mulher!",
+        legenda: "Elas estão na linha de frente do atendimento. Feliz Dia da Mulher!",
       },
     },
   },
@@ -120,18 +120,18 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "reels",
         canais: ["instagram", "facebook"],
         briefing:
-          "Objetivo: gerar leads. Gancho: cliente bem atendido vira fa. CTA: conheca a Evotalks.",
+          "Objetivo: gerar leads. Gancho: cliente bem atendido vira fã. CTA: conheça a Evotalks.",
         roteiro:
-          "Gancho (0-3s): O que faz um cliente voltar? Nao e so o preco.\nDesenvolvimento: mostrar atendimento rapido e omnichannel.\nCTA: atenda melhor com a Evotalks.",
-        legenda: "No Dia do Consumidor, lembre-se: quem e bem atendido, volta e indica.",
+          "Gancho (0-3s): O que faz um cliente voltar? Não é só o preço.\nDesenvolvimento: mostrar atendimento rápido e omnichannel.\nCTA: atenda melhor com a Evotalks.",
+        legenda: "No Dia do Consumidor, lembre-se: quem é bem atendido, volta e indica.",
       },
       brusoft: {
-        titulo: "Dia do Consumidor: a experiencia comeca na TI",
+        titulo: "Dia do Consumidor: a experiência começa na TI",
         tipo: "post",
         canais: ["linkedin"],
         briefing:
-          "Objetivo: autoridade. Publico: decisores. Sistema lento afasta cliente. CTA: falar com especialista.",
-        legenda: "Uma boa experiencia do consumidor depende de uma TI que nao deixa nada cair.",
+          "Objetivo: autoridade. Público: decisores. Sistema lento afasta cliente. CTA: falar com especialista.",
+        legenda: "Uma boa experiência do consumidor depende de uma TI que não deixa nada cair.",
       },
     },
   },
@@ -143,14 +143,14 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
     emoji: "💾",
     sugestoes: {
       brusoft: {
-        titulo: "Dia Mundial do Backup: voce confia no seu?",
+        titulo: "Dia Mundial do Backup: você confia no seu?",
         tipo: "reels",
         canais: ["instagram", "facebook", "youtube"],
         briefing:
-          "Objetivo: urgencia. Gancho: backup que nunca foi testado e so esperanca. CTA: agendar diagnostico de backup.",
+          "Objetivo: urgência. Gancho: backup que nunca foi testado é só esperança. CTA: agendar diagnóstico de backup.",
         roteiro:
-          "Gancho (0-3s): Quando foi a ultima vez que voce testou o seu backup?\nDesenvolvimento: mostrar o risco de perder tudo e a regra 3-2-1.\nCTA: a Brusoft cuida do seu backup.",
-        legenda: "31 de marco e o Dia Mundial do Backup. Backup que nunca foi testado e so esperanca.",
+          "Gancho (0-3s): Quando foi a última vez que você testou o seu backup?\nDesenvolvimento: mostrar o risco de perder tudo e a regra 3-2-1.\nCTA: a Brusoft cuida do seu backup.",
+        legenda: "31 de março é o Dia Mundial do Backup. Backup que nunca foi testado é só esperança.",
       },
     },
   },
@@ -166,15 +166,15 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: autoridade. Internet rapida e segura como base do negocio. CTA: conheca os planos de TI.",
-        legenda: "A internet conecta tudo. No Dia da Internet, garanta a sua com seguranca e estabilidade.",
+          "Objetivo: autoridade. Internet rápida e segura como base do negócio. CTA: conheça os planos de TI.",
+        legenda: "A internet conecta tudo. No Dia da Internet, garanta a sua com segurança e estabilidade.",
       },
       evotalks: {
-        titulo: "Dia da Internet: seu cliente esta em todos os canais",
+        titulo: "Dia da Internet: seu cliente está em todos os canais",
         tipo: "carrossel",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: educar sobre omnichannel. Gancho: o cliente nao escolhe um canal, usa todos. CTA: conheca a Evotalks.",
+          "Objetivo: educar sobre omnichannel. Gancho: o cliente não escolhe um canal, usa todos. CTA: conheça a Evotalks.",
         legenda: "No Dia da Internet, lembre: seu cliente fala por WhatsApp, Insta, e-mail e chat. Esteja em todos.",
       },
     },
@@ -191,16 +191,16 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: ESG e institucional. Nuvem e virtualizacao reduzem desperdicio. CTA: comentar.",
-        legenda: "Tecnologia tambem pode ser sustentavel. No Dia do Meio Ambiente, conheca a TI verde.",
+          "Objetivo: ESG e institucional. Nuvem e virtualização reduzem desperdício. CTA: comentar.",
+        legenda: "Tecnologia também pode ser sustentável. No Dia do Meio Ambiente, conheça a TI verde.",
       },
       evotalks: {
-        titulo: "Atendimento digital tambem e sustentavel",
+        titulo: "Atendimento digital também é sustentável",
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
           "Objetivo: ESG. Atendimento digital reduz papel e deslocamento. CTA: comentar.",
-        legenda: "Menos papel, mais resolucao. O atendimento digital tambem cuida do planeta.",
+        legenda: "Menos papel, mais resolução. O atendimento digital também cuida do planeta.",
       },
     },
   },
@@ -212,12 +212,12 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
     emoji: "💌",
     sugestoes: {
       brusoft: {
-        titulo: "A relacao com o seu cliente tambem se cuida",
+        titulo: "A relação com o seu cliente também se cuida",
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
           "Objetivo: relacionamento. Comparar parceria de TI com um bom relacionamento. CTA: vamos conversar.",
-        legenda: "No Dia dos Namorados, lembramos: parceria boa de TI tambem e questao de confianca.",
+        legenda: "No Dia dos Namorados, lembramos: parceria boa de TI também é questão de confiança.",
       },
       evotalks: {
         titulo: "Como fazer seu cliente se apaixonar pelo atendimento",
@@ -231,7 +231,7 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
   },
   {
     id: "profissional-informatica",
-    nome: "Dia do Profissional de Informatica",
+    nome: "Dia do Profissional de Informática",
     mes: 8,
     dia: 19,
     emoji: "💻",
@@ -243,8 +243,8 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         briefing:
           "Objetivo: humanizar a marca. Mostrar o time da Brusoft. CTA: seguir o perfil.",
         roteiro:
-          "Cena 1: time monitorando ambientes.\nCena 2: analista resolvendo um chamado.\nTexto: por tras de toda TI que funciona, tem gente que ama o que faz.",
-        legenda: "Hoje e o Dia do Profissional de Informatica. Um viva ao time que mantem tudo no ar!",
+          "Cena 1: time monitorando ambientes.\nCena 2: analista resolvendo um chamado.\nTexto: por trás de toda TI que funciona, tem gente que ama o que faz.",
+        legenda: "Hoje é o Dia do Profissional de Informática. Um viva ao time que mantém tudo no ar!",
       },
     },
   },
@@ -256,12 +256,12 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
     emoji: "👨‍💻",
     sugestoes: {
       brusoft: {
-        titulo: "Dia do Programador: o codigo por tras da gestao de TI",
+        titulo: "Dia do Programador: o código por trás da gestão de TI",
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: autoridade tecnica. Homenagear devs e mostrar automacao. CTA: comentar.",
-        legenda: "Por tras de cada automacao que economiza horas, tem um programador. Feliz Dia do Programador!",
+          "Objetivo: autoridade técnica. Homenagear devs e mostrar automação. CTA: comentar.",
+        legenda: "Por trás de cada automação que economiza horas, tem um programador. Feliz Dia do Programador!",
       },
     },
   },
@@ -273,11 +273,11 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
     emoji: "⭐",
     sugestoes: {
       evotalks: {
-        titulo: "Dia do Cliente: quem e bem atendido, volta",
+        titulo: "Dia do Cliente: quem é bem atendido, volta",
         tipo: "carrossel",
         canais: ["instagram", "facebook", "linkedin"],
         briefing:
-          "Objetivo: prova de valor. Mostrar boas praticas de atendimento. CTA: conheca a Evotalks.",
+          "Objetivo: prova de valor. Mostrar boas práticas de atendimento. CTA: conheça a Evotalks.",
         legenda: "No Dia do Cliente, celebramos quem confia na gente. Atendimento bom fideliza.",
       },
       brusoft: {
@@ -286,7 +286,7 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         canais: ["instagram", "linkedin"],
         briefing:
           "Objetivo: relacionamento. Agradecer aos clientes. CTA: comentar.",
-        legenda: "No Dia do Cliente, o nosso obrigado a quem confia a TI da empresa a Brusoft.",
+        legenda: "No Dia do Cliente, o nosso obrigado a quem confia a TI da empresa à Brusoft.",
       },
     },
   },
@@ -302,8 +302,8 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "reels",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: gerar leads. Gancho: atendimento agil fecha mais vendas. CTA: conheca a Evotalks.",
-        legenda: "Vendedor bom sabe: atendimento rapido fecha negocio. Feliz Dia do Vendedor!",
+          "Objetivo: gerar leads. Gancho: atendimento ágil fecha mais vendas. CTA: conheça a Evotalks.",
+        legenda: "Vendedor bom sabe: atendimento rápido fecha negócio. Feliz Dia do Vendedor!",
       },
     },
   },
@@ -319,52 +319,52 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin"],
         briefing:
-          "Objetivo: institucional. TI estavel para escolas e professores. CTA: comentar e marcar um professor.",
+          "Objetivo: institucional. TI estável para escolas e professores. CTA: comentar e marcar um professor.",
         legenda: "No Dia do Professor, homenageamos quem ensina, com a tecnologia como aliada.",
       },
     },
   },
   {
     id: "consciencia-negra",
-    nome: "Dia da Consciencia Negra",
+    nome: "Dia da Consciência Negra",
     mes: 11,
     dia: 20,
     emoji: "✊",
     sugestoes: {
       brusoft: {
-        titulo: "Dia da Consciencia Negra",
+        titulo: "Dia da Consciência Negra",
         tipo: "post",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: institucional. Mensagem de respeito e diversidade. Tom sobrio. CTA: refletir e compartilhar.",
-        legenda: "Hoje e dia de reflexao, respeito e valorizacao da cultura negra.",
+          "Objetivo: institucional. Mensagem de respeito e diversidade. Tom sóbrio. CTA: refletir e compartilhar.",
+        legenda: "Hoje é dia de reflexão, respeito e valorização da cultura negra.",
       },
       evotalks: {
-        titulo: "Dia da Consciencia Negra",
+        titulo: "Dia da Consciência Negra",
         tipo: "post",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: institucional. Mensagem de respeito e diversidade. Tom sobrio. CTA: refletir e compartilhar.",
-        legenda: "Hoje e dia de reflexao, respeito e valorizacao da cultura negra.",
+          "Objetivo: institucional. Mensagem de respeito e diversidade. Tom sóbrio. CTA: refletir e compartilhar.",
+        legenda: "Hoje é dia de reflexão, respeito e valorização da cultura negra.",
       },
     },
   },
   {
     id: "seguranca-informacao",
-    nome: "Dia da Seguranca da Informacao",
+    nome: "Dia da Segurança da Informação",
     mes: 11,
     dia: 30,
     emoji: "🛡️",
     sugestoes: {
       brusoft: {
-        titulo: "Dia da Seguranca da Informacao: proteja o que importa",
+        titulo: "Dia da Segurança da Informação: proteja o que importa",
         tipo: "carrossel",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: autoridade. Checklist de seguranca para empresas. CTA: agendar avaliacao de seguranca.",
+          "Objetivo: autoridade. Checklist de segurança para empresas. CTA: agendar avaliação de segurança.",
         roteiro:
-          "Slide 1: por que sua empresa e alvo.\nSlide 2: senhas e 2FA.\nSlide 3: backup.\nSlide 4: treinar o time.\nSlide 5: CTA Brusoft.",
-        legenda: "No Dia da Seguranca da Informacao, pergunte: sua empresa esta mesmo protegida?",
+          "Slide 1: por que sua empresa é alvo.\nSlide 2: senhas e 2FA.\nSlide 3: backup.\nSlide 4: treinar o time.\nSlide 5: CTA Brusoft.",
+        legenda: "No Dia da Segurança da Informação, pergunte: sua empresa está mesmo protegida?",
       },
     },
   },
@@ -380,7 +380,7 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: relacionamento. Mensagem de agradecimento aos clientes e parceiros. CTA: nenhuma, so carinho.",
+          "Objetivo: relacionamento. Mensagem de agradecimento aos clientes e parceiros. CTA: nenhuma, só carinho.",
         legenda: "Que o Natal traga paz e descanso. Obrigado por confiar na Brusoft em 2026.",
       },
       evotalks: {
@@ -388,7 +388,7 @@ export const DATAS_COMEMORATIVAS: DataComemorativa[] = [
         tipo: "post",
         canais: ["instagram", "linkedin", "facebook"],
         briefing:
-          "Objetivo: relacionamento. Mensagem de agradecimento. CTA: nenhuma, so carinho.",
+          "Objetivo: relacionamento. Mensagem de agradecimento. CTA: nenhuma, só carinho.",
         legenda: "Feliz Natal! Obrigado por atender, conversar e crescer com a gente em 2026.",
       },
     },
@@ -415,6 +415,6 @@ export function ocorrenciaMaisProxima(
 /** Texto amigavel de contagem regressiva. */
 export function textoContagem(dias: number): string {
   if (dias === 0) return "Hoje";
-  if (dias === 1) return "Amanha";
+  if (dias === 1) return "Amanhã";
   return `Em ${dias} dias`;
 }

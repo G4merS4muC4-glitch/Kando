@@ -71,7 +71,7 @@ export default function PaginaCampanha() {
   if (!campanha) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-        <p className="text-marca-cinza">Campanha nao encontrada.</p>
+        <p className="text-marca-cinza">Campanha não encontrada.</p>
         <Link
           href="/"
           className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white"

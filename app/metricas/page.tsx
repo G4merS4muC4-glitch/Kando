@@ -25,7 +25,7 @@ export default function PaginaMetricas() {
   const [dados, setDados] = useState<MetricasInstagram | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
-  const [periodoLabel, setPeriodoLabel] = useState("ultimos 30 dias");
+  const [periodoLabel, setPeriodoLabel] = useState("últimos 30 dias");
 
   // Periodo padrao do prompt (definido apos montar para nao divergir do SSR).
   useEffect(() => {
@@ -77,10 +77,10 @@ export default function PaginaMetricas() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
-              Metricas e Planejamento
+              Métricas e Planejamento
             </h1>
             <p className="text-sm text-marca-cinza">
-              Desempenho do Instagram de {rotuloPerfil(perfil)} e proximas acoes de conteudo.
+              Desempenho do Instagram de {rotuloPerfil(perfil)} e próximas ações de conteúdo.
             </p>
           </div>
           <button
@@ -89,7 +89,7 @@ export default function PaginaMetricas() {
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <ClipboardPaste size={16} aria-hidden />
-            Atualizar metricas
+            Atualizar métricas
           </button>
         </div>
 
@@ -102,7 +102,7 @@ export default function PaginaMetricas() {
         <div className="mb-5 flex border-b border-marca-cinza/30" role="tablist">
           {(
             [
-              { id: "metricas", rotulo: "Metricas" },
+              { id: "metricas", rotulo: "Métricas" },
               { id: "planejamento", rotulo: "Planejamento" },
             ] as { id: Aba; rotulo: string }[]
           ).map((a) => (
@@ -125,7 +125,7 @@ export default function PaginaMetricas() {
         </div>
 
         {carregando ? (
-          <p className="text-sm text-marca-cinza">Carregando metricas...</p>
+          <p className="text-sm text-marca-cinza">Carregando métricas...</p>
         ) : aba === "metricas" ? (
           semDados ? (
             <Onboarding
@@ -152,7 +152,7 @@ export default function PaginaMetricas() {
           <PainelPlanejamento dados={dados} perfil={perfil} />
         ) : (
           <p className="rounded-marca border border-dashed border-marca-cinza/40 px-4 py-10 text-center text-sm text-marca-cinza">
-            Atualize as metricas deste perfil para ver o planejamento.
+            Atualize as métricas deste perfil para ver o planejamento.
           </p>
         )}
       </div>
@@ -187,12 +187,12 @@ function Onboarding({
           <BarChart3 size={26} aria-hidden />
         </span>
         <h2 className="text-lg font-bold text-marca-azulEscuro">
-          Ainda sem metricas de {rotuloPerfil(perfil)}
+          Ainda sem métricas de {rotuloPerfil(perfil)}
         </h2>
         <p className="max-w-md text-sm text-marca-cinza">
           Como funciona: <strong>1.</strong> copie o prompt abaixo. <strong>2.</strong> cole num
           Claude conectado ao Instagram (ou com prints do Insights). <strong>3.</strong> traga o JSON
-          de volta e clique em Atualizar metricas.
+          de volta e clique em Atualizar métricas.
         </p>
         <button
           type="button"
@@ -200,7 +200,7 @@ function Onboarding({
           className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
         >
           <Copy size={15} aria-hidden />
-          Ja tenho o JSON, atualizar metricas
+          Já tenho o JSON, atualizar métricas
         </button>
       </div>
 

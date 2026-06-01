@@ -81,7 +81,7 @@ export default function BarraCampanha({
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <Plus size={16} aria-hidden />
-            Novo conteudo
+            Novo conteúdo
           </button>
         </div>
       </div>

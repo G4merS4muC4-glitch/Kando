@@ -60,7 +60,7 @@ export default function ColarDoClaude({
     return {
       id: gerarId(),
       campanhaId,
-      titulo: c.titulo || "Conteudo colado",
+      titulo: c.titulo || "Conteúdo colado",
       tipo,
       canais: ehProjeto ? [] : c.canais.length ? c.canais : ["instagram"],
       etapa,
@@ -91,7 +91,7 @@ export default function ColarDoClaude({
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
-      aria-label="Colar conteudo do Claude"
+      aria-label="Colar conteúdo do Claude"
     >
       <div
         className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-marca"
@@ -122,7 +122,7 @@ export default function ColarDoClaude({
         <div className="flex-1 overflow-y-auto px-5 py-5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-              Cole o conteudo gerado
+              Cole o conteúdo gerado
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -131,7 +131,7 @@ export default function ColarDoClaude({
                 className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-2.5 py-1.5 text-xs font-semibold text-marca-azulEscuro transition hover:bg-marca-branco"
               >
                 <ClipboardPaste size={14} aria-hidden />
-                Colar da area de transferencia
+                Colar da área de transferência
               </button>
               <button
                 type="button"
@@ -153,7 +153,7 @@ export default function ColarDoClaude({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             autoFocus
-            placeholder="Cole aqui o texto do conteudo. Dica: peca ao Claude para usar Titulo, Tipo, Canais, Tema, Data, Briefing, Roteiro e Legenda. Separe varios conteudos com uma linha de tracos (---)."
+            placeholder="Cole aqui o texto do conteúdo. Dica: peça ao Claude para usar Título, Tipo, Canais, Tema, Data, Briefing, Roteiro e Legenda. Separe vários conteúdos com uma linha de traços (---)."
             className="min-h-[200px] w-full resize-y rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm leading-relaxed text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
           />
 
@@ -161,7 +161,7 @@ export default function ColarDoClaude({
           {previa.length > 0 && (
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-                Previa ({previa.length} {previa.length === 1 ? "conteudo" : "conteudos"})
+                Prévia ({previa.length} {previa.length === 1 ? "conteúdo" : "conteúdos"})
               </p>
               <div className="space-y-2">
                 {previa.map((c, i) => (

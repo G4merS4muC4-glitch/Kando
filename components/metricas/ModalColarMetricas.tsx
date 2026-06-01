@@ -65,7 +65,7 @@ export default function ModalColarMetricas({
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
-      aria-label="Atualizar metricas"
+      aria-label="Atualizar métricas"
     >
       <div
         className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-marca"
@@ -78,8 +78,8 @@ export default function ModalColarMetricas({
               <BarChart3 size={16} aria-hidden />
             </span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-white/70">Metricas</p>
-              <h2 className="text-base font-bold">Atualizar metricas ({rotuloPerfil(perfilAtivo)})</h2>
+              <p className="text-xs uppercase tracking-wide text-white/70">Métricas</p>
+              <h2 className="text-base font-bold">Atualizar métricas ({rotuloPerfil(perfilAtivo)})</h2>
             </div>
           </div>
           <button
@@ -104,7 +104,7 @@ export default function ModalColarMetricas({
               className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-2.5 py-1.5 text-xs font-semibold text-marca-azulEscuro transition hover:bg-marca-branco"
             >
               <ClipboardPaste size={14} aria-hidden />
-              Colar da area de transferencia
+              Colar da área de transferência
             </button>
           </div>
 
@@ -112,7 +112,7 @@ export default function ModalColarMetricas({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             autoFocus
-            placeholder='Cole aqui o JSON completo. Comeca com { "schema_version": "1.0", "perfil": ... }'
+            placeholder='Cole aqui o JSON completo. Começa com { "schema_version": "1.0", "perfil": ... }'
             className="min-h-[220px] w-full resize-y rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 font-mono text-xs leading-relaxed text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
           />
 
@@ -128,19 +128,19 @@ export default function ModalColarMetricas({
               <p className="text-sm font-semibold text-marca-preto">
                 Perfil {rotuloPerfil(dados.perfil)}
                 {dados.periodo?.inicio && dados.periodo?.fim
-                  ? ` - periodo ${dados.periodo.inicio} a ${dados.periodo.fim}`
+                  ? ` (período ${dados.periodo.inicio} a ${dados.periodo.fim})`
                   : ""}
               </p>
               <p className="mt-1 text-xs text-marca-cinza">
                 {dados.serie_seguidores?.length ?? 0} pontos de seguidores,{" "}
                 {dados.serie_alcance?.length ?? 0} pontos de alcance,{" "}
                 {dados.top_posts?.length ?? 0} posts em destaque,{" "}
-                {dados.recomendacoes?.length ?? 0} recomendacoes.
+                {dados.recomendacoes?.length ?? 0} recomendações.
               </p>
               {divergente && (
                 <p className="mt-2 flex items-start gap-2 text-xs font-semibold text-marca-laranja">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
-                  Este JSON e do perfil {rotuloPerfil(dados.perfil)}, diferente do perfil aberto. Ao
+                  Este JSON é do perfil {rotuloPerfil(dados.perfil)}, diferente do perfil aberto. Ao
                   salvar, vamos abrir o perfil {rotuloPerfil(dados.perfil)}.
                 </p>
               )}
@@ -163,7 +163,7 @@ export default function ModalColarMetricas({
             disabled={!dados}
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {divergente && dados ? `Salvar e abrir ${rotuloPerfil(dados.perfil)}` : "Salvar metricas"}
+            {divergente && dados ? `Salvar e abrir ${rotuloPerfil(dados.perfil)}` : "Salvar métricas"}
           </button>
         </div>
       </div>

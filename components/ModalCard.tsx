@@ -37,7 +37,7 @@ import ModalCompartilhar from "./ModalCompartilhar";
 type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda";
 
 const ABAS: { id: Aba; rotulo: string }[] = [
-  { id: "visao", rotulo: "Visao Geral" },
+  { id: "visao", rotulo: "Visão Geral" },
   { id: "briefing", rotulo: "Briefing" },
   { id: "roteiro", rotulo: "Roteiro" },
   { id: "legenda", rotulo: "Legenda" },
@@ -222,8 +222,8 @@ export default function ModalCard({
   const podeAgendar = temCanalMeta && temMidia && temQuando;
   const faltam = [
     !temCanalMeta && "marque Facebook ou Instagram",
-    !temMidia && "cole o link da midia",
-    !temQuando && "defina data e horario",
+    !temMidia && "cole o link da mídia",
+    !temQuando && "defina data e horário",
   ].filter(Boolean) as string[];
 
   return (
@@ -233,7 +233,7 @@ export default function ModalCard({
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
-      aria-label={`Detalhe do conteudo: ${card.titulo || "sem titulo"}`}
+      aria-label={`Detalhe do conteúdo: ${card.titulo || "sem título"}`}
     >
       <div
         className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-[660px] sm:max-h-[90vh] sm:max-w-2xl sm:rounded-marca"
@@ -256,7 +256,7 @@ export default function ModalCard({
                 {TIPOS[card.tipo].label}
               </p>
               <h2 className="max-w-[60vw] truncate text-base font-bold sm:max-w-md">
-                {card.titulo || "Sem titulo"}
+                {card.titulo || "Sem título"}
               </h2>
             </div>
           </div>
@@ -342,14 +342,14 @@ export default function ModalCard({
 
           {aba === "visao" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Campo rotulo="Titulo" className="sm:col-span-2">
+              <Campo rotulo="Título" className="sm:col-span-2">
                 <input
                   ref={tituloRef}
                   type="text"
                   value={card.titulo}
                   onChange={(e) => atualizarCampo("titulo", e.target.value)}
                   className={inputClasse}
-                  placeholder="Titulo do conteudo"
+                  placeholder="Título do conteúdo"
                 />
               </Campo>
 
@@ -375,7 +375,7 @@ export default function ModalCard({
                 </select>
               </Campo>
 
-              <Campo rotulo="Tipo de conteudo">
+              <Campo rotulo="Tipo de conteúdo">
                 <select
                   value={card.tipo}
                   onChange={(e) => mudarTipo(e.target.value as TipoConteudo)}
@@ -434,21 +434,21 @@ export default function ModalCard({
                   value={card.tema ?? ""}
                   onChange={(e) => atualizarCampo("tema", e.target.value)}
                   className={inputClasse}
-                  placeholder="Ex: Ciberseguranca"
+                  placeholder="Ex: Cibersegurança"
                 />
               </Campo>
 
-              <Campo rotulo="Responsavel">
+              <Campo rotulo="Responsável">
                 <input
                   type="text"
                   value={card.responsavel ?? ""}
                   onChange={(e) => atualizarCampo("responsavel", e.target.value)}
                   className={inputClasse}
-                  placeholder="Quem cuida deste conteudo"
+                  placeholder="Quem cuida deste conteúdo"
                 />
               </Campo>
 
-              <Campo rotulo="Data de publicacao">
+              <Campo rotulo="Data de publicação">
                 <input
                   type="date"
                   value={card.dataPublicacao ?? ""}
@@ -464,7 +464,7 @@ export default function ModalCard({
                 )}
               </Campo>
 
-              <Campo rotulo="Horario (auto-publicacao)">
+              <Campo rotulo="Horário (auto-publicação)">
                 <input
                   type="time"
                   value={card.horaPublicacao ?? ""}
@@ -477,13 +477,13 @@ export default function ModalCard({
               {card.tipo !== "projeto" && (
                 <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 sm:col-span-2">
                   <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-                    Publicacao automatica (Facebook e Instagram)
+                    Publicação automática (Facebook e Instagram)
                   </p>
                   <p className="mb-3 text-xs text-marca-cinza">
-                    Cole o link publico da midia (imagem ou video), marque os canais e defina
-                    data e horario. O robo publica sozinho no horario marcado.
+                    Cole o link público da mídia (imagem ou vídeo), marque os canais e defina
+                    data e horário. O robô publica sozinho no horário marcado.
                   </p>
-                  <Campo rotulo="Link da midia (imagem ou video)">
+                  <Campo rotulo="Link da mídia (imagem ou vídeo)">
                     <input
                       type="url"
                       value={card.midiaUrl ?? ""}
@@ -505,7 +505,7 @@ export default function ModalCard({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-marca-azulClaro">
                           <Clock size={14} aria-hidden />
-                          Agendado para {formatarData(card.dataPublicacao)} as {card.horaPublicacao}.
+                          Agendado para {formatarData(card.dataPublicacao)} às {card.horaPublicacao}.
                         </span>
                         <button
                           type="button"
@@ -529,7 +529,7 @@ export default function ModalCard({
                           className="flex items-center gap-1.5 rounded-marca bg-marca-azulEscuro px-3 py-2 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           <Send size={15} aria-hidden />
-                          {card.statusPub === "erro" ? "Tentar de novo" : "Agendar publicacao automatica"}
+                          {card.statusPub === "erro" ? "Tentar de novo" : "Agendar publicação automática"}
                         </button>
                         {!podeAgendar && (
                           <p className="mt-1.5 text-xs text-marca-cinza">Para agendar: {faltam.join(", ")}.</p>
@@ -545,13 +545,13 @@ export default function ModalCard({
           {aba === "briefing" && (
             <Campo
               rotulo="Briefing"
-              dica="Objetivo, publico-alvo, gancho (hook) e CTA."
+              dica="Objetivo, público-alvo, gancho (hook) e CTA."
             >
               <textarea
                 value={card.briefing}
                 onChange={(e) => atualizarCampo("briefing", e.target.value)}
                 className={`${inputClasse} min-h-[260px] resize-y leading-relaxed`}
-                placeholder="Objetivo do conteudo, para quem e, qual o gancho e qual a chamada para acao."
+                placeholder="Objetivo do conteúdo, para quem é, qual o gancho e qual a chamada para ação."
               />
             </Campo>
           )}
@@ -566,7 +566,7 @@ export default function ModalCard({
                       Roteiro completo
                     </span>
                     <span className="text-xs text-marca-cinza">
-                      Cenas, estrutura, indicacoes e slides (planejamento).
+                      Cenas, estrutura, indicações e slides (planejamento).
                     </span>
                   </div>
                   <button
@@ -583,7 +583,7 @@ export default function ModalCard({
                   value={card.roteiro}
                   onChange={(e) => atualizarCampo("roteiro", e.target.value)}
                   className={`${inputClasse} min-h-[200px] resize-y leading-relaxed`}
-                  placeholder="Descreva cena a cena (Reels) ou slide a slide (carrossel), com as indicacoes."
+                  placeholder="Descreva cena a cena (Reels) ou slide a slide (carrossel), com as indicações."
                 />
               </div>
 
@@ -595,7 +595,7 @@ export default function ModalCard({
                       Texto do teleprompter
                     </span>
                     <span className="text-xs text-marca-cinza">
-                      Apenas as falas, sem indicacoes. E o que aparece ao abrir o Teleprompter.
+                      Apenas as falas, sem indicações. É o que aparece ao abrir o Teleprompter.
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -638,10 +638,10 @@ export default function ModalCard({
                   value={card.teleprompter ?? ""}
                   onChange={(e) => atualizarCampo("teleprompter", e.target.value)}
                   className={`${inputClasse} min-h-[240px] resize-y bg-marca-branco text-base leading-loose`}
-                  placeholder="Apenas a fala, do jeito que voce vai narrar (sem 'Cena 1', sem indicacoes)."
+                  placeholder="Apenas a fala, do jeito que você vai narrar (sem 'Cena 1', sem indicações)."
                 />
                 <p className="mt-1.5 text-xs text-marca-cinza">
-                  Dica: deixe so a fala aqui para ler limpo no Teleprompter. Se ficar vazio, o
+                  Dica: deixe só a fala aqui para ler limpo no Teleprompter. Se ficar vazio, o
                   Teleprompter mostra o roteiro completo.
                 </p>
               </div>
@@ -678,7 +678,7 @@ export default function ModalCard({
                   {totalLegenda} / {limiteLegenda} caracteres
                 </span>
                 <span className="text-marca-cinza">
-                  Referencia: Instagram e Facebook 2.200, LinkedIn 3.000, YouTube 5.000
+                  Referência: Instagram e Facebook 2.200, LinkedIn 3.000, YouTube 5.000
                 </span>
               </div>
             </div>
@@ -700,7 +700,7 @@ export default function ModalCard({
           )}
           {confirmandoExclusao ? (
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-marca-preto">Excluir este conteudo?</span>
+              <span className="font-medium text-marca-preto">Excluir este conteúdo?</span>
               <button
                 type="button"
                 onClick={confirmarExclusao}

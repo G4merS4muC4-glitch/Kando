@@ -4,7 +4,7 @@ import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Kando by Brusoft",
-  description: "Kando: painel de gestao de conteudo de redes sociais da Brusoft e Evotalks",
+  description: "Kando: painel de gestão de conteúdo de redes sociais da Brusoft e Evotalks",
   icons: { icon: "/kando-logo.svg" },
 };
 

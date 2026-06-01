@@ -188,7 +188,7 @@ export default function Calendario() {
   const cardSelecionado = selecionadoId ? cardPorId(selecionadoId) : null;
 
   if (!montado) {
-    return <div className="p-6 text-sm text-marca-cinza">Carregando calendario...</div>;
+    return <div className="p-6 text-sm text-marca-cinza">Carregando calendário...</div>;
   }
 
   return (
@@ -205,18 +205,18 @@ export default function Calendario() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
-                Calendario
+                Calendário
               </h1>
               <p className="text-sm text-marca-cinza">
-                Arraste um conteudo sem data para um dia. Datas comemorativas em amarelo,
-                com sugestoes na barra lateral.
+                Arraste um conteúdo sem data para um dia. Datas comemorativas em amarelo,
+                com sugestões na barra lateral.
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => irPara(-1)}
-                aria-label="Mes anterior"
+                aria-label="Mês anterior"
                 className="rounded-marca border border-marca-cinza/40 bg-white p-2 text-marca-azulEscuro transition hover:bg-marca-branco"
               >
                 <ChevronLeft size={18} aria-hidden />
@@ -227,7 +227,7 @@ export default function Calendario() {
               <button
                 type="button"
                 onClick={() => irPara(1)}
-                aria-label="Proximo mes"
+                aria-label="Próximo mês"
                 className="rounded-marca border border-marca-cinza/40 bg-white p-2 text-marca-azulEscuro transition hover:bg-marca-branco"
               >
                 <ChevronRight size={18} aria-hidden />
@@ -414,10 +414,10 @@ function PainelDatas({
     <div className="flex flex-col rounded-marca border border-marca-cinza/30 bg-white p-3">
       <div className="mb-1 flex items-center gap-2 text-sm font-bold text-marca-azulEscuro">
         <Bell size={16} aria-hidden />
-        Proximas datas
+        Próximas datas
       </div>
       <p className="mb-3 text-xs text-marca-cinza">
-        Lembretes com sugestao de conteudo. Clique para criar o card ja agendado.
+        Lembretes com sugestão de conteúdo. Clique para criar o card já agendado.
       </p>
       <div className="flex flex-col gap-2">
         {proximas.map(({ data, chave, dias }) => (
@@ -445,7 +445,7 @@ function PainelDatas({
                     title={
                       semCampanha
                         ? `Crie uma campanha ${MARCAS[m].label} primeiro`
-                        : `Criar sugestao para ${MARCAS[m].label}`
+                        : `Criar sugestão para ${MARCAS[m].label}`
                     }
                     className="flex items-center gap-1 rounded-marca px-2 py-1 text-[11px] font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
                     style={{ backgroundColor: MARCAS[m].cor }}

@@ -46,18 +46,18 @@ export const COLUNAS: ColunaConfig[] = [
     titulo: "Briefing e Roteiro",
     descricao: "Pauta definida, gancho e estrutura",
   },
-  { id: "producao", titulo: "Em Producao", descricao: "Design ou edicao em andamento" },
+  { id: "producao", titulo: "Em Produção", descricao: "Design ou edição em andamento" },
   {
     id: "revisao",
-    titulo: "Revisao de Marca",
+    titulo: "Revisão de Marca",
     descricao: "Checagem final de copy e arte",
   },
   {
     id: "aprovado",
     titulo: "Aprovado e Agendado",
-    descricao: "Pronto, com data de publicacao",
+    descricao: "Pronto, com data de publicação",
   },
-  { id: "publicado", titulo: "Publicado", descricao: "Ja no ar" },
+  { id: "publicado", titulo: "Publicado", descricao: "Já no ar" },
 ];
 
 /** Lista ordenada apenas das etapas (usada na logica de drag and drop). */
@@ -140,7 +140,7 @@ export interface TipoCampanhaConfig {
 
 export const TIPOS_CAMPANHA: Record<TipoCampanha, TipoCampanhaConfig> = {
   geral: { label: "Geral", icone: Repeat, descricao: "Sempre rodando" },
-  bimestral: { label: "Bimestral", icone: CalendarRange, descricao: "Por periodo" },
+  bimestral: { label: "Bimestral", icone: CalendarRange, descricao: "Por período" },
 };
 
 export const TIPOS_CAMPANHA_ORDEM: TipoCampanha[] = ["geral", "bimestral"];
@@ -153,7 +153,7 @@ export interface StatusCampanhaConfig {
 }
 
 export const STATUS_CAMPANHA: Record<Exclude<StatusCampanha, "ativa">, StatusCampanhaConfig> = {
-  concluida: { label: "Concluida", cor: "#16A34A", icone: CheckCircle2 },
+  concluida: { label: "Concluída", cor: "#16A34A", icone: CheckCircle2 },
   cancelada: { label: "Cancelada", cor: "#8790AB", icone: Ban },
 };
 

@@ -17,7 +17,7 @@ export interface VisibilidadeShare {
 }
 
 export const BLOCOS: { chave: keyof VisibilidadeShare; rotulo: string }[] = [
-  { chave: "visaoGeral", rotulo: "Visao geral (tipo, canais, tema, data)" },
+  { chave: "visaoGeral", rotulo: "Visão geral (tipo, canais, tema, data)" },
   { chave: "briefing", rotulo: "Briefing" },
   { chave: "roteiro", rotulo: "Roteiro completo" },
   { chave: "teleprompter", rotulo: "Teleprompter (as falas)" },

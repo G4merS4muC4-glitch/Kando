@@ -83,7 +83,7 @@ function TarefaItem({
         type="button"
         role="checkbox"
         aria-checked={tarefa.feita}
-        aria-label={tarefa.feita ? "Marcar como nao feita" : "Marcar como feita"}
+        aria-label={tarefa.feita ? "Marcar como não feita" : "Marcar como feita"}
         onClick={() => onToggle(faseId, tarefa.id)}
         onPointerDown={(e) => e.stopPropagation()}
         className={`relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition before:absolute before:-inset-2.5 before:content-[''] ${

@@ -50,7 +50,7 @@ export default function Coluna({
         className="mb-2 flex items-center justify-center gap-1.5 rounded-marca border border-dashed border-marca-cinza/50 px-3 py-2 text-xs font-semibold text-marca-cinza transition hover:border-marca-laranja hover:bg-marca-laranja/5 hover:text-marca-laranja focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-laranja"
       >
         <Plus size={14} aria-hidden />
-        Novo conteudo
+        Novo conteúdo
       </button>
 
       {/* Lista de cards (area de drop) */}
@@ -68,7 +68,7 @@ export default function Coluna({
 
         {cards.length === 0 && (
           <p className="select-none px-2 py-6 text-center text-xs text-marca-cinza/70">
-            Arraste um card para ca ou crie um novo conteudo.
+            Arraste um card para cá ou crie um novo conteúdo.
           </p>
         )}
       </div>

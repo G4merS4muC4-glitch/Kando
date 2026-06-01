@@ -38,7 +38,7 @@ export default function PainelPlanejamento({
   if (insights.length === 0 && recomendacoes.length === 0) {
     return (
       <p className="rounded-marca border border-dashed border-marca-cinza/40 px-4 py-10 text-center text-sm text-marca-cinza">
-        Atualize as metricas para ver os insights e as recomendacoes de conteudo.
+        Atualize as métricas para ver os insights e as recomendações de conteúdo.
       </p>
     );
   }
@@ -49,19 +49,19 @@ export default function PainelPlanejamento({
       {(melhorAlcance || melhorEngaj) && (
         <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-4">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-            <TrendingUp size={14} aria-hidden /> Cadencia sugerida
+            <TrendingUp size={14} aria-hidden /> Cadência sugerida
           </p>
           <ul className="space-y-1 text-sm text-marca-preto">
             {melhorAlcance && (
               <li>
                 Priorize <strong>{TIPOS[melhorAlcance].label}</strong>: foi o formato de maior
-                alcance no periodo.
+                alcance no período.
               </li>
             )}
             {melhorEngaj && melhorEngaj !== melhorAlcance && (
               <li>
                 <strong>{TIPOS[melhorEngaj].label}</strong> teve a melhor taxa de engajamento; vale
-                manter na rotacao.
+                manter na rotação.
               </li>
             )}
           </ul>
@@ -72,7 +72,7 @@ export default function PainelPlanejamento({
       {insights.length > 0 && (
         <div>
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-marca-azulEscuro">
-            <Lightbulb size={16} aria-hidden /> Insights do periodo
+            <Lightbulb size={16} aria-hidden /> Insights do período
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {insights.map((texto, i) => (
@@ -91,7 +91,7 @@ export default function PainelPlanejamento({
       {recomendacoes.length > 0 && (
         <div>
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-marca-azulEscuro">
-            <Target size={16} aria-hidden /> Recomendacoes de conteudo
+            <Target size={16} aria-hidden /> Recomendações de conteúdo
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {recomendacoes.map((rec, i) => (

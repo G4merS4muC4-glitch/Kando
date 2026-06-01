@@ -94,10 +94,10 @@ export default function PaginaVisitante() {
         setEstado("carregando");
         await carregar();
       } else {
-        setPinErro(j.erro ?? "Codigo incorreto.");
+        setPinErro(j.erro ?? "Código incorreto.");
       }
     } catch {
-      setPinErro("Nao foi possivel validar agora. Tente de novo.");
+      setPinErro("Não foi possível validar agora. Tente de novo.");
     }
   }
 
@@ -141,8 +141,8 @@ export default function PaginaVisitante() {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-marca-branco text-marca-cinza">
           <Lock size={22} aria-hidden />
         </span>
-        <h1 className="text-lg font-bold text-marca-azulEscuro">Conteudo protegido</h1>
-        <p className="max-w-xs text-sm text-marca-cinza">Digite o codigo para abrir este conteudo.</p>
+        <h1 className="text-lg font-bold text-marca-azulEscuro">Conteúdo protegido</h1>
+        <p className="max-w-xs text-sm text-marca-cinza">Digite o código para abrir este conteúdo.</p>
         <form onSubmit={enviarPin} className="flex w-full max-w-xs flex-col gap-2">
           <input
             type="text"
@@ -150,7 +150,7 @@ export default function PaginaVisitante() {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             autoFocus
-            placeholder="Codigo"
+            placeholder="Código"
             className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2.5 text-center text-lg tracking-widest text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
           />
           {pinErro && <p className="text-sm font-semibold text-marca-vermelho">{pinErro}</p>}
@@ -167,14 +167,14 @@ export default function PaginaVisitante() {
   if (estado !== "ok" || cards.length === 0) {
     const msg =
       estado === "inexistente"
-        ? "Link nao encontrado."
+        ? "Link não encontrado."
         : estado === "revogado"
           ? "Este link foi revogado."
           : estado === "expirado"
             ? "Este link expirou."
             : estado === "indisponivel"
-              ? "Link indisponivel no momento."
-              : "Algo deu errado. Tente recarregar a pagina.";
+              ? "Link indisponível no momento."
+              : "Algo deu errado. Tente recarregar a página.";
     return (
       <Centro>
         <AlertTriangle size={28} className="text-marca-cinza" aria-hidden />
@@ -284,7 +284,7 @@ function ItemLista({
     >
       <BadgeTipo tipo={card.tipo} tamanho="pequeno" />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-marca-preto">
-        {card.titulo || "Sem titulo"}
+        {card.titulo || "Sem título"}
       </span>
       <ChevronRight size={16} className="shrink-0 text-marca-cinza" aria-hidden />
     </button>
@@ -315,7 +315,7 @@ function ConteudoCard({
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <BadgeTipo tipo={card.tipo} />
         <h1 className="text-xl font-bold leading-tight text-marca-azulEscuro">
-          {card.titulo || "Sem titulo"}
+          {card.titulo || "Sem título"}
         </h1>
       </div>
 
@@ -401,7 +401,7 @@ function ConteudoCard({
       {card.projeto && card.projeto.fases.length > 0 && (
         <section className="mb-4">
           <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-            Fluxo de producao
+            Fluxo de produção
           </span>
           <div className="space-y-3">
             {card.projeto.fases.map((fase) => {
@@ -456,7 +456,7 @@ function Bloco({ titulo, texto }: { titulo: string; texto: string }) {
         {titulo}
       </span>
       <p className="whitespace-pre-wrap rounded-marca border border-marca-cinza/30 bg-white px-3 py-3 text-sm leading-relaxed text-marca-preto">
-        {texto.trim() || "Sem conteudo."}
+        {texto.trim() || "Sem conteúdo."}
       </p>
     </section>
   );

@@ -59,7 +59,7 @@ export default function Inicial() {
               Campanhas
             </h1>
             <p className="text-sm text-marca-cinza">
-              Escolha uma campanha para abrir o quadro de conteudos.
+              Escolha uma campanha para abrir o quadro de conteúdos.
             </p>
           </div>
           <button
@@ -92,7 +92,7 @@ export default function Inicial() {
         {/* Filtro de situacao */}
         <div className="mb-6 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-marca-cinza">
-            Situacao:
+            Situação:
           </span>
           {STATUS_OPCOES.map((o) => {
             const ativo = statusFiltro === o.id;

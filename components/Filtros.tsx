@@ -39,8 +39,8 @@ export default function Filtros({
           type="search"
           value={filtros.busca}
           onChange={(e) => onChange({ busca: e.target.value })}
-          placeholder="Buscar por titulo..."
-          aria-label="Buscar por titulo"
+          placeholder="Buscar por título..."
+          aria-label="Buscar por título"
           className="w-full rounded-marca border border-marca-cinza/40 bg-white py-2 pl-9 pr-3 text-sm text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
         />
       </div>
@@ -49,7 +49,7 @@ export default function Filtros({
       <select
         value={filtros.tipo}
         onChange={(e) => onChange({ tipo: e.target.value as FiltrosState["tipo"] })}
-        aria-label="Filtrar por tipo de conteudo"
+        aria-label="Filtrar por tipo de conteúdo"
         className={selectClasse}
       >
         <option value="todos">Todos os tipos</option>

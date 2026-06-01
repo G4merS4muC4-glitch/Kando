@@ -56,7 +56,7 @@ export function formatarData(dataISO: string | undefined): string {
 export const MESES = [
   "Janeiro",
   "Fevereiro",
-  "Marco",
+  "Março",
   "Abril",
   "Maio",
   "Junho",
@@ -69,7 +69,7 @@ export const MESES = [
 ];
 
 /** Abreviacoes dos dias da semana (domingo a sabado). */
-export const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+export const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 /**
  * Gera a grade de um mes para o calendario: sempre 6 semanas (42 dias),

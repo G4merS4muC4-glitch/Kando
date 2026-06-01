@@ -39,7 +39,7 @@ export default function CardRecomendacao({
     const card: CardConteudo = {
       id: gerarId(),
       campanhaId: alvo,
-      titulo: rec.titulo || "Ideia de conteudo",
+      titulo: rec.titulo || "Ideia de conteúdo",
       tipo: rec.tipo_sugerido ?? "post",
       canais: ["instagram"],
       etapa: "ideias",
@@ -85,7 +85,7 @@ export default function CardRecomendacao({
           </div>
         ) : campanhasDaMarca.length === 0 ? (
           <p className="text-xs text-marca-cinza">
-            Crie uma campanha desta marca para transformar a recomendacao em card.
+            Crie uma campanha desta marca para transformar a recomendação em card.
           </p>
         ) : abrindo ? (
           <div className="flex flex-wrap items-center gap-2">

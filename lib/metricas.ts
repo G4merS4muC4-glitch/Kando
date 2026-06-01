@@ -103,9 +103,9 @@ export const HANDLE_PADRAO: Record<PerfilMetrica, string> = {
 
 const CONTEXTO_MARCA: Record<PerfilMetrica, string> = {
   brusoft:
-    "A Brusoft e um MSP B2B (gestao de TI, infraestrutura, seguranca, nuvem e produtividade). Publico: donos e gestores de empresa. Foco em continuidade, seguranca, previsibilidade e produtividade. CTA recorrente: diagnostico gratuito de TI. Tom direto, sem promessa inflada, com dor concreta e consequencia pratica.",
+    "A Brusoft é um MSP B2B (gestão de TI, infraestrutura, segurança, nuvem e produtividade). Público: donos e gestores de empresa. Foco em continuidade, segurança, previsibilidade e produtividade. CTA recorrente: diagnóstico gratuito de TI. Tom direto, sem promessa inflada, com dor concreta e consequência prática.",
   evotalks:
-    "A Evotalks atua com atendimento e experiencia do cliente, com foco em WhatsApp, API oficial e automacao com bots. Publico: empresas que querem organizar e escalar atendimento. Tom direto e pratico, mostrando ganho real de operacao.",
+    "A Evotalks atua com atendimento e experiência do cliente, com foco em WhatsApp, API oficial e automação com bots. Público: empresas que querem organizar e escalar atendimento. Tom direto e prático, mostrando ganho real de operação.",
 };
 
 /** Estrutura limpa (sem valores) que o Claude deve devolver preenchida. */
@@ -159,27 +159,27 @@ export function gerarPromptAtualizacao(
   handle: string,
   periodoLabel: string
 ): string {
-  return `Voce e analista de redes sociais. Sua tarefa e analisar o desempenho do Instagram
-do perfil ${rotuloPerfil(perfil)} (${handle}) no periodo ${periodoLabel} e devolver UM unico arquivo
-JSON, no formato exato definido no fim deste prompt, que sera carregado num dashboard.
+  return `Você é analista de redes sociais. Sua tarefa é analisar o desempenho do Instagram
+do perfil ${rotuloPerfil(perfil)} (${handle}) no período ${periodoLabel} e devolver UM único arquivo
+JSON, no formato exato definido no fim deste prompt, que será carregado num dashboard.
 
 COMO OBTER OS DADOS
-- Se voce tiver acesso a conta do Instagram por uma ferramenta conectada, extraia as
-  metricas direto de la.
-- Se nao tiver, analise os prints, exportacoes (CSV) ou numeros do Instagram Insights
+- Se você tiver acesso à conta do Instagram por uma ferramenta conectada, extraia as
+  métricas direto de lá.
+- Se não tiver, analise os prints, exportações (CSV) ou números do Instagram Insights
   que eu colar ou enviar nesta conversa.
-- Nao invente numeros. Se algum dado nao estiver disponivel, use null ou omita o campo.
+- Não invente números. Se algum dado não estiver disponível, use null ou omita o campo.
   Nunca preencha por estimativa sem deixar claro.
 
 CONTEXTO DA MARCA (use para escrever os campos "insights" e "recomendacoes")
 ${CONTEXTO_MARCA[perfil]}
 
-REGRAS DE SAIDA
-- Responda APENAS com o JSON. Sem texto antes ou depois. Sem blocos de codigo. Sem comentarios.
-- Todos os textos em portugues do Brasil, sem travessao.
-- Datas no formato AAAA-MM-DD. Percentuais como numero (ex: 4.8, e nao "4,8%").
-- "insights": 3 a 6 leituras objetivas do periodo, ligadas aos numeros.
-- "recomendacoes": 3 a 5 acoes de conteudo conectadas as metricas e a marca, cada uma
+REGRAS DE SAÍDA
+- Responda APENAS com o JSON. Sem texto antes ou depois. Sem blocos de código. Sem comentários.
+- Todos os textos em português do Brasil, sem travessão.
+- Datas no formato AAAA-MM-DD. Percentuais como número (ex: 4.8, e não "4,8%").
+- "insights": 3 a 6 leituras objetivas do período, ligadas aos números.
+- "recomendacoes": 3 a 5 ações de conteúdo conectadas às métricas e à marca, cada uma
   com titulo, porque, tipo_sugerido (reels/post/carrossel/stories) e tema_sugerido.
 
 FORMATO (devolva exatamente esta estrutura, preenchida):
@@ -197,7 +197,7 @@ export function parseMetricas(
   if (limpo.startsWith("```")) {
     limpo = limpo.replace(/^```(?:json)?/i, "").replace(/```\s*$/, "").trim();
   }
-  if (!limpo) return { ok: false, erro: "Cole o JSON gerado pelo Claude para atualizar as metricas." };
+  if (!limpo) return { ok: false, erro: "Cole o JSON gerado pelo Claude para atualizar as métricas." };
 
   let obj: unknown;
   try {
@@ -205,11 +205,11 @@ export function parseMetricas(
   } catch {
     return {
       ok: false,
-      erro: "O texto colado nao e um JSON valido. Verifique se copiou o conteudo completo, sem cortar.",
+      erro: "O texto colado não é um JSON válido. Verifique se copiou o conteúdo completo, sem cortar.",
     };
   }
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
-    return { ok: false, erro: "O JSON precisa ser um objeto com os dados das metricas." };
+    return { ok: false, erro: "O JSON precisa ser um objeto com os dados das métricas." };
   }
   const m = obj as MetricasInstagram;
   if (m.perfil !== "brusoft" && m.perfil !== "evotalks") {

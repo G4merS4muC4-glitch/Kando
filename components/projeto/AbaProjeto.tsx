@@ -236,7 +236,7 @@ export default function AbaProjeto({ card }: { card: CardConteudo }) {
           <ListChecks size={28} aria-hidden />
         </span>
         <p className="max-w-xs text-sm text-marca-cinza">
-          Comece adicionando uma fase para organizar a producao do projeto.
+          Comece adicionando uma fase para organizar a produção do projeto.
         </p>
         <button
           type="button"
@@ -258,16 +258,16 @@ export default function AbaProjeto({ card }: { card: CardConteudo }) {
         </AnelProgresso>
         <div className="text-center sm:text-left">
           <p className="text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-            Fluxo de producao
+            Fluxo de produção
           </p>
           <p className="mt-0.5 text-sm font-semibold text-marca-preto">
-            {prog.feitas} de {prog.total} tarefas concluidas
+            {prog.feitas} de {prog.total} tarefas concluídas
           </p>
           <p className="text-xs text-marca-cinza">
-            {fasesCompletas} de {prog.fases} fases concluidas
+            {fasesCompletas} de {prog.fases} fases concluídas
           </p>
           <p className="mt-1.5 text-xs text-marca-cinza">
-            Quebre o projeto em fases e marque cada tarefa concluida.
+            Quebre o projeto em fases e marque cada tarefa concluída.
           </p>
         </div>
       </div>

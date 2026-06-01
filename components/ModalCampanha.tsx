@@ -155,7 +155,7 @@ export default function ModalCampanha({
             </Campo>
           </div>
 
-          <Campo rotulo="Descricao">
+          <Campo rotulo="Descrição">
             <textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
@@ -165,7 +165,7 @@ export default function ModalCampanha({
           </Campo>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Campo rotulo="Inicio">
+            <Campo rotulo="Início">
               <input
                 type="date"
                 value={inicio}
@@ -188,7 +188,7 @@ export default function ModalCampanha({
           {editando && campanha && (
             <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3">
               <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-                Situacao da campanha
+                Situação da campanha
               </p>
               {arquivada ? (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -241,7 +241,7 @@ export default function ModalCampanha({
                 </div>
               )}
               <p className="mt-2 text-xs text-marca-cinza">
-                Arquivar tira a campanha da lista de ativas, sem apagar nada. Da para reabrir quando
+                Arquivar tira a campanha da lista de ativas, sem apagar nada. Dá para reabrir quando
                 quiser.
               </p>
             </div>
@@ -253,7 +253,7 @@ export default function ModalCampanha({
           {editando ? (
             confirmandoExclusao ? (
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-marca-preto">Excluir a campanha e seus conteudos?</span>
+                <span className="font-medium text-marca-preto">Excluir a campanha e seus conteúdos?</span>
                 <button
                   type="button"
                   onClick={confirmarExclusao}

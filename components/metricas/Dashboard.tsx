@@ -83,7 +83,7 @@ function CartaoGrafico({
     <div className="rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card">
       <p className="mb-3 text-sm font-bold text-marca-azulEscuro">{titulo}</p>
       {vazio ? (
-        <p className="py-8 text-center text-sm text-marca-cinza">Sem dados para este periodo.</p>
+        <p className="py-8 text-center text-sm text-marca-cinza">Sem dados para este período.</p>
       ) : (
         children
       )}
@@ -97,7 +97,7 @@ const DIAS = [
   { id: "qua", rotulo: "Qua" },
   { id: "qui", rotulo: "Qui" },
   { id: "sex", rotulo: "Sex" },
-  { id: "sab", rotulo: "Sab" },
+  { id: "sab", rotulo: "Sáb" },
   { id: "dom", rotulo: "Dom" },
 ];
 
@@ -238,7 +238,7 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
         </CartaoGrafico>
 
         {/* Alcance e impressoes */}
-        <CartaoGrafico titulo="Alcance e impressoes" vazio={serieAlc.length === 0}>
+        <CartaoGrafico titulo="Alcance e impressões" vazio={serieAlc.length === 0}>
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={serieAlc} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -248,14 +248,14 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Line type="monotone" dataKey="alcance" name="Alcance" stroke={cor} strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="impressoes" name="Impressoes" stroke="#044B8C" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="impressoes" name="Impressões" stroke="#044B8C" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </CartaoGrafico>
 
         {/* Alcance por tipo */}
-        <CartaoGrafico titulo="Alcance por tipo de conteudo" vazio={porTipoAlcance.length === 0}>
+        <CartaoGrafico titulo="Alcance por tipo de conteúdo" vazio={porTipoAlcance.length === 0}>
           <div className="h-60 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={porTipoAlcance} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -294,13 +294,13 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
       </div>
 
       {/* Melhores horarios */}
-      <CartaoGrafico titulo="Melhores horarios" vazio={(dados.melhores_horarios ?? []).length === 0}>
+      <CartaoGrafico titulo="Melhores horários" vazio={(dados.melhores_horarios ?? []).length === 0}>
         <Heatmap dados={dados.melhores_horarios} cor={cor} />
       </CartaoGrafico>
 
       {/* Audiencia */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <CartaoGrafico titulo="Genero" vazio={generoData.length === 0}>
+        <CartaoGrafico titulo="Gênero" vazio={generoData.length === 0}>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -315,7 +315,7 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
           </div>
         </CartaoGrafico>
 
-        <CartaoGrafico titulo="Faixa etaria" vazio={faixaData.length === 0}>
+        <CartaoGrafico titulo="Faixa etária" vazio={faixaData.length === 0}>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={faixaData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -323,7 +323,7 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
                 <XAxis dataKey="nome" tick={{ fontSize: 11, fill: CINZA }} />
                 <YAxis tick={{ fontSize: 11, fill: CINZA }} width={36} unit="%" />
                 <Tooltip />
-                <Bar dataKey="valor" name="Publico" fill={cor} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="valor" name="Público" fill={cor} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -337,7 +337,7 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
                 <XAxis type="number" tick={{ fontSize: 11, fill: CINZA }} unit="%" />
                 <YAxis type="category" dataKey="nome" tick={{ fontSize: 11, fill: CINZA }} width={70} />
                 <Tooltip />
-                <Bar dataKey="valor" name="Publico" fill={cor} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="valor" name="Público" fill={cor} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -369,12 +369,12 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
                         rel="noreferrer"
                         className="flex items-center gap-1 text-sm font-semibold text-marca-azulClaro hover:underline"
                       >
-                        {post.titulo || "Sem titulo"}
+                        {post.titulo || "Sem título"}
                         <ExternalLink size={12} aria-hidden />
                       </a>
                     ) : (
                       <span className="text-sm font-semibold text-marca-preto">
-                        {post.titulo || "Sem titulo"}
+                        {post.titulo || "Sem título"}
                       </span>
                     )}
                   </div>
@@ -411,9 +411,9 @@ export default function Dashboard({ dados, cor }: { dados: MetricasInstagram; co
       {/* Rodape */}
       <p className="text-center text-xs text-marca-cinza">
         {dados.periodo?.inicio && dados.periodo?.fim
-          ? `Periodo: ${dados.periodo.inicio} a ${dados.periodo.fim}`
-          : "Periodo nao informado"}
-        {dados.gerado_em ? ` - Atualizado em ${dados.gerado_em}` : ""}
+          ? `Período: ${dados.periodo.inicio} a ${dados.periodo.fim}`
+          : "Período não informado"}
+        {dados.gerado_em ? `, atualizado em ${dados.gerado_em}` : ""}
       </p>
     </div>
   );

@@ -53,7 +53,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
     ? { Icone: RotateCcw, titulo: "Reabrir (desfazer postado)", cor: "text-marca-verdeEscuro" }
     : aprovado
       ? { Icone: CheckCircle2, titulo: "Marcar como postado", cor: "text-marca-laranja" }
-      : { Icone: Circle, titulo: "Marcar como concluido", cor: "text-marca-cinza" };
+      : { Icone: Circle, titulo: "Marcar como concluído", cor: "text-marca-cinza" };
   const IconeAcao = acaoConfig.Icone;
 
   return (
@@ -96,7 +96,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
             </button>
             <button
               type="button"
-              aria-label="Abrir detalhes do conteudo"
+              aria-label="Abrir detalhes do conteúdo"
               title="Abrir detalhes"
               onClick={(e) => {
                 e.stopPropagation();
@@ -122,7 +122,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
 
         {/* Titulo */}
         <h3 className="mb-2 text-sm font-semibold leading-snug text-marca-preto">
-          {card.titulo || "Sem titulo"}
+          {card.titulo || "Sem título"}
         </h3>
 
         {/* Rodape: para projeto, mostra o progresso das tarefas; para os demais,
@@ -151,7 +151,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
                     <span className="text-marca-cinza">Sem tarefas ainda</span>
                   ) : prog.pct === 100 ? (
                     <span className="flex items-center gap-1 font-semibold text-marca-verde">
-                      <CheckCircle2 size={12} aria-hidden /> Concluido
+                      <CheckCircle2 size={12} aria-hidden /> Concluído
                     </span>
                   ) : (
                     <span className="font-semibold text-marca-azulEscuro">

@@ -10,7 +10,7 @@ export default function Conector({ aceso }: { aceso: boolean }) {
   return (
     <div
       className="flex shrink-0 items-center justify-center self-stretch py-1 sm:w-7 sm:py-0"
-      title="A seta acende quando as fases anteriores estao concluidas"
+      title="A seta acende quando as fases anteriores estão concluídas"
       aria-hidden
     >
       {/* Mobile: linha guia vertical atras do icone. */}

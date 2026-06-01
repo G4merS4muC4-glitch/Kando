@@ -74,7 +74,7 @@ export default function ModalCompartilhar({
       .then(setLista)
       .catch(() =>
         setErro(
-          "Nao foi possivel carregar os links. Rode o supabase/share.sql no Supabase (cria a tabela de compartilhamentos)."
+          "Não foi possível carregar os links. Rode o supabase/share.sql no Supabase (cria a tabela de compartilhamentos)."
         )
       );
   }, [card.id, disponivel]);
@@ -100,11 +100,11 @@ export default function ModalCompartilhar({
       return;
     }
     if (edicaoTeleprompter && !visibilidade.teleprompter) {
-      setErro("Para liberar a edicao, o bloco Teleprompter precisa estar visivel.");
+      setErro("Para liberar a edição, o bloco Teleprompter precisa estar visível.");
       return;
     }
     if (usarPin && pin.trim().length < 4) {
-      setErro("O codigo (PIN) precisa de pelo menos 4 caracteres.");
+      setErro("O código (PIN) precisa de pelo menos 4 caracteres.");
       return;
     }
     setGerando(true);
@@ -123,7 +123,7 @@ export default function ModalCompartilhar({
       void copiar(novo.token);
     } catch {
       setErro(
-        "Nao foi possivel gerar o link. Confira se o supabase/share.sql ja foi rodado no Supabase, e tente de novo."
+        "Não foi possível gerar o link. Confira se o supabase/share.sql já foi rodado no Supabase, e tente de novo."
       );
     } finally {
       setGerando(false);
@@ -135,7 +135,7 @@ export default function ModalCompartilhar({
       await revogarCompartilhamento(token);
       setLista((l) => l.map((s) => (s.token === token ? { ...s, revogado: true } : s)));
     } catch {
-      setErro("Nao foi possivel revogar o link.");
+      setErro("Não foi possível revogar o link.");
     }
   }
 
@@ -162,7 +162,7 @@ export default function ModalCompartilhar({
             <div>
               <p className="text-xs uppercase tracking-wide text-white/70">Compartilhar</p>
               <h2 className="max-w-[60vw] truncate text-base font-bold sm:max-w-sm">
-                {card.titulo || "Sem titulo"}
+                {card.titulo || "Sem título"}
               </h2>
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function ModalCompartilhar({
             <p className="flex items-start gap-2 rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 text-sm text-marca-cinza">
               <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
               O compartilhamento por link funciona apenas no site publicado (com login). No modo
-              local nao ha como gerar um link publico.
+              local não há como gerar um link público.
             </p>
           ) : (
             <>
@@ -210,7 +210,7 @@ export default function ModalCompartilhar({
                         />
                         <BadgeTipo tipo={c.tipo} tamanho="pequeno" />
                         <span className="min-w-0 flex-1 truncate text-marca-preto">
-                          {c.titulo || "Sem titulo"}
+                          {c.titulo || "Sem título"}
                         </span>
                         {ehOrigem && <span className="shrink-0 text-[10px] text-marca-cinza">este</span>}
                       </label>
@@ -225,7 +225,7 @@ export default function ModalCompartilhar({
               {/* Visibilidade por bloco */}
               <div>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
-                  O que o visitante ve
+                  O que o visitante vê
                 </p>
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                   {BLOCOS.map((b) => (
@@ -260,7 +260,7 @@ export default function ModalCompartilhar({
                     Permitir editar o teleprompter
                   </span>
                   <span className="block text-xs text-marca-cinza">
-                    O visitante ajusta so as falas, e a mudanca reflete no card do time.
+                    O visitante ajusta só as falas, e a mudança reflete no card do time.
                   </span>
                 </span>
               </label>
@@ -275,7 +275,7 @@ export default function ModalCompartilhar({
                     className="h-4 w-4 accent-marca-laranja"
                   />
                   <Lock size={14} aria-hidden className="text-marca-cinza" />
-                  <span className="font-semibold text-marca-azulEscuro">Exigir codigo (PIN)</span>
+                  <span className="font-semibold text-marca-azulEscuro">Exigir código (PIN)</span>
                 </label>
                 {usarPin && (
                   <input
@@ -305,8 +305,8 @@ export default function ModalCompartilhar({
               {edicaoTeleprompter && !usarPin && (
                 <p className="flex items-start gap-2 rounded-marca border border-marca-laranja/40 bg-marca-laranja/5 p-3 text-xs font-semibold text-marca-laranja">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
-                  Sem PIN, qualquer pessoa com o link podera alterar o teleprompter. Para liberar a
-                  edicao com seguranca, ligue o codigo (PIN).
+                  Sem PIN, qualquer pessoa com o link poderá alterar o teleprompter. Para liberar a
+                  edição com segurança, ligue o código (PIN).
                 </p>
               )}
 
@@ -361,7 +361,7 @@ export default function ModalCompartilhar({
                         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-marca-cinza">
                           <span className="flex flex-wrap items-center gap-2">
                             {s.edicao_teleprompter && (
-                              <span className="font-semibold text-marca-laranja">edicao do teleprompter</span>
+                              <span className="font-semibold text-marca-laranja">edição do teleprompter</span>
                             )}
                             {s.pin_hash && (
                               <span className="flex items-center gap-1">

@@ -18,24 +18,23 @@ export default function Topo() {
   return (
     <header className="sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md">
       <div className="flex items-center justify-between gap-4 px-4 py-3">
-        {/* Wordmark */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+        {/* Simbolo laranja + logo completa (Kando by Brusoft) lado a lado */}
+        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Kando by Brusoft">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/kando-logo.svg"
-            alt="Kando"
-            className="h-8 w-8 object-contain"
-            width={32}
-            height={32}
+            alt=""
+            aria-hidden
+            className="h-7 w-7 shrink-0 object-contain"
+            width={28}
+            height={28}
           />
-          <span className="flex flex-col leading-tight">
-            <span className="font-titulo text-lg font-bold uppercase tracking-wide text-white">
-              Kando
-            </span>
-            <span className="text-[10px] font-medium tracking-wide text-white/55">
-              by Brusoft
-            </span>
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kando-completa.svg"
+            alt="Kando by Brusoft"
+            className="h-7 w-auto object-contain sm:h-8"
+          />
         </Link>
 
         {/* Navegacao */}
@@ -49,14 +48,14 @@ export default function Topo() {
               ativo={!!noCalendario}
               icone={<CalendarDays size={16} aria-hidden />}
             >
-              Calendario
+              Calendário
             </LinkNav>
             <LinkNav
               href="/metricas"
               ativo={!!noMetricas}
               icone={<BarChart3 size={16} aria-hidden />}
             >
-              Metricas
+              Métricas
             </LinkNav>
           </nav>
           <BotaoSair />

@@ -37,7 +37,7 @@ export default function BlocoPromptAtualizacao({
     <div className="overflow-hidden rounded-marca border border-marca-cinza/30 bg-white">
       <div className="flex items-center justify-between gap-2 border-b border-marca-cinza/20 bg-marca-branco px-4 py-2.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-          Prompt de atualizacao
+          Prompt de atualização
         </span>
         <button
           type="button"

@@ -21,7 +21,7 @@ export default function PaginaLogin() {
     e.preventDefault();
     setErro(null);
     if (!supabaseConfigurado()) {
-      setErro("O login ainda nao foi configurado (Supabase).");
+      setErro("O login ainda não foi configurado (Supabase).");
       return;
     }
     setCarregando(true);
@@ -35,7 +35,7 @@ export default function PaginaLogin() {
       router.replace("/");
       router.refresh();
     } catch {
-      setErro("Nao foi possivel entrar. Tente novamente.");
+      setErro("Não foi possível entrar. Tente novamente.");
     } finally {
       setCarregando(false);
     }
