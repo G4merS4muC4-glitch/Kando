@@ -22,8 +22,8 @@ export default function Topo() {
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brusoft-simbolo.png"
-            alt="Brusoft"
+            src="/kando-logo.svg"
+            alt="Kando"
             className="h-8 w-8 object-contain"
             width={32}
             height={32}

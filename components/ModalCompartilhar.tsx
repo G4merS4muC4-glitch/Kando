@@ -60,7 +60,11 @@ export default function ModalCompartilhar({
     if (!disponivel) return;
     listarCompartilhamentosDoCard(card.id)
       .then(setLista)
-      .catch(() => setErro("Nao foi possivel carregar os links existentes."));
+      .catch(() =>
+        setErro(
+          "Nao foi possivel carregar os links. Rode o supabase/share.sql no Supabase (cria a tabela de compartilhamentos)."
+        )
+      );
   }, [card.id, disponivel]);
 
   const origem = typeof window !== "undefined" ? window.location.origin : "";
@@ -106,7 +110,9 @@ export default function ModalCompartilhar({
       setPin("");
       void copiar(novo.token);
     } catch {
-      setErro("Nao foi possivel gerar o link. Tente de novo.");
+      setErro(
+        "Nao foi possivel gerar o link. Confira se o supabase/share.sql ja foi rodado no Supabase, e tente de novo."
+      );
     } finally {
       setGerando(false);
     }

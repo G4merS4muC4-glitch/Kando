@@ -47,7 +47,7 @@ export default function PaginaLogin() {
         {/* Marca */}
         <div className="mb-6 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brusoft-simbolo.png" alt="Brusoft" className="mb-3 h-12 w-12 object-contain" />
+          <img src="/kando-logo.svg" alt="Kando" className="mb-3 h-12 w-12 object-contain" />
           <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
             Kando
           </h1>
