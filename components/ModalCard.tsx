@@ -14,6 +14,7 @@ import {
   Clock,
   CheckCircle2,
   Share2,
+  Timer,
 } from "lucide-react";
 import {
   CANAIS,
@@ -27,6 +28,8 @@ import {
   TIPOS_ORDEM,
 } from "@/lib/config";
 import { useBoard } from "@/lib/store";
+import { useApontamentos } from "@/lib/apontamentosProvider";
+import { formatarDuracao } from "@/lib/apontamentos";
 import type { Canal, CardConteudo, Etapa, TipoConteudo } from "@/lib/types";
 import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
@@ -60,6 +63,7 @@ export default function ModalCard({
 }) {
   const { campanhas, atualizarCard, excluirCard, concluirCard, marcarPostado, reabrirCard } =
     useBoard();
+  const { iniciarTimer, totalMsDoCard, timerAtivo } = useApontamentos();
   const [aba, setAba] = useState<Aba>("visao");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [teleprompterAberto, setTeleprompterAberto] = useState(false);
@@ -208,6 +212,10 @@ export default function ModalCard({
   const postado = card.etapa === "publicado";
   const aprovado = card.etapa === "aprovado";
 
+  // Horas apontadas neste card e se o timer atual e dele.
+  const totalCard = totalMsDoCard(card.id);
+  const timerNesteCard = timerAtivo?.cardId === card.id;
+
   // Limite de caracteres da legenda conforme os canais marcados.
   const limiteLegenda = card.canais.length
     ? Math.min(...card.canais.map((c) => CANAIS[c].limiteLegenda))
@@ -309,6 +317,31 @@ export default function ModalCard({
             >
               <CircleCheck size={15} aria-hidden />
               Concluir (mover para Aprovado)
+            </button>
+          )}
+        </div>
+
+        {/* Timer e total de horas apontadas neste card */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-marca-cinza">
+            <Timer size={14} aria-hidden />
+            {totalCard > 0 ? `${formatarDuracao(totalCard)} apontadas` : "Sem horas apontadas"}
+          </span>
+          {timerNesteCard ? (
+            <span className="flex items-center gap-1.5 rounded-marca bg-marca-laranja/10 px-3 py-1.5 text-sm font-semibold text-marca-laranja">
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-marca-laranja/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-marca-laranja" />
+              </span>
+              Timer em andamento
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => iniciarTimer(card.id)}
+              className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-laranja hover:text-marca-laranja"
+            >
+              <Timer size={15} aria-hidden /> Iniciar timer
             </button>
           )}
         </div>

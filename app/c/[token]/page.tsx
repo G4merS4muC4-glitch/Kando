@@ -50,6 +50,12 @@ export default function PaginaVisitante() {
   const [salvando, setSalvando] = useState<Salvamento>("idle");
   const [tpAberto, setTpAberto] = useState(false);
   const timerSalvar = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ultima versao do quadro vista (atualizado_em); so busca o conteudo quando muda.
+  const versaoRef = useRef<string>("");
+  // Card cujo teleprompter esta com o cursor; nao deixa o poll sobrescrever.
+  const tpFocadoRef = useRef<string | null>(null);
+  // Cards com ajuste de teleprompter ainda nao confirmado no servidor (protege do poll).
+  const tpPendenteRef = useRef<Set<string>>(new Set());
 
   const carregar = useCallback(async () => {
     try {
@@ -71,9 +77,94 @@ export default function PaginaVisitante() {
     }
   }, [token]);
 
+  // Atualizacao silenciosa (poll): refaz o conteudo sem piscar a tela e sem
+  // apagar o que o visitante esta digitando ou ainda nao salvou. E o que faz a
+  // mudanca do time (admin) aparecer aqui em tempo quase real, e vice-versa.
+  const sincronizar = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/share/${token}`, { cache: "no-store" });
+      const j = await res.json();
+      if (j.estado !== "ok") {
+        setEstado(j.estado as Estado);
+        return;
+      }
+      const lista = (j.cards as CardPublico[]) ?? [];
+      setEdicao(Boolean(j.edicaoTeleprompter));
+      setMarca((j.marca as Marca) ?? "brusoft");
+      setCards(lista);
+      setSelecionadoId((sel) => (lista.some((c) => c.id === sel) ? sel : lista[0]?.id ?? ""));
+      setTpPorCard((prev) => {
+        // Preserva o texto local de quem o visitante edita agora (foco) ou que
+        // ainda nao foi salvo, para o poll nunca apagar o que ele digitou.
+        const protegidos = new Set(tpPendenteRef.current);
+        if (tpFocadoRef.current) protegidos.add(tpFocadoRef.current);
+        const next: Record<string, string> = {};
+        for (const c of lista) {
+          next[c.id] =
+            protegidos.has(c.id) && prev[c.id] !== undefined
+              ? prev[c.id]
+              : typeof c.teleprompter === "string"
+                ? c.teleprompter
+                : (prev[c.id] ?? "");
+        }
+        return next;
+      });
+    } catch {
+      // Falha de rede: tenta no proximo ciclo.
+    }
+  }, [token]);
+
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Mantem o painel sincronizado enquanto aberto: a cada poucos segundos checa um
+  // sinal leve (so o atualizado_em do quadro) e, quando muda, busca o conteudo.
+  // So roda com a aba visivel, para nao gastar a toa.
+  useEffect(() => {
+    if (estado !== "ok") return;
+    let parar = false;
+    let emExecucao = false; // evita ciclos sobrepostos (uma cadeia por vez)
+    let timer: ReturnType<typeof setTimeout>;
+
+    async function ciclo() {
+      if (parar || emExecucao) return;
+      emExecucao = true;
+      try {
+        if (typeof document === "undefined" || document.visibilityState === "visible") {
+          const res = await fetch(`/api/share/${token}/ping`, { cache: "no-store" });
+          const p = (await res.json()) as { estado: string; v?: string };
+          if (!parar) {
+            if (p.estado !== "ok") setEstado(p.estado as Estado);
+            else if (p.v && p.v !== versaoRef.current) {
+              versaoRef.current = p.v;
+              await sincronizar();
+            }
+          }
+        }
+      } catch {
+        // ignora; tenta no proximo ciclo
+      } finally {
+        emExecucao = false;
+        if (!parar) timer = setTimeout(ciclo, 3500);
+      }
+    }
+
+    timer = setTimeout(ciclo, 3500);
+    function aoVisibilidade() {
+      // Ao voltar para a aba, checa logo (sem duplicar uma cadeia em andamento).
+      if (document.visibilityState === "visible" && !emExecucao) {
+        clearTimeout(timer);
+        timer = setTimeout(ciclo, 250);
+      }
+    }
+    document.addEventListener("visibilitychange", aoVisibilidade);
+    return () => {
+      parar = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", aoVisibilidade);
+    };
+  }, [estado, token, sincronizar]);
 
   useEffect(() => {
     setSalvando("idle");
@@ -104,6 +195,8 @@ export default function PaginaVisitante() {
   function onMudarTp(cardId: string, v: string) {
     setTpPorCard((m) => ({ ...m, [cardId]: v }));
     if (!edicao) return;
+    // Marca como nao salvo: o poll nao pode sobrescrever ate o servidor confirmar.
+    tpPendenteRef.current.add(cardId);
     setSalvando("salvando");
     if (timerSalvar.current) clearTimeout(timerSalvar.current);
     timerSalvar.current = setTimeout(async () => {
@@ -114,8 +207,10 @@ export default function PaginaVisitante() {
           body: JSON.stringify({ cardId, texto: v }),
         });
         const j = await res.json();
-        if (j.ok) setSalvando("salvo");
-        else {
+        if (j.ok) {
+          setSalvando("salvo");
+          tpPendenteRef.current.delete(cardId);
+        } else {
           setSalvando("erro");
           if (j.erro === "pin") setEstado("pin");
         }
@@ -197,6 +292,12 @@ export default function PaginaVisitante() {
         tpTexto={tpPorCard[card.id] ?? card.teleprompter ?? ""}
         salvando={salvando}
         onMudarTp={(v) => onMudarTp(card.id, v)}
+        onFocoTp={() => {
+          tpFocadoRef.current = card.id;
+        }}
+        onBlurTp={() => {
+          if (tpFocadoRef.current === card.id) tpFocadoRef.current = null;
+        }}
         onAbrirTp={() => setTpAberto(true)}
       />
     );
@@ -299,6 +400,8 @@ function ConteudoCard({
   tpTexto,
   salvando,
   onMudarTp,
+  onFocoTp,
+  onBlurTp,
   onAbrirTp,
 }: {
   card: CardPublico;
@@ -307,6 +410,8 @@ function ConteudoCard({
   tpTexto: string;
   salvando: Salvamento;
   onMudarTp: (v: string) => void;
+  onFocoTp: () => void;
+  onBlurTp: () => void;
   onAbrirTp: () => void;
 }) {
   const textoTp = tpTexto || card.teleprompter || card.roteiro || "";
@@ -372,6 +477,8 @@ function ConteudoCard({
               <textarea
                 value={tpTexto}
                 onChange={(e) => onMudarTp(e.target.value)}
+                onFocus={onFocoTp}
+                onBlur={onBlurTp}
                 placeholder="Ajuste as falas aqui."
                 className="min-h-[220px] w-full resize-y rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-base leading-loose text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
               />

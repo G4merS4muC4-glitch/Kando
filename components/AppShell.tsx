@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BoardProvider } from "@/lib/store";
+import { ApontamentosProvider } from "@/lib/apontamentosProvider";
 import Topo from "./Topo";
 import AvisoErroCarregar from "./AvisoErroCarregar";
 
@@ -22,11 +23,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <BoardProvider>
-      <AvisoErroCarregar />
-      <div className="flex h-dvh flex-col bg-marca-branco">
-        <Topo />
-        <div className="min-h-0 flex-1">{children}</div>
-      </div>
+      <ApontamentosProvider>
+        <AvisoErroCarregar />
+        <div className="flex h-dvh flex-col bg-marca-branco">
+          <Topo />
+          <div className="min-h-0 flex-1">{children}</div>
+        </div>
+      </ApontamentosProvider>
     </BoardProvider>
   );
 }

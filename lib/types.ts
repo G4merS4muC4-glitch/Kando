@@ -102,6 +102,42 @@ export interface Board {
   cards: CardConteudo[];
 }
 
+/**
+ * Apontamento de horas: um intervalo trabalhado, vinculado a um card
+ * (projeto ou conteudo) e atribuido a quem fez (usuario logado). A duracao NAO
+ * e guardada: e sempre calculada por diferenca entre fim e inicio (fonte unica).
+ */
+export interface RegistroTempo {
+  id: string;
+  cardId: string; // card vinculado (projeto/conteudo)
+  inicio: string; // ISO datetime
+  fim: string; // ISO datetime
+  nota?: string; // o que estava sendo feito
+  autorId: string; // id do usuario logado (ou "local" no modo sem login)
+  autorNome: string; // e-mail/apelido para exibir
+  criadoEm: string; // ISO datetime
+  atualizadoEm: string; // ISO datetime
+}
+
+/**
+ * Timer em andamento: um registro que ja tem inicio mas ainda nao tem fim.
+ * Guardado por aparelho (localStorage), fora da memoria da aba, para sobreviver
+ * a fechar a aba, suspender o computador ou bloquear o celular. O tempo corrido
+ * e calculado por diferenca (agora menos inicio), nunca por um contador da aba.
+ */
+export interface TimerAtivo {
+  cardId: string;
+  inicio: string; // ISO datetime
+  nota?: string;
+  autorId: string;
+  autorNome: string;
+}
+
+/** Documento compartilhado dos apontamentos (linha propria na tabela boards). */
+export interface ApontamentosDoc {
+  registros: RegistroTempo[];
+}
+
 /** Filtros aplicados sobre os cards visiveis dentro de uma campanha. */
 export interface FiltrosState {
   busca: string;

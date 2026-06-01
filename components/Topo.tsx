@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CalendarDays, BarChart3 } from "lucide-react";
+import { LayoutGrid, CalendarDays, BarChart3, Timer } from "lucide-react";
 import BotaoSair from "./BotaoSair";
+import IndicadorTimerTopo from "./apontamentos/IndicadorTimerTopo";
 
 /**
  * Cabecalho global fixo, presente em todas as telas: wordmark a esquerda e
@@ -14,6 +15,7 @@ export default function Topo() {
   const naInicial = caminho === "/";
   const noCalendario = caminho?.startsWith("/calendario");
   const noMetricas = caminho?.startsWith("/metricas");
+  const noHoras = caminho?.startsWith("/horas");
 
   return (
     <header className="sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md">
@@ -37,8 +39,9 @@ export default function Topo() {
           />
         </Link>
 
-        {/* Navegacao */}
+        {/* Indicador de timer + navegacao */}
         <div className="flex items-center gap-2">
+          <IndicadorTimerTopo />
           <nav className="flex items-center gap-1">
             <LinkNav href="/" ativo={!!naInicial} icone={<LayoutGrid size={16} aria-hidden />}>
               Campanhas
@@ -56,6 +59,9 @@ export default function Topo() {
               icone={<BarChart3 size={16} aria-hidden />}
             >
               Métricas
+            </LinkNav>
+            <LinkNav href="/horas" ativo={!!noHoras} icone={<Timer size={16} aria-hidden />}>
+              Horas
             </LinkNav>
           </nav>
           <BotaoSair />
