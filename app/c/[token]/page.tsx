@@ -17,6 +17,7 @@ import { formatarData } from "@/lib/util";
 import { faseProgresso } from "@/lib/projeto";
 import type { CardPublico } from "@/lib/share";
 import type { Marca } from "@/lib/types";
+import { useCanalTeleprompter } from "@/lib/teleprompterAoVivo";
 import BadgeTipo from "@/components/BadgeTipo";
 import Teleprompter from "@/components/Teleprompter";
 
@@ -172,6 +173,14 @@ export default function PaginaVisitante() {
     setSalvando("idle");
   }, [selecionadoId]);
 
+  // Card cuja "sala" ao vivo o visitante esta ouvindo (o card em foco no painel).
+  const cardAtivoId = selecionadoId || cards[0]?.id || null;
+  // Canal ao vivo (Broadcast): recebe o texto que o time (admin) digita na hora,
+  // mesmo com o cursor neste campo. Aplica direto, sem esperar o poll.
+  const { enviar: enviarTp } = useCanalTeleprompter(cardAtivoId, (texto) => {
+    if (cardAtivoId) setTpPorCard((m) => ({ ...m, [cardAtivoId]: texto }));
+  });
+
   async function enviarPin(e: React.FormEvent) {
     e.preventDefault();
     setPinErro(null);
@@ -197,6 +206,8 @@ export default function PaginaVisitante() {
   function onMudarTp(cardId: string, v: string) {
     setTpPorCard((m) => ({ ...m, [cardId]: v }));
     if (!edicao) return;
+    // Envia AO VIVO para o time (instantaneo, nos dois sentidos).
+    enviarTp(v);
     // Marca como nao salvo: o poll nao pode sobrescrever ate o servidor confirmar.
     tpPendenteRef.current.add(cardId);
     setSalvando("salvando");
@@ -281,12 +292,10 @@ export default function PaginaVisitante() {
   }
 
   const selecionado = cards.find((c) => c.id === selecionadoId) ?? cards[0];
-  // O Teleprompter em tela cheia e uma tela de leitura: usa sempre o texto mais
-  // recente do servidor (que o poll atualiza), para refletir os ajustes do time
-  // em tempo quase real mesmo com a tela aberta. O que o visitante digita e salvo
-  // e volta pelo proprio servidor no ciclo seguinte.
-  const textoTpCheio =
-    (selecionado.teleprompter?.trim() ? selecionado.teleprompter : selecionado.roteiro) || "";
+  // Texto ao vivo do card em foco: o Broadcast atualiza tpPorCard na hora, entao
+  // o Teleprompter em tela cheia tambem reflete os ajustes do time em tempo real.
+  const tpLive = tpPorCard[selecionado.id] ?? selecionado.teleprompter ?? "";
+  const textoTpCheio = tpLive.trim() ? tpLive : selecionado.roteiro || "";
   const umCard = cards.length === 1;
 
   function conteudoDe(card: CardPublico) {

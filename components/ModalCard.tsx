@@ -30,6 +30,7 @@ import {
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { formatarDuracao } from "@/lib/apontamentos";
+import { useCanalTeleprompter } from "@/lib/teleprompterAoVivo";
 import type { Canal, CardConteudo, Etapa, TipoConteudo } from "@/lib/types";
 import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
@@ -64,6 +65,11 @@ export default function ModalCard({
   const { campanhas, atualizarCard, excluirCard, concluirCard, marcarPostado, reabrirCard } =
     useBoard();
   const { iniciarTimer, totalMsDoCard, timerAtivo } = useApontamentos();
+  // Canal ao vivo do teleprompter: recebe na hora o que o visitante digita no
+  // link publico (e envia o que o time digita), nos dois sentidos.
+  const { enviar: enviarTp } = useCanalTeleprompter(card.id, (texto) =>
+    atualizarCard({ ...card, teleprompter: texto })
+  );
   const [aba, setAba] = useState<Aba>("visao");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [teleprompterAberto, setTeleprompterAberto] = useState(false);
@@ -669,7 +675,10 @@ export default function ModalCard({
                 )}
                 <textarea
                   value={card.teleprompter ?? ""}
-                  onChange={(e) => atualizarCampo("teleprompter", e.target.value)}
+                  onChange={(e) => {
+                    atualizarCampo("teleprompter", e.target.value);
+                    enviarTp(e.target.value); // propaga AO VIVO para o visitante
+                  }}
                   className={`${inputClasse} min-h-[240px] resize-y bg-marca-branco text-base leading-loose`}
                   placeholder="Apenas a fala, do jeito que você vai narrar (sem 'Cena 1', sem indicações)."
                 />
