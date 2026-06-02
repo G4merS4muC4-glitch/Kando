@@ -123,6 +123,8 @@ export default function PaginaVisitante() {
   // So roda com a aba visivel, para nao gastar a toa.
   useEffect(() => {
     if (estado !== "ok") return;
+    // Mais agil enquanto o Teleprompter esta aberto (leitura ao vivo).
+    const intervalo = tpAberto ? 1500 : 2500;
     let parar = false;
     let emExecucao = false; // evita ciclos sobrepostos (uma cadeia por vez)
     let timer: ReturnType<typeof setTimeout>;
@@ -146,11 +148,11 @@ export default function PaginaVisitante() {
         // ignora; tenta no proximo ciclo
       } finally {
         emExecucao = false;
-        if (!parar) timer = setTimeout(ciclo, 3500);
+        if (!parar) timer = setTimeout(ciclo, intervalo);
       }
     }
 
-    timer = setTimeout(ciclo, 3500);
+    timer = setTimeout(ciclo, intervalo);
     function aoVisibilidade() {
       // Ao voltar para a aba, checa logo (sem duplicar uma cadeia em andamento).
       if (document.visibilityState === "visible" && !emExecucao) {
@@ -164,7 +166,7 @@ export default function PaginaVisitante() {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", aoVisibilidade);
     };
-  }, [estado, token, sincronizar]);
+  }, [estado, token, sincronizar, tpAberto]);
 
   useEffect(() => {
     setSalvando("idle");
@@ -279,8 +281,12 @@ export default function PaginaVisitante() {
   }
 
   const selecionado = cards.find((c) => c.id === selecionadoId) ?? cards[0];
-  const textoTpSel = tpPorCard[selecionado.id] ?? selecionado.teleprompter ?? "";
-  const textoTpCheio = textoTpSel || selecionado.teleprompter || selecionado.roteiro || "";
+  // O Teleprompter em tela cheia e uma tela de leitura: usa sempre o texto mais
+  // recente do servidor (que o poll atualiza), para refletir os ajustes do time
+  // em tempo quase real mesmo com a tela aberta. O que o visitante digita e salvo
+  // e volta pelo proprio servidor no ciclo seguinte.
+  const textoTpCheio =
+    (selecionado.teleprompter?.trim() ? selecionado.teleprompter : selecionado.roteiro) || "";
   const umCard = cards.length === 1;
 
   function conteudoDe(card: CardPublico) {
