@@ -56,32 +56,39 @@ export default function BarraCampanha({
             desktop ficam inline entre o nome e as acoes. */}
         <div className="order-last w-full sm:order-none sm:flex-1">{children}</div>
 
-        {/* Acoes */}
+        {/* Acoes. No mobile, os secundarios ficam so com o icone (menos poluicao)
+            e o principal vira "Novo"; no desktop, todos com rotulo completo. */}
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onColar}
+            aria-label="Colar do Claude"
+            title="Colar do Claude"
             className="flex items-center gap-1.5 rounded-marca border border-marca-azulClaro px-3 py-2 text-sm font-semibold text-marca-azulClaro transition hover:bg-marca-azulClaro hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulClaro"
           >
             <Sparkles size={16} aria-hidden />
-            Colar do Claude
+            <span className="hidden sm:inline">Colar do Claude</span>
           </button>
           <button
             type="button"
             onClick={onNovoProjeto}
+            aria-label="Novo projeto"
             title="Criar um projeto com fases e tarefas"
             className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/50 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-azulEscuro hover:bg-marca-branco focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <ListChecks size={16} aria-hidden />
-            Projeto
+            <span className="hidden sm:inline">Projeto</span>
           </button>
           <button
             type="button"
             onClick={onNovo}
+            aria-label="Novo conteúdo"
+            title="Novo conteúdo"
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <Plus size={16} aria-hidden />
-            Novo conteúdo
+            <span className="sm:hidden">Novo</span>
+            <span className="hidden sm:inline">Novo conteúdo</span>
           </button>
         </div>
       </div>

@@ -15,6 +15,12 @@ import {
   CheckCircle2,
   Share2,
   Timer,
+  LayoutGrid,
+  ListChecks,
+  ClipboardList,
+  Clapperboard,
+  MessageSquareText,
+  type LucideIcon,
 } from "lucide-react";
 import {
   CANAIS,
@@ -37,14 +43,18 @@ import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
 import AbaProjeto from "./projeto/AbaProjeto";
 import ModalCompartilhar from "./ModalCompartilhar";
+import SeletorData from "./SeletorData";
+import SeletorHora from "./SeletorHora";
+import SeletorOpcao from "./SeletorOpcao";
 
 type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda";
 
-const ABAS: { id: Aba; rotulo: string }[] = [
-  { id: "visao", rotulo: "Visão Geral" },
-  { id: "briefing", rotulo: "Briefing" },
-  { id: "roteiro", rotulo: "Roteiro" },
-  { id: "legenda", rotulo: "Legenda" },
+// Cada aba leva um icone para a troca ficar visual e intuitiva (pilulas no topo).
+const ABAS: { id: Aba; rotulo: string; icone: LucideIcon }[] = [
+  { id: "visao", rotulo: "Visão Geral", icone: LayoutGrid },
+  { id: "briefing", rotulo: "Briefing", icone: ClipboardList },
+  { id: "roteiro", rotulo: "Roteiro", icone: Clapperboard },
+  { id: "legenda", rotulo: "Legenda", icone: MessageSquareText },
 ];
 
 const inputClasse =
@@ -78,6 +88,11 @@ export default function ModalCard({
   const [copiadoLegenda, setCopiadoLegenda] = useState(false);
   const [compartilharAberto, setCompartilharAberto] = useState(false);
   const tituloRef = useRef<HTMLInputElement>(null);
+  // Botao "Salvar e fechar" flutuante no mobile: visivel enquanto rola; some
+  // quando o rodape (com os outros dois botoes) aparece no fim do conteudo.
+  const conteudoRef = useRef<HTMLDivElement>(null);
+  const rodapeMobileRef = useRef<HTMLDivElement>(null);
+  const [rodapeVisivel, setRodapeVisivel] = useState(false);
 
   // Foca o titulo ao abrir e bloqueia o scroll do fundo.
   useEffect(() => {
@@ -98,6 +113,20 @@ export default function ModalCard({
     return () => window.removeEventListener("keydown", aoTeclar);
   }, [onFechar]);
 
+  // Observa o rodape do mobile: quando ele entra na tela (fim do conteudo), o
+  // botao flutuante some e os tres botoes ficam juntos. Reconecta a cada troca
+  // de aba (a altura muda) para a leitura ficar sempre correta.
+  useEffect(() => {
+    const alvo = rodapeMobileRef.current;
+    if (!alvo) return;
+    const obs = new IntersectionObserver(
+      ([entrada]) => setRodapeVisivel(entrada.isIntersecting),
+      { root: conteudoRef.current, threshold: 0.1 }
+    );
+    obs.observe(alvo);
+    return () => obs.disconnect();
+  }, [aba]);
+
   const ehProjeto = card.tipo === "projeto";
 
   // A aba Projeto so existe para cards do tipo projeto. Se o tipo mudar enquanto
@@ -107,8 +136,8 @@ export default function ModalCard({
   }, [aba, ehProjeto]);
 
   // Lista de abas: insere "Projeto" logo apos "Visao Geral" quando for projeto.
-  const abas: { id: Aba; rotulo: string }[] = ehProjeto
-    ? [ABAS[0], { id: "projeto", rotulo: "Projeto" }, ...ABAS.slice(1)]
+  const abas: { id: Aba; rotulo: string; icone: LucideIcon }[] = ehProjeto
+    ? [ABAS[0], { id: "projeto", rotulo: "Projeto", icone: ListChecks }, ...ABAS.slice(1)]
     : ABAS;
 
   /**
@@ -240,6 +269,80 @@ export default function ModalCard({
     !temQuando && "defina data e horário",
   ].filter(Boolean) as string[];
 
+  // Acoes do rodape (compartilhar, excluir, salvar). Reaproveitadas no rodape
+  // fixo do desktop e no fim do conteudo no mobile (onde rolam junto, sem comer
+  // a tela). No mobile os botoes secundarios ficam so com o simbolo.
+  const acoesEsquerda = (
+    <div className="flex items-center gap-2">
+      {!confirmandoExclusao && (
+        <button
+          type="button"
+          onClick={() => setCompartilharAberto(true)}
+          aria-label="Compartilhar"
+          title="Compartilhar"
+          className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulClaro"
+        >
+          <Share2 size={16} aria-hidden />
+          <span className="hidden sm:inline">Compartilhar</span>
+        </button>
+      )}
+      {confirmandoExclusao ? (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="font-medium text-marca-preto">Excluir este conteúdo?</span>
+          <button
+            type="button"
+            onClick={confirmarExclusao}
+            className="rounded-marca px-3 py-1.5 text-sm font-semibold text-white"
+            style={{ backgroundColor: "#EC1313" }}
+          >
+            Confirmar
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmandoExclusao(false)}
+            className="rounded-marca px-3 py-1.5 text-sm font-semibold text-marca-cinza hover:text-marca-azulEscuro"
+          >
+            Cancelar
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirmandoExclusao(true)}
+          aria-label="Excluir"
+          title="Excluir"
+          className="flex items-center gap-1.5 rounded-marca px-3 py-2 text-sm font-semibold text-marca-vermelho transition hover:bg-marca-vermelho/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-vermelho"
+        >
+          <Trash2 size={16} aria-hidden />
+          <span className="hidden sm:inline">Excluir</span>
+        </button>
+      )}
+    </div>
+  );
+
+  const acoesDireita = (
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className="hidden items-center gap-1 text-xs text-marca-cinza sm:flex">
+        <Check size={13} aria-hidden /> Salvo automaticamente
+      </span>
+      <button
+        type="button"
+        onClick={onFechar}
+        className="hidden rounded-marca px-4 py-2 text-sm font-semibold text-marca-cinza transition hover:text-marca-azulEscuro sm:block"
+      >
+        Fechar
+      </button>
+      <button
+        type="button"
+        onClick={onFechar}
+        className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
+      >
+        <Save size={16} aria-hidden />
+        Salvar e fechar
+      </button>
+    </div>
+  );
+
   return (
     <>
     <div
@@ -352,31 +455,45 @@ export default function ModalCard({
           )}
         </div>
 
-        {/* Abas */}
-        <div className="flex border-b border-marca-cinza/30 bg-marca-branco px-2" role="tablist">
-          {abas.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              role="tab"
-              aria-selected={aba === a.id}
-              onClick={() => setAba(a.id)}
-              className={`relative px-4 py-3 text-sm font-semibold transition ${
-                aba === a.id
-                  ? "text-marca-laranja"
-                  : "text-marca-cinza hover:text-marca-azulEscuro"
-              }`}
-            >
-              {a.rotulo}
-              {aba === a.id && (
-                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-marca-laranja" />
-              )}
-            </button>
-          ))}
+        {/* Abas: pilulas com icone, rolaveis lateralmente. A ativa fica laranja
+            preenchida (fica obvio onde voce esta e que da para trocar). */}
+        <div
+          className="flex gap-1.5 overflow-x-auto border-b border-marca-cinza/30 bg-marca-branco px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="tablist"
+        >
+          {abas.map((a) => {
+            const ativa = aba === a.id;
+            const Icone = a.icone;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                role="tab"
+                aria-selected={ativa}
+                onClick={(e) => {
+                  setAba(a.id);
+                  // Garante que a aba tocada (inclusive a ultima) fique visivel.
+                  e.currentTarget.scrollIntoView({
+                    inline: "center",
+                    block: "nearest",
+                    behavior: "smooth",
+                  });
+                }}
+                className={`flex shrink-0 items-center gap-1.5 rounded-marca px-3 py-2 text-sm font-semibold transition ${
+                  ativa
+                    ? "bg-marca-laranja text-white shadow-card"
+                    : "text-marca-cinza hover:bg-white hover:text-marca-azulEscuro"
+                }`}
+              >
+                <Icone size={15} aria-hidden />
+                {a.rotulo}
+              </button>
+            );
+          })}
         </div>
 
         {/* Conteudo das abas (altura fixa do modal: o miolo rola, o tamanho nao muda) */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+        <div ref={conteudoRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
           {aba === "projeto" && ehProjeto && <AbaProjeto card={card} />}
 
           {aba === "visao" && (
@@ -393,53 +510,32 @@ export default function ModalCard({
               </Campo>
 
               <Campo rotulo="Campanha" className="sm:col-span-2">
-                <select
+                <SeletorOpcao
                   value={card.campanhaId}
-                  onChange={(e) => atualizarCampo("campanhaId", e.target.value)}
-                  className={inputClasse}
-                >
-                  {MARCAS_ORDEM.map((m) => {
-                    const daMarca = campanhas.filter((c) => c.marca === m);
-                    if (daMarca.length === 0) return null;
-                    return (
-                      <optgroup key={m} label={MARCAS[m].label}>
-                        {daMarca.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })}
-                </select>
+                  onChange={(v) => atualizarCampo("campanhaId", v)}
+                  grupos={MARCAS_ORDEM.map((m) => ({
+                    rotulo: MARCAS[m].label,
+                    opcoes: campanhas
+                      .filter((c) => c.marca === m)
+                      .map((c) => ({ valor: c.id, rotulo: c.nome })),
+                  })).filter((g) => g.opcoes.length > 0)}
+                />
               </Campo>
 
               <Campo rotulo="Tipo de conteúdo">
-                <select
+                <SeletorOpcao
                   value={card.tipo}
-                  onChange={(e) => mudarTipo(e.target.value as TipoConteudo)}
-                  className={inputClasse}
-                >
-                  {TIPOS_ORDEM.map((t) => (
-                    <option key={t} value={t}>
-                      {TIPOS[t].label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => mudarTipo(v as TipoConteudo)}
+                  opcoes={TIPOS_ORDEM.map((t) => ({ valor: t, rotulo: TIPOS[t].label }))}
+                />
               </Campo>
 
               <Campo rotulo="Etapa atual">
-                <select
+                <SeletorOpcao
                   value={card.etapa}
-                  onChange={(e) => mudarEtapa(e.target.value as Etapa)}
-                  className={inputClasse}
-                >
-                  {COLUNAS.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.titulo}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => mudarEtapa(v as Etapa)}
+                  opcoes={COLUNAS.map((c) => ({ valor: c.id, rotulo: c.titulo }))}
+                />
               </Campo>
 
               <Campo rotulo="Canais" className="sm:col-span-2">
@@ -488,27 +584,16 @@ export default function ModalCard({
               </Campo>
 
               <Campo rotulo="Data de publicação">
-                <input
-                  type="date"
-                  value={card.dataPublicacao ?? ""}
-                  onChange={(e) =>
-                    atualizarCampo("dataPublicacao", e.target.value || undefined)
-                  }
-                  className={inputClasse}
+                <SeletorData
+                  value={card.dataPublicacao}
+                  onChange={(iso) => atualizarCampo("dataPublicacao", iso)}
                 />
-                {card.dataPublicacao && (
-                  <p className="mt-1 text-xs text-marca-cinza">
-                    {formatarData(card.dataPublicacao)}
-                  </p>
-                )}
               </Campo>
 
               <Campo rotulo="Horário (auto-publicação)">
-                <input
-                  type="time"
-                  value={card.horaPublicacao ?? ""}
-                  onChange={(e) => atualizarCampo("horaPublicacao", e.target.value)}
-                  className={inputClasse}
+                <SeletorHora
+                  value={card.horaPublicacao}
+                  onChange={(v) => atualizarCampo("horaPublicacao", v ?? "")}
                 />
               </Campo>
 
@@ -725,73 +810,38 @@ export default function ModalCard({
               </div>
             </div>
           )}
-        </div>
 
-        {/* Rodape: salvar, excluir, fechar */}
-        <div className="flex items-center justify-between gap-3 border-t border-marca-cinza/30 bg-marca-branco px-5 py-3">
-          <div className="flex items-center gap-2">
-          {!confirmandoExclusao && (
-            <button
-              type="button"
-              onClick={() => setCompartilharAberto(true)}
-              className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulClaro"
-            >
-              <Share2 size={16} aria-hidden />
-              Compartilhar
-            </button>
-          )}
-          {confirmandoExclusao ? (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-marca-preto">Excluir este conteúdo?</span>
-              <button
-                type="button"
-                onClick={confirmarExclusao}
-                className="rounded-marca px-3 py-1.5 text-sm font-semibold text-white"
-                style={{ backgroundColor: "#EC1313" }}
-              >
-                Confirmar
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmandoExclusao(false)}
-                className="rounded-marca px-3 py-1.5 text-sm font-semibold text-marca-cinza hover:text-marca-azulEscuro"
-              >
-                Cancelar
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmandoExclusao(true)}
-              className="flex items-center gap-1.5 rounded-marca px-3 py-2 text-sm font-semibold text-marca-vermelho transition hover:bg-marca-vermelho/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-vermelho"
-            >
-              <Trash2 size={16} aria-hidden />
-              Excluir
-            </button>
-          )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="hidden items-center gap-1 text-xs text-marca-cinza sm:flex">
-              <Check size={13} aria-hidden /> Salvo automaticamente
-            </span>
-            <button
-              type="button"
-              onClick={onFechar}
-              className="rounded-marca px-4 py-2 text-sm font-semibold text-marca-cinza transition hover:text-marca-azulEscuro"
-            >
-              Fechar
-            </button>
-            <button
-              type="button"
-              onClick={onFechar}
-              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-semibold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
-            >
-              <Save size={16} aria-hidden />
-              Salvar e fechar
-            </button>
+          {/* Acoes no mobile: rolam junto com o conteudo, no fim do card (nao
+              ficam fixas comendo a tela). Ao aparecer, o botao flutuante some e
+              os tres botoes ficam juntos. */}
+          <div
+            ref={rodapeMobileRef}
+            className="mt-8 flex items-center justify-between gap-2 border-t border-marca-cinza/30 pt-4 sm:hidden"
+          >
+            {acoesEsquerda}
+            {acoesDireita}
           </div>
         </div>
+
+        {/* Rodape fixo (desktop): salvar, excluir, compartilhar */}
+        <div className="hidden items-center justify-between gap-3 border-t border-marca-cinza/30 bg-marca-branco px-5 py-3 sm:flex">
+          {acoesEsquerda}
+          {acoesDireita}
+        </div>
+
+        {/* Botao flutuante (mobile): "Salvar e fechar" sempre a mao enquanto rola;
+            desliza para fora quando o rodape com os outros botoes aparece no fim. */}
+        <button
+          type="button"
+          onClick={onFechar}
+          aria-label="Salvar e fechar"
+          className={`fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-3 text-sm font-bold text-white shadow-modal transition-all duration-200 ease-suave sm:hidden ${
+            rodapeVisivel ? "pointer-events-none translate-y-4 opacity-0" : "translate-y-0 opacity-100"
+          }`}
+        >
+          <Save size={16} aria-hidden />
+          Salvar e fechar
+        </button>
       </div>
     </div>
 

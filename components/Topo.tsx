@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CalendarDays, BarChart3, Timer } from "lucide-react";
+import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
 import BotaoSair from "./BotaoSair";
 import IndicadorTimerTopo from "./apontamentos/IndicadorTimerTopo";
 
@@ -14,7 +14,6 @@ export default function Topo() {
   const caminho = usePathname();
   const naInicial = caminho === "/";
   const noCalendario = caminho?.startsWith("/calendario");
-  const noMetricas = caminho?.startsWith("/metricas");
   const noHoras = caminho?.startsWith("/horas");
 
   return (
@@ -39,10 +38,14 @@ export default function Topo() {
           />
         </Link>
 
-        {/* Indicador de timer + navegacao */}
+        {/* Indicador de timer + navegacao. No mobile, a navegacao migra para a
+            barra inferior (ao alcance do polegar) e o timer para uma faixa acima
+            dela: aqui o topo fica enxuto (so a logo e o sair). */}
         <div className="flex items-center gap-2">
-          <IndicadorTimerTopo />
-          <nav className="flex items-center gap-1">
+          <div className="hidden sm:block">
+            <IndicadorTimerTopo />
+          </div>
+          <nav className="hidden items-center gap-1 sm:flex">
             <LinkNav href="/" ativo={!!naInicial} icone={<LayoutGrid size={16} aria-hidden />}>
               Campanhas
             </LinkNav>
@@ -53,13 +56,9 @@ export default function Topo() {
             >
               Calendário
             </LinkNav>
-            <LinkNav
-              href="/metricas"
-              ativo={!!noMetricas}
-              icone={<BarChart3 size={16} aria-hidden />}
-            >
-              Métricas
-            </LinkNav>
+            {/* Metricas em stand-by: aba removida do menu ate integrar a IA.
+                O codigo (/metricas) continua intacto; e so readicionar o LinkNav
+                para "/metricas" (icone BarChart3) quando reativar. */}
             <LinkNav href="/horas" ativo={!!noHoras} icone={<Timer size={16} aria-hidden />}>
               Horas
             </LinkNav>

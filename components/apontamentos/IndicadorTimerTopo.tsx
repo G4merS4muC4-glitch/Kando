@@ -112,8 +112,9 @@ function paraInputLocal(iso: string): string {
 /**
  * Aparece ao parar um timer que rodou tempo demais (ex.: esquecido a noite).
  * Permite confirmar "agora" ou corrigir o horario de termino antes de gravar.
+ * Exportado para ser reaproveitado pela faixa de timer do mobile.
  */
-function ModalAjustarParada({
+export function ModalAjustarParada({
   inicioISO,
   tituloCard,
   onFechar,

@@ -12,6 +12,9 @@ export const viewport: Viewport = {
   themeColor: "#002952",
   width: "device-width",
   initialScale: 1,
+  // Permite que a barra inferior respeite a area segura do aparelho (notch e a
+  // faixa inferior do iPhone) via env(safe-area-inset-*).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

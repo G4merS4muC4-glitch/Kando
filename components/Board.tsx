@@ -5,6 +5,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   TouchSensor,
   closestCorners,
@@ -13,6 +14,7 @@ import {
   type DragEndEvent,
   type DragMoveEvent,
   type DragStartEvent,
+  type DropAnimation,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { COLUNAS } from "@/lib/config";
@@ -22,6 +24,12 @@ import Coluna from "./Coluna";
 import { CardVisual } from "./Card";
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+// Soltar suave: o card desliza ate o lugar (em vez de pular instantaneo).
+const ANIMACAO_SOLTAR: DropAnimation = {
+  duration: 260,
+  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+};
 
 /**
  * Quadro principal. Organiza as colunas e controla o drag and drop entre elas
@@ -134,14 +142,17 @@ export default function Board({
     <DndContext
       sensors={sensores}
       collisionDetection={closestCorners}
+      // Remede as colunas durante o arraste: gavetas que abrem no mobile (ou
+      // mudancas de altura) viram destinos de drop validos na hora.
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={aoIniciarArrasto}
       onDragMove={aoMoverArrasto}
       onDragEnd={aoTerminarArrasto}
       onDragCancel={aoCancelar}
     >
-      {/* Mobile: colunas empilhadas, a pagina rola inteira (cards sem corte).
+      {/* Mobile: colunas empilhadas como gavetas, a pagina rola inteira.
           Desktop: Kanban horizontal com rolagem por coluna. */}
-      <div className="flex flex-col gap-4 px-3 pb-8 pt-4 sm:h-full sm:flex-row sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:px-4 sm:pb-4">
+      <div className="flex flex-col gap-2.5 px-3 pb-8 pt-4 sm:h-full sm:flex-row sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:px-4 sm:pb-4">
 
         {COLUNAS.map((coluna) => (
           <Coluna
@@ -150,21 +161,22 @@ export default function Board({
             cards={porEtapa.get(coluna.id) ?? []}
             onAbrir={onAbrir}
             onNovo={onNovo}
+            arrastando={!!arrastandoId}
           />
         ))}
       </div>
 
       {/* Previa que segue o cursor: mesmo card (tamanho e info), com a fisica
           de inclinacao aplicada via overlayRef. O perspective da o efeito 3D. */}
-      <DragOverlay>
+      <DragOverlay dropAnimation={ANIMACAO_SOLTAR}>
         {cardArrastado ? (
-          <div style={{ perspective: 900 }}>
+          <div className="animate-pegar" style={{ perspective: 900 }}>
             <CardVisual
               ref={overlayRef}
               card={cardArrastado}
               style={{
                 width: larguraArrasto,
-                boxShadow: "0 18px 38px rgba(30, 32, 38, 0.32)",
+                // Sem sombra extra: usa a sombra sutil normal do card (sem halo cinza).
                 cursor: "grabbing",
                 willChange: "transform",
               }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, memo, type ComponentPropsWithoutRef } from "react";
+import { forwardRef, memo, useRef, type ComponentPropsWithoutRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -56,27 +56,48 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
       : { Icone: Circle, titulo: "Marcar como concluído", cor: "text-marca-cinza" };
   const IconeAcao = acaoConfig.Icone;
 
+  // Tilt 3D leve seguindo o cursor (aplicado no miolo, sem brigar com o drag).
+  const interiorRef = useRef<HTMLDivElement>(null);
+  function aoMover(e: React.PointerEvent<HTMLDivElement>) {
+    const el = interiorRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(700px) rotateX(${(-py * 6).toFixed(2)}deg) rotateY(${(px * 6).toFixed(2)}deg) translateY(-5px) scale(1.012)`;
+  }
+  function aoSair() {
+    const el = interiorRef.current;
+    if (el) el.style.transform = "";
+  }
+
   return (
     <div
       ref={ref}
-      className={`group relative shrink-0 cursor-grab overflow-hidden rounded-marca border p-3 text-marca-preto shadow-card outline-none transition-shadow hover:shadow-cardHover focus-visible:ring-2 focus-visible:ring-marca-laranja active:cursor-grabbing ${
-        postado ? "border-marca-verde bg-marca-verdeClaro" : "border-marca-cinza/30 bg-white"
-      } ${className}`}
+      className={`group relative shrink-0 cursor-grab rounded-marca outline-none active:cursor-grabbing ${className}`}
       {...rest}
+      onPointerMove={aoMover}
+      onPointerLeave={aoSair}
     >
-      {/* Sobreposicao de postado: grande check verde semi-transparente */}
-      {postado && (
-        <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
-          <CheckCircle2
-            className="animate-checkPop text-marca-verde opacity-20"
-            size={92}
-            strokeWidth={2.2}
-            aria-hidden
-          />
-        </div>
-      )}
+      <div
+        ref={interiorRef}
+        className={`relative overflow-hidden rounded-marca border p-3 text-marca-preto shadow-card transition-[transform,box-shadow] duration-200 ease-suave will-change-transform group-hover:-translate-y-1 group-hover:shadow-cardLift group-focus-visible:ring-2 group-focus-visible:ring-marca-laranja ${
+          postado ? "border-marca-verde bg-marca-verdeClaro" : "border-marca-cinza/30 bg-white"
+        }`}
+      >
+        {/* Sobreposicao de postado: grande check verde semi-transparente */}
+        {postado && (
+          <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+            <CheckCircle2
+              className="animate-checkPop text-marca-verde opacity-20"
+              size={92}
+              strokeWidth={2.2}
+              aria-hidden
+            />
+          </div>
+        )}
 
-      <div className="relative z-10">
+        <div className="relative z-10">
         {/* Cabecalho: tipo, acao rapida e abrir */}
         <div className="mb-2 flex items-start justify-between gap-2">
           <BadgeTipo tipo={card.tipo} />
@@ -212,6 +233,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
             </span>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
