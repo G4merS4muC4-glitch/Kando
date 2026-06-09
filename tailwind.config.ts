@@ -12,6 +12,14 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        // "Espacoso" = tela com largura de desktop E altura suficiente. Quando
+        // NAO casa (celular em pe OU em paisagem com pouca altura), o app usa o
+        // layout compacto/mobile, que aproveita melhor o espaco limitado.
+        espacoso: { raw: "(min-width: 640px) and (min-height: 500px)" },
+        // Altura curta (ex.: celular em paisagem): compacta o miolo dos modais.
+        baixo: { raw: "(max-height: 499px)" },
+      },
       colors: {
         marca: {
           laranja: "#FA611E", // principal: botoes, estados ativos, drop target
@@ -70,6 +78,20 @@ const config: Config = {
           "0%": { transform: "scale(0.98)", opacity: "0.6" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        // Troca de mes no calendario: o mes novo entra deslizando do lado certo.
+        entraDir: {
+          "0%": { opacity: "0", transform: "translateX(26px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        entraEsq: {
+          "0%": { opacity: "0", transform: "translateX(-26px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        // Bottom sheet subindo (detalhe do dia no mobile).
+        subirSheet: {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         pop: "pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -80,6 +102,9 @@ const config: Config = {
         surgir: "surgir 0.24s cubic-bezier(0.34, 1.56, 0.64, 1)",
         diaEntra: "diaEntra 0.28s cubic-bezier(0.22, 1, 0.36, 1) both",
         pegar: "pegar 0.2s cubic-bezier(0.22, 1, 0.36, 1) both",
+        entraDir: "entraDir 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+        entraEsq: "entraEsq 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+        subirSheet: "subirSheet 0.28s cubic-bezier(0.22, 1, 0.36, 1)",
       },
       transitionTimingFunction: {
         // Easing suave padrao (sai rapido, assenta devagar) para hovers e lifts.

@@ -46,7 +46,7 @@ export default function FaixaTimerMobile() {
 
   return (
     <>
-      <div className="flex items-center gap-2 bg-marca-laranja px-3 py-2 text-white sm:hidden">
+      <div className="flex items-center gap-2 bg-marca-laranja px-3 py-2 text-white espacoso:hidden">
         <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />

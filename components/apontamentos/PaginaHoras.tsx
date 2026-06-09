@@ -136,7 +136,7 @@ export default function PaginaHoras() {
   const temCards = cards.length > 0;
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {/* Cabecalho */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -162,14 +162,10 @@ export default function PaginaHoras() {
 
         {/* KPIs */}
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi rotulo="Hoje" valor={formatarDuracao(kpis.hojeMs)} />
-          <Kpi rotulo="Esta semana" valor={formatarDuracao(kpis.semanaMs)} />
-          <Kpi rotulo="Este mês" valor={formatarDuracao(kpis.mesMs)} variacao={kpis.variacaoMesPct} />
-          <Kpi
-            rotulo="Projeto líder (mês)"
-            valor={lider ? formatarDuracao(lider.ms) : "-"}
-            sub={lider?.titulo}
-          />
+          <Kpi indice={0} rotulo="Hoje" ms={kpis.hojeMs} />
+          <Kpi indice={1} rotulo="Esta semana" ms={kpis.semanaMs} />
+          <Kpi indice={2} rotulo="Este mês" ms={kpis.mesMs} variacao={kpis.variacaoMesPct} />
+          <Kpi indice={3} rotulo="Projeto líder (mês)" ms={lider?.ms} sub={lider?.titulo} />
         </div>
 
         {/* Filtros */}
@@ -319,21 +315,54 @@ export default function PaginaHoras() {
   );
 }
 
+/** Conta de 0 ate o alvo em ~0,65s (easeOut), respeitando movimento reduzido. */
+function useContagem(alvo: number) {
+  const [v, setV] = useState(alvo);
+  useEffect(() => {
+    const reduz =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduz || alvo <= 0) {
+      setV(alvo);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const dur = 650;
+    const passo = (t: number) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      setV(Math.round(alvo * eased));
+      if (p < 1) raf = requestAnimationFrame(passo);
+    };
+    raf = requestAnimationFrame(passo);
+    return () => cancelAnimationFrame(raf);
+  }, [alvo]);
+  return v;
+}
+
 function Kpi({
   rotulo,
-  valor,
+  ms,
   sub,
   variacao,
+  indice = 0,
 }: {
   rotulo: string;
-  valor: string;
+  ms?: number;
   sub?: string;
   variacao?: number | null;
+  indice?: number;
 }) {
+  const v = useContagem(ms ?? 0);
+  const valor = ms == null ? "-" : formatarDuracao(v);
   return (
-    <div className="rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card">
+    <div
+      style={{ animationDelay: `${indice * 70}ms` }}
+      className="rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card transition hover:shadow-cardHover motion-safe:animate-slideUp"
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-marca-cinza">{rotulo}</p>
-      <p className="mt-1 text-2xl font-bold text-marca-azulEscuro">{valor}</p>
+      <p className="mt-1 font-titulo text-3xl font-bold tabular-nums text-marca-azulEscuro">{valor}</p>
       {sub ? (
         <p className="mt-0.5 truncate text-xs text-marca-cinza" title={sub}>
           {sub}

@@ -67,7 +67,7 @@ export default function BarraCampanha({
             className="flex items-center gap-1.5 rounded-marca border border-marca-azulClaro px-3 py-2 text-sm font-semibold text-marca-azulClaro transition hover:bg-marca-azulClaro hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulClaro"
           >
             <Sparkles size={16} aria-hidden />
-            <span className="hidden sm:inline">Colar do Claude</span>
+            <span className="hidden espacoso:inline">Colar do Claude</span>
           </button>
           <button
             type="button"
@@ -77,7 +77,7 @@ export default function BarraCampanha({
             className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/50 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-azulEscuro hover:bg-marca-branco focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <ListChecks size={16} aria-hidden />
-            <span className="hidden sm:inline">Projeto</span>
+            <span className="hidden espacoso:inline">Projeto</span>
           </button>
           <button
             type="button"
@@ -87,8 +87,8 @@ export default function BarraCampanha({
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
           >
             <Plus size={16} aria-hidden />
-            <span className="sm:hidden">Novo</span>
-            <span className="hidden sm:inline">Novo conteúdo</span>
+            <span className="espacoso:hidden">Novo</span>
+            <span className="hidden espacoso:inline">Novo conteúdo</span>
           </button>
         </div>
       </div>

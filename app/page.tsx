@@ -50,7 +50,7 @@ export default function Inicial() {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
         {/* Cabecalho da pagina */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">

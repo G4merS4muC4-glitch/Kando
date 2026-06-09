@@ -29,7 +29,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <AvisoErroCarregar />
         <div className="flex h-dvh flex-col bg-marca-branco">
           <Topo />
-          <div className="min-h-0 flex-1">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           {/* Mobile: faixa de timer (so quando rodando) + barra inferior.
               No desktop ambos somem (sm:hidden) e a navegacao fica no topo. */}
           <FaixaTimerMobile />

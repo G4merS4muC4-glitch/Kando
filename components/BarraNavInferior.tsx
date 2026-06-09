@@ -14,14 +14,20 @@ import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
  */
 export default function BarraNavInferior() {
   const caminho = usePathname() ?? "";
-  const noQuadro = caminho === "/" || caminho.startsWith("/campanha");
+
+  // Dentro de uma campanha a barra inferior some (volta pelo botao de voltar da
+  // barra da campanha). Ela aparece nas telas principais (inicial, calendario,
+  // horas), nao no detalhe de uma campanha.
+  if (caminho.startsWith("/campanha")) return null;
+
+  const noQuadro = caminho === "/";
   const noCalendario = caminho.startsWith("/calendario");
   const noHoras = caminho.startsWith("/horas");
 
   return (
     <nav
       aria-label="Navegação principal"
-      className="flex border-t border-marca-cinza/20 bg-white pb-[env(safe-area-inset-bottom)] sm:hidden"
+      className="flex border-t border-marca-cinza/20 bg-white pb-[env(safe-area-inset-bottom)] espacoso:hidden"
     >
       <ItemNav href="/" ativo={noQuadro} icone={<LayoutGrid size={20} aria-hidden />}>
         Campanhas

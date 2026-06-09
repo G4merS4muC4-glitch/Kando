@@ -150,20 +150,23 @@ export default function Board({
       onDragEnd={aoTerminarArrasto}
       onDragCancel={aoCancelar}
     >
-      {/* Mobile: colunas empilhadas como gavetas, a pagina rola inteira.
-          Desktop: Kanban horizontal com rolagem por coluna. */}
-      <div className="flex flex-col gap-2.5 px-3 pb-8 pt-4 sm:h-full sm:flex-row sm:gap-4 sm:overflow-x-auto sm:overflow-y-hidden sm:px-4 sm:pb-4">
-
-        {COLUNAS.map((coluna) => (
-          <Coluna
-            key={coluna.id}
-            coluna={coluna}
-            cards={porEtapa.get(coluna.id) ?? []}
-            onAbrir={onAbrir}
-            onNovo={onNovo}
-            arrastando={!!arrastandoId}
-          />
-        ))}
+      {/* Area de cards = UM scroll so (rola o quadro inteiro: vertical, e
+          horizontal quando as colunas nao cabem). SEM padding no topo aqui: o
+          espacamento de topo vai no conteudo, para o titulo fixo grudar rente ao
+          topo sem deixar card aparecer acima. Snap nas colunas em paisagem. */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 sm:overflow-auto sm:px-4 sm:pb-4 baixo:snap-x baixo:snap-mandatory">
+        <div className="flex flex-col gap-2.5 pt-4 sm:flex-row sm:items-start sm:gap-4">
+          {COLUNAS.map((coluna) => (
+            <Coluna
+              key={coluna.id}
+              coluna={coluna}
+              cards={porEtapa.get(coluna.id) ?? []}
+              onAbrir={onAbrir}
+              onNovo={onNovo}
+              arrastando={!!arrastandoId}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Previa que segue o cursor: mesmo card (tamanho e info), com a fisica

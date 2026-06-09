@@ -43,11 +43,13 @@ export default function Coluna({
 
   return (
     <section
-      className="flex w-full shrink-0 flex-col sm:h-full sm:w-[300px]"
+      className="flex w-full shrink-0 flex-col sm:w-[300px] baixo:snap-start"
       aria-label={coluna.titulo}
     >
-      {/* Cabecalho desktop */}
-      <header className="mb-2 hidden px-1 sm:block">
+      {/* Cabecalho da coluna (paisagem/desktop). Fica FIXO no topo (sticky) com
+          fundo solido cobrindo os cards que rolam por baixo. Como a area de cards
+          rola sem padding no topo, ele gruda rente ao topo sem card aparecer. */}
+      <header className="hidden px-1 sm:sticky sm:top-0 sm:z-20 sm:block sm:bg-marca-branco sm:pb-2">
         <div className="flex items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-marca-azulEscuro">
             {coluna.titulo}
@@ -63,7 +65,7 @@ export default function Coluna({
         <p className="mt-0.5 text-xs text-marca-cinza">{coluna.descricao}</p>
       </header>
 
-      {/* Cabecalho mobile: gaveta (toca para abrir/fechar) + "+" discreto */}
+      {/* Cabecalho retrato: gaveta (toca para abrir/fechar) + "+" discreto */}
       <div className="mb-2 flex items-stretch gap-1.5 sm:hidden">
         <button
           type="button"
@@ -117,7 +119,7 @@ export default function Coluna({
       {/* Lista de cards (area de drop). No mobile so aparece com a gaveta aberta. */}
       <div
         ref={setNodeRef}
-        className={`min-h-[80px] flex-col gap-2 rounded-marca p-1 transition-colors sm:flex sm:min-h-[120px] sm:flex-1 sm:overflow-y-auto ${
+        className={`min-h-[80px] flex-col gap-2 rounded-marca p-1 transition-colors sm:flex sm:min-h-[120px] sm:flex-1 ${
           mostrarCorpo ? "flex" : "hidden"
         } ${isOver ? "bg-marca-laranja/10 ring-2 ring-marca-laranja/60" : "bg-transparent"}`}
       >

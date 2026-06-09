@@ -15,9 +15,17 @@ export default function Topo() {
   const naInicial = caminho === "/";
   const noCalendario = caminho?.startsWith("/calendario");
   const noHoras = caminho?.startsWith("/horas");
+  const noCampanha = caminho?.startsWith("/campanha");
 
   return (
-    <header className="sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md">
+    // No mobile, dentro de uma campanha a barra do topo some (a barra da campanha
+    // ja tem voltar + contexto, e a navegacao fica na barra inferior): economiza
+    // espaco. No desktop continua sempre visivel.
+    <header
+      className={`sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md ${
+        noCampanha ? "hidden espacoso:block" : ""
+      }`}
+    >
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         {/* Simbolo laranja + logo completa (Kando by Brusoft) lado a lado */}
         <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Kando by Brusoft">
@@ -42,10 +50,10 @@ export default function Topo() {
             barra inferior (ao alcance do polegar) e o timer para uma faixa acima
             dela: aqui o topo fica enxuto (so a logo e o sair). */}
         <div className="flex items-center gap-2">
-          <div className="hidden sm:block">
+          <div className="hidden espacoso:block">
             <IndicadorTimerTopo />
           </div>
-          <nav className="hidden items-center gap-1 sm:flex">
+          <nav className="hidden items-center gap-1 espacoso:flex">
             <LinkNav href="/" ativo={!!naInicial} icone={<LayoutGrid size={16} aria-hidden />}>
               Campanhas
             </LinkNav>

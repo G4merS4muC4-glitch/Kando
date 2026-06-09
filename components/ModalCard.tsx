@@ -94,9 +94,14 @@ export default function ModalCard({
   const rodapeMobileRef = useRef<HTMLDivElement>(null);
   const [rodapeVisivel, setRodapeVisivel] = useState(false);
 
-  // Foca o titulo ao abrir e bloqueia o scroll do fundo.
+  // Bloqueia o scroll do fundo. Foca o titulo so no desktop (espacoso): no mobile,
+  // focar abriria o teclado de cara, atrapalhando quem so quer ler/abrir o card
+  // (roteiro, teleprompter). No celular o card abre sem foco nem teclado.
   useEffect(() => {
-    tituloRef.current?.focus();
+    const ehEspacoso =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 640px) and (min-height: 500px)").matches;
+    if (ehEspacoso) tituloRef.current?.focus();
     const overflowOriginal = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -346,18 +351,18 @@ export default function ModalCard({
   return (
     <>
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-marca-preto/50 p-0 animate-fadeIn sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-marca-preto/50 p-0 animate-fadeIn espacoso:items-center espacoso:p-4"
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
       aria-label={`Detalhe do conteúdo: ${card.titulo || "sem título"}`}
     >
       <div
-        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-[660px] sm:max-h-[90vh] sm:max-w-2xl sm:rounded-marca"
+        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal espacoso:h-[660px] espacoso:max-h-[90vh] espacoso:max-w-2xl espacoso:rounded-marca"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecalho do modal */}
-        <div className="flex items-center justify-between gap-3 bg-marca-azulEscuro px-5 py-4 text-white">
+        <div className="flex items-center justify-between gap-3 bg-marca-azulEscuro px-5 py-4 text-white baixo:py-2.5">
           <div className="flex items-center gap-2">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-marca"
@@ -388,7 +393,7 @@ export default function ModalCard({
         </div>
 
         {/* Acao rapida de status: concluir, postar ou reabrir */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2.5 baixo:py-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
             Etapa
             <span
@@ -431,7 +436,7 @@ export default function ModalCard({
         </div>
 
         {/* Timer e total de horas apontadas neste card */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2 baixo:py-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-marca-cinza">
             <Timer size={14} aria-hidden />
             {totalCard > 0 ? `${formatarDuracao(totalCard)} apontadas` : "Sem horas apontadas"}
@@ -458,7 +463,7 @@ export default function ModalCard({
         {/* Abas: pilulas com icone, rolaveis lateralmente. A ativa fica laranja
             preenchida (fica obvio onde voce esta e que da para trocar). */}
         <div
-          className="flex gap-1.5 overflow-x-auto border-b border-marca-cinza/30 bg-marca-branco px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1.5 overflow-x-auto border-b border-marca-cinza/30 bg-marca-branco px-3 py-2 baixo:py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="tablist"
         >
           {abas.map((a) => {
@@ -493,7 +498,7 @@ export default function ModalCard({
         </div>
 
         {/* Conteudo das abas (altura fixa do modal: o miolo rola, o tamanho nao muda) */}
-        <div ref={conteudoRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+        <div ref={conteudoRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 baixo:py-2.5">
           {aba === "projeto" && ehProjeto && <AbaProjeto card={card} />}
 
           {aba === "visao" && (
@@ -816,7 +821,7 @@ export default function ModalCard({
               os tres botoes ficam juntos. */}
           <div
             ref={rodapeMobileRef}
-            className="mt-8 flex items-center justify-between gap-2 border-t border-marca-cinza/30 pt-4 sm:hidden"
+            className="mt-8 flex items-center justify-between gap-2 border-t border-marca-cinza/30 pt-4 espacoso:hidden"
           >
             {acoesEsquerda}
             {acoesDireita}
@@ -824,7 +829,7 @@ export default function ModalCard({
         </div>
 
         {/* Rodape fixo (desktop): salvar, excluir, compartilhar */}
-        <div className="hidden items-center justify-between gap-3 border-t border-marca-cinza/30 bg-marca-branco px-5 py-3 sm:flex">
+        <div className="hidden items-center justify-between gap-3 border-t border-marca-cinza/30 bg-marca-branco px-5 py-3 espacoso:flex">
           {acoesEsquerda}
           {acoesDireita}
         </div>
@@ -835,7 +840,7 @@ export default function ModalCard({
           type="button"
           onClick={onFechar}
           aria-label="Salvar e fechar"
-          className={`fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-3 text-sm font-bold text-white shadow-modal transition-all duration-200 ease-suave sm:hidden ${
+          className={`fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-3 text-sm font-bold text-white shadow-modal transition-all duration-200 ease-suave espacoso:hidden ${
             rodapeVisivel ? "pointer-events-none translate-y-4 opacity-0" : "translate-y-0 opacity-100"
           }`}
         >
