@@ -68,6 +68,11 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Roda em todas as rotas, menos arquivos estaticos e as imagens da marca.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|brusoft-.*\\.png).*)"],
+  // Roda em todas as rotas, menos os arquivos estaticos do Next e as imagens da
+  // pasta public (logos, favicon, etc). Sem isto, o request de uma imagem como
+  // /kando-logo.svg na tela de login (sem sessao) seria redirecionado para
+  // /login e a logo apareceria quebrada.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.svg|.*\\.png|.*\\.jpe?g|.*\\.webp|.*\\.gif|.*\\.ico).*)",
+  ],
 };

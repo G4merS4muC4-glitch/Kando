@@ -11,7 +11,6 @@ import {
   Rabbit,
   Turtle,
   FlipHorizontal,
-  FlipVertical,
   Type,
 } from "lucide-react";
 
@@ -36,8 +35,9 @@ export default function Teleprompter({
     typeof window !== "undefined" && window.innerWidth < 640 ? 30 : 44
   );
   const [velocidade, setVelocidade] = useState(1.4); // px por quadro
-  const [espelhoH, setEspelhoH] = useState(false); // espelhar na horizontal
-  const [espelhoV, setEspelhoV] = useState(false); // espelhar na vertical
+  // Espelho para o vidro do teleprompter: inverte so a esquerda-direita. Mantem a
+  // ordem (comeca da primeira linha); no vidro o texto le normal, do comeco ao fim.
+  const [espelhoH, setEspelhoH] = useState(false);
 
   // Fecha com Esc (em captura, para nao fechar tambem o modal por baixo).
   useEffect(() => {
@@ -150,31 +150,20 @@ export default function Teleprompter({
             </button>
           </div>
 
-          {/* Espelhar (horizontal e vertical) */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setEspelhoH((e) => !e)}
-              aria-pressed={espelhoH}
-              title="Espelhar na horizontal (para vidro de teleprompter)"
-              className={`rounded-marca p-2 transition ${
-                espelhoH ? "bg-marca-laranja text-white" : "bg-white/10 text-white hover:bg-white/20"
-              }`}
-            >
-              <FlipHorizontal size={16} aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => setEspelhoV((e) => !e)}
-              aria-pressed={espelhoV}
-              title="Espelhar na vertical"
-              className={`rounded-marca p-2 transition ${
-                espelhoV ? "bg-marca-laranja text-white" : "bg-white/10 text-white hover:bg-white/20"
-              }`}
-            >
-              <FlipVertical size={16} aria-hidden />
-            </button>
-          </div>
+          {/* Espelho para o vidro do teleprompter (inverte so esquerda-direita;
+              mantem a ordem, comecando da primeira linha) */}
+          <button
+            type="button"
+            onClick={() => setEspelhoH((e) => !e)}
+            aria-pressed={espelhoH}
+            title="Espelho para o vidro do teleprompter: no vidro o texto le normal, do começo ao fim"
+            className={`flex items-center gap-1.5 rounded-marca px-2.5 py-2 text-sm font-semibold transition ${
+              espelhoH ? "bg-marca-laranja text-white" : "bg-white/10 text-white hover:bg-white/20"
+            }`}
+          >
+            <FlipHorizontal size={16} aria-hidden />
+            <span className="hidden sm:inline">Espelho</span>
+          </button>
 
           <button
             type="button"
@@ -195,9 +184,7 @@ export default function Teleprompter({
       >
         <div
           className="mx-auto max-w-4xl"
-          style={{
-            transform: `scaleX(${espelhoH ? -1 : 1}) scaleY(${espelhoV ? -1 : 1})`,
-          }}
+          style={{ transform: `scaleX(${espelhoH ? -1 : 1})` }}
         >
           <p
             className="whitespace-pre-wrap text-center font-semibold"
@@ -210,10 +197,16 @@ export default function Teleprompter({
         </div>
       </div>
 
-      {/* Dica discreta */}
-      <p className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 text-[11px] text-white/40">
-        Toque na tela para rolar ou pausar
-      </p>
+      {/* Dicas discretas */}
+      <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
+        {espelhoH && (
+          <p className="rounded-marca bg-white/10 px-3 py-1 text-[11px] font-medium text-white/75">
+            Espelho para o vidro: as letras saem invertidas aqui, mas no vidro o texto lê normal, do
+            começo ao fim.
+          </p>
+        )}
+        <p className="text-[11px] text-white/40">Toque na tela para rolar ou pausar</p>
+      </div>
     </div>
   );
 }
