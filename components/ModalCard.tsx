@@ -860,6 +860,7 @@ export default function ModalCard({
     {teleprompterAberto && (
       <Teleprompter
         texto={card.teleprompter?.trim() ? card.teleprompter : card.roteiro}
+        cardId={card.id}
         onFechar={fecharTeleprompter}
       />
     )}

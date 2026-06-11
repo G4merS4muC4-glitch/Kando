@@ -388,7 +388,9 @@ export default function PaginaVisitante() {
         </p>
       </div>
 
-      {tpAberto && <Teleprompter texto={textoTpCheio} onFechar={() => setTpAberto(false)} />}
+      {tpAberto && (
+        <Teleprompter texto={textoTpCheio} cardId={selecionadoId} onFechar={() => setTpAberto(false)} />
+      )}
     </div>
   );
 }
