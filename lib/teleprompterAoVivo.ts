@@ -105,7 +105,7 @@ interface OpcoesControle {
   modo: ModoTela;
   aoReceberControle: (c: ControleTeleprompter) => void;
   aoComandoModo: (modo: ModoTela) => void;
-  aoReceberPosicao: (pct: number) => void;
+  aoReceberPosicao: (pct: number, vel: number) => void;
 }
 
 /**
@@ -121,7 +121,7 @@ export function useControleTeleprompter(
 ): {
   enviarControle: (c: ControleTeleprompter) => void;
   comandarModo: (alvoId: string, modo: ModoTela) => void;
-  enviarPosicao: (pct: number) => void;
+  enviarPosicao: (pct: number, vel: number) => void;
   telas: PresencaTela[];
   ativo: boolean;
 } {
@@ -162,10 +162,13 @@ export function useControleTeleprompter(
       }
     });
 
-    // Posicao relativa da tela-guia (stream continuo, ~4x/s) para quem acompanha.
-    canal.on("broadcast", { event: "pos" }, (msg: { payload?: { pct?: number } }) => {
+    // Posicao relativa + velocidade da tela-guia (stream continuo) para quem
+    // acompanha extrapolar o movimento e deslizar suave entre as atualizacoes.
+    canal.on("broadcast", { event: "pos" }, (msg: { payload?: { pct?: number; vel?: number } }) => {
       const p = msg?.payload;
-      if (p && typeof p.pct === "number") optsRef.current.aoReceberPosicao(p.pct);
+      if (p && typeof p.pct === "number") {
+        optsRef.current.aoReceberPosicao(p.pct, typeof p.vel === "number" ? p.vel : 0);
+      }
     });
 
     canal.on("presence", { event: "sync" }, () => {
@@ -222,9 +225,9 @@ export function useControleTeleprompter(
     if (canal) void canal.send({ type: "broadcast", event: "modo", payload: { alvo: alvoId, modo } });
   }, []);
 
-  const enviarPosicao = useCallback((pct: number) => {
+  const enviarPosicao = useCallback((pct: number, vel: number) => {
     const canal = canalRef.current;
-    if (canal) void canal.send({ type: "broadcast", event: "pos", payload: { pct } });
+    if (canal) void canal.send({ type: "broadcast", event: "pos", payload: { pct, vel } });
   }, []);
 
   return { enviarControle, comandarModo, enviarPosicao, telas, ativo };

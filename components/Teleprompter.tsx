@@ -128,10 +128,12 @@ export default function Teleprompter({
   const meuId = idRef.current;
 
   const [telaCheia, setTelaCheia] = useState(false);
-  // "Acompanhar a guia": esta tela desliza suavemente ate a posicao de quem rola.
+  // "Acompanhar a guia": esta tela desliza suavemente ate a posicao de quem rola,
+  // extrapolando o movimento entre as atualizacoes (dead reckoning) para nao pular.
   const [seguir, setSeguir] = useState(false);
-  const alvoPctRef = useRef(0); // ultima posicao relativa recebida da guia
-  const ultimoPosRef = useRef(0); // quando chegou (para detectar guia ausente)
+  const guiaPctRef = useRef(0); // ultima posicao relativa recebida da guia
+  const guiaVelRef = useRef(0); // velocidade relativa da guia (fracao por ms)
+  const guiaQuandoRef = useRef(0); // quando chegou (extrapolar e detectar ausencia)
   const [suportaTelaCheia] = useState(() => {
     if (typeof document === "undefined") return false;
     const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: unknown };
@@ -173,6 +175,7 @@ export default function Teleprompter({
   const aoReceberControle = useCallback((c: ControleTeleprompter) => {
     tocandoRef.current = c.tocando;
     setTocando(c.tocando);
+    if (!c.tocando) guiaVelRef.current = 0; // guia parou: congela a extrapolacao
     velocidadeRef.current = c.velocidade;
     setVelocidade(c.velocidade);
     tamanhoRef.current = c.tamanho;
@@ -185,9 +188,10 @@ export default function Teleprompter({
 
   const aoComandoModo = useCallback((m: ModoTela) => setModo(m), []);
 
-  const aoReceberPosicao = useCallback((pct: number) => {
-    alvoPctRef.current = pct;
-    ultimoPosRef.current = Date.now();
+  const aoReceberPosicao = useCallback((pct: number, vel: number) => {
+    guiaPctRef.current = pct;
+    guiaVelRef.current = vel;
+    guiaQuandoRef.current = Date.now();
   }, []);
 
   const { enviarControle, comandarModo, enviarPosicao, telas, ativo } = useControleTeleprompter(
@@ -337,16 +341,25 @@ export default function Teleprompter({
     if (!tocando && !seguir) return;
     let raf = 0;
     let ultimoEnvio = 0;
+    let envPct = pctAtual(); // posicao no ultimo envio (guia)
+    let envT = Date.now();
+    let velSuave = 0; // velocidade relativa suavizada (guia)
     const passo = () => {
       const el = areaRef.current;
       if (el) {
         const agoraMs = Date.now();
-        const recebendoGuia = agoraMs - ultimoPosRef.current < 1200;
+        const dtGuia = agoraMs - guiaQuandoRef.current;
+        const recebendoGuia = dtGuia < 1200;
         if (seguir && recebendoGuia) {
+          // Extrapola a posicao da guia (posicao + velocidade) e desliza ate ela.
+          // Continua suave mesmo recebendo poucas atualizacoes e em telas diferentes.
           const max = Math.max(1, el.scrollHeight - el.clientHeight);
-          const alvo = alvoPctRef.current * max;
+          const dtPred = Math.min(dtGuia, 500); // nao extrapola alem de meio segundo
+          const alvoPct = Math.min(1, Math.max(0, guiaPctRef.current + guiaVelRef.current * dtPred));
+          const alvo = alvoPct * max;
           const delta = alvo - el.scrollTop;
-          el.scrollTop += Math.abs(delta) < 0.5 ? delta : delta * 0.18; // easing
+          // Salto grande (sincronizar/pular): vai direto; senao desliza suave.
+          el.scrollTop += Math.abs(delta) > el.clientHeight ? delta : delta * 0.2;
         } else if (tocando) {
           el.scrollTop += velocidade;
           if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) {
@@ -354,9 +367,19 @@ export default function Teleprompter({
             setTocando(false);
             return;
           }
-          if (!seguir && agoraMs - ultimoEnvio > 250) {
+          // A guia transmite posicao + velocidade relativa (para quem acompanha extrapolar).
+          if (!seguir && agoraMs - ultimoEnvio > 120) {
+            const max = Math.max(1, el.scrollHeight - el.clientHeight);
+            const pctNow = Math.min(1, Math.max(0, el.scrollTop / max));
+            const dt = agoraMs - envT;
+            if (dt > 0) {
+              const velNova = (pctNow - envPct) / dt;
+              velSuave = velSuave * 0.5 + velNova * 0.5; // suaviza ruido
+            }
+            enviarPosicao(pctNow, velSuave);
+            envPct = pctNow;
+            envT = agoraMs;
             ultimoEnvio = agoraMs;
-            enviarPosicao(pctAtual());
           }
         }
       }
