@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { X, Save, Trash2, Plus } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { deInputLocal, formatarDuracao, paraInputLocal } from "@/lib/apontamentos";
@@ -25,7 +24,7 @@ export default function ModalEditarRegistro({
   cardIdPadrao?: string;
   onFechar: () => void;
 }) {
-  const { cards, campanhas } = useBoard();
+  const { cards, campanhas, marcas } = useBoard();
   const { editarRegistro, adicionarManual, excluirRegistro } = useApontamentos();
 
   const editando = Boolean(registro);
@@ -118,14 +117,14 @@ export default function ModalEditarRegistro({
               className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
             >
               <option value="">Selecione...</option>
-              {MARCAS_ORDEM.map((m) =>
+              {marcas.map((m) =>
                 campanhas
-                  .filter((c) => c.marca === m)
+                  .filter((c) => c.marca === m.id)
                   .map((camp) => {
                     const cs = cards.filter((cd) => cd.campanhaId === camp.id);
                     if (cs.length === 0) return null;
                     return (
-                      <optgroup key={camp.id} label={`${MARCAS[m].label} · ${camp.nome}`}>
+                      <optgroup key={camp.id} label={`${m.nome} · ${camp.nome}`}>
                         {cs.map((cd) => (
                           <option key={cd.id} value={cd.id}>
                             {cd.titulo || "Sem título"}

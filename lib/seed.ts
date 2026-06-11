@@ -21,6 +21,10 @@ const C = {
 
 export function boardInicial(): Board {
   return {
+    marcas: [
+      { id: "brusoft", nome: "Brusoft", cor: "#FA611E", corSuave: "#FFF1E9" },
+      { id: "evotalks", nome: "Evotalks", cor: "#1bbf5d", corSuave: "#E2F7EC" },
+    ],
     campanhas: campanhasExemplo.map((c) => ({ ...c })),
     cards: cardsExemplo.map((c) => ({ ...c })),
   };

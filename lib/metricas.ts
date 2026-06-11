@@ -8,7 +8,8 @@
 
 import type { TipoConteudo } from "./types";
 
-export type PerfilMetrica = "brusoft" | "evotalks";
+// Perfil = id de uma marca da organizacao (antes era um tipo fixo).
+export type PerfilMetrica = string;
 
 /** Tipos de conteudo considerados nas metricas (subconjunto do quadro). */
 export type TipoMetrica = "reels" | "post" | "carrossel" | "stories";
@@ -96,12 +97,12 @@ export interface MetricasInstagram {
 }
 
 /** Handles padrao por perfil (usados no prompt; ajustaveis pelo time). */
-export const HANDLE_PADRAO: Record<PerfilMetrica, string> = {
+export const HANDLE_PADRAO: Record<string, string> = {
   brusoft: "@brusoft.inf",
   evotalks: "@evotalks.oficial",
 };
 
-const CONTEXTO_MARCA: Record<PerfilMetrica, string> = {
+const CONTEXTO_MARCA: Record<string, string> = {
   brusoft:
     "A Brusoft é um MSP B2B (gestão de TI, infraestrutura, segurança, nuvem e produtividade). Público: donos e gestores de empresa. Foco em continuidade, segurança, previsibilidade e produtividade. CTA recorrente: diagnóstico gratuito de TI. Tom direto, sem promessa inflada, com dor concreta e consequência prática.",
   evotalks:
@@ -145,9 +146,11 @@ const SCHEMA_SKELETON = `{
   "recomendacoes": [ { "titulo": "", "porque": "", "tipo_sugerido": "reels", "tema_sugerido": "" } ]
 }`;
 
-/** Rotulo amigavel do perfil. */
+/** Rotulo amigavel do perfil (cai no proprio id quando nao for uma marca conhecida). */
 export function rotuloPerfil(perfil: PerfilMetrica): string {
-  return perfil === "brusoft" ? "Brusoft" : "Evotalks";
+  if (perfil === "brusoft") return "Brusoft";
+  if (perfil === "evotalks") return "Evotalks";
+  return perfil;
 }
 
 /**
@@ -172,7 +175,7 @@ COMO OBTER OS DADOS
   Nunca preencha por estimativa sem deixar claro.
 
 CONTEXTO DA MARCA (use para escrever os campos "insights" e "recomendacoes")
-${CONTEXTO_MARCA[perfil]}
+${CONTEXTO_MARCA[perfil] ?? ""}
 
 REGRAS DE SAÍDA
 - Responda APENAS com o JSON. Sem texto antes ou depois. Sem blocos de código. Sem comentários.
@@ -212,8 +215,8 @@ export function parseMetricas(
     return { ok: false, erro: "O JSON precisa ser um objeto com os dados das métricas." };
   }
   const m = obj as MetricasInstagram;
-  if (m.perfil !== "brusoft" && m.perfil !== "evotalks") {
-    return { ok: false, erro: "O campo 'perfil' precisa ser 'brusoft' ou 'evotalks'." };
+  if (typeof m.perfil !== "string" || !m.perfil.trim()) {
+    return { ok: false, erro: "O campo 'perfil' precisa ser o id de uma marca (texto)." };
   }
   // Tolerante a ausencias: campos que o Insights nao tinha podem vir null ou
   // omitidos (o dashboard mostra "Sem dados" no lugar, sem quebrar). So exige

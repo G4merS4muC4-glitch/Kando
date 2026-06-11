@@ -10,7 +10,6 @@ import {
   X,
   CalendarDays,
 } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import type { Marca, MarcaFiltro, RegistroTempo } from "@/lib/types";
@@ -35,7 +34,7 @@ type ModoGrafico = "total" | "projeto";
 /** Painel de horas: KPIs, calendario, grafico, recentes e resumo por projeto. */
 export default function PaginaHoras() {
   const { registros, timerAtivo, pronto } = useApontamentos();
-  const { cards, campanhas, cardPorId, campanhaPorId } = useBoard();
+  const { cards, campanhas, marcas, cardPorId, campanhaPorId } = useBoard();
 
   const [montado, setMontado] = useState(false);
   const [ano, setAno] = useState(2026);
@@ -174,14 +173,14 @@ export default function PaginaHoras() {
             <ChipMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
               Todas
             </ChipMarca>
-            {MARCAS_ORDEM.map((m) => (
+            {marcas.map((m) => (
               <ChipMarca
-                key={m}
-                ativo={marcaFiltro === m}
-                cor={MARCAS[m].cor}
-                onClick={() => setMarcaFiltro(m)}
+                key={m.id}
+                ativo={marcaFiltro === m.id}
+                cor={m.cor}
+                onClick={() => setMarcaFiltro(m.id)}
               >
-                {MARCAS[m].label}
+                {m.nome}
               </ChipMarca>
             ))}
           </div>

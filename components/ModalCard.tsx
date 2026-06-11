@@ -28,8 +28,6 @@ import {
   COLUNAS,
   ETAPA_TITULO,
   LIMITE_LEGENDA_PADRAO,
-  MARCAS,
-  MARCAS_ORDEM,
   TIPOS,
   TIPOS_ORDEM,
 } from "@/lib/config";
@@ -72,8 +70,15 @@ export default function ModalCard({
   card: CardConteudo;
   onFechar: () => void;
 }) {
-  const { campanhas, atualizarCard, excluirCard, concluirCard, marcarPostado, reabrirCard } =
-    useBoard();
+  const {
+    campanhas,
+    marcas,
+    atualizarCard,
+    excluirCard,
+    concluirCard,
+    marcarPostado,
+    reabrirCard,
+  } = useBoard();
   const { iniciarTimer, totalMsDoCard, timerAtivo } = useApontamentos();
   // Canal ao vivo do teleprompter: recebe na hora o que o visitante digita no
   // link publico (e envia o que o time digita), nos dois sentidos.
@@ -518,12 +523,14 @@ export default function ModalCard({
                 <SeletorOpcao
                   value={card.campanhaId}
                   onChange={(v) => atualizarCampo("campanhaId", v)}
-                  grupos={MARCAS_ORDEM.map((m) => ({
-                    rotulo: MARCAS[m].label,
-                    opcoes: campanhas
-                      .filter((c) => c.marca === m)
-                      .map((c) => ({ valor: c.id, rotulo: c.nome })),
-                  })).filter((g) => g.opcoes.length > 0)}
+                  grupos={marcas
+                    .map((m) => ({
+                      rotulo: m.nome,
+                      opcoes: campanhas
+                        .filter((c) => c.marca === m.id)
+                        .map((c) => ({ valor: c.id, rotulo: c.nome })),
+                    }))
+                    .filter((g) => g.opcoes.length > 0)}
                 />
               </Campo>
 

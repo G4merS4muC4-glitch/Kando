@@ -27,9 +27,9 @@ import {
   ListChecks,
   CalendarDays,
 } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM, TIPOS } from "@/lib/config";
+import { TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
-import type { CardConteudo, Marca, MarcaFiltro } from "@/lib/types";
+import type { CardConteudo, Marca, MarcaFiltro, MarcaOrg } from "@/lib/types";
 import {
   DIAS_SEMANA,
   MESES,
@@ -50,9 +50,9 @@ import ModalCard from "./ModalCard";
 
 const COR_COMEMORATIVA = "#F59E0B"; // amarelo das datas comemorativas
 
-/** Cor do ponto/etiqueta de um card pela marca (laranja Brusoft, verde Evotalks). */
-function corDoCard(marca: Marca | undefined): string {
-  return marca ? MARCAS[marca].cor : "#8790AB";
+/** Cor do ponto/etiqueta de um card pela marca da organizacao (cinza se sem marca). */
+function corDoCard(marcaPorId: (id: string) => MarcaOrg, marca: Marca | undefined): string {
+  return marcaPorId(marca ?? "").cor;
 }
 
 /**
@@ -62,8 +62,16 @@ function corDoCard(marca: Marca | undefined): string {
  * em bottom sheet. Arraste um conteudo sem data para um dia para agenda-lo.
  */
 export default function Calendario() {
-  const { cards, campanhas, agendarCard, atualizarCard, cardPorId, adicionarCardCompleto } =
-    useBoard();
+  const {
+    cards,
+    campanhas,
+    marcas,
+    marcaPorId,
+    agendarCard,
+    atualizarCard,
+    cardPorId,
+    adicionarCardCompleto,
+  } = useBoard();
 
   const hoje = useMemo(() => new Date(), []);
   const [ano, setAno] = useState(hoje.getFullYear());
@@ -271,7 +279,7 @@ export default function Calendario() {
                 Calendário
               </h1>
               <p className="hidden text-sm text-marca-cinza sm:block">
-                Arraste um conteúdo sem data para um dia, ou toque em um dia para ver e agendar.
+                Arraste um conteúdo entre os dias para reagendar, ou para a lista &ldquo;Sem data&rdquo; para tirar a data. Toque em um dia para ver e agendar.
               </p>
             </div>
 
@@ -323,14 +331,14 @@ export default function Calendario() {
               <FiltroMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
                 Todas
               </FiltroMarca>
-              {MARCAS_ORDEM.map((m) => (
+              {marcas.map((m) => (
                 <FiltroMarca
-                  key={m}
-                  ativo={marcaFiltro === m}
-                  cor={MARCAS[m].cor}
-                  onClick={() => setMarcaFiltro(m)}
+                  key={m.id}
+                  ativo={marcaFiltro === m.id}
+                  cor={m.cor}
+                  onClick={() => setMarcaFiltro(m.id)}
                 >
-                  {MARCAS[m].label}
+                  {m.nome}
                 </FiltroMarca>
               ))}
             </div>
@@ -379,14 +387,13 @@ export default function Calendario() {
                     ))}
                   </div>
 
-                  {/* Legenda compacta */}
+                  {/* Legenda compacta (uma cor por marca da organizacao) */}
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-marca-cinza">
-                    <span className="flex items-center gap-1">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: MARCAS.brusoft.cor }} /> Brusoft
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: MARCAS.evotalks.cor }} /> Evotalks
-                    </span>
+                    {marcas.map((m) => (
+                      <span key={m.id} className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.cor }} /> {m.nome}
+                      </span>
+                    ))}
                     <span className="flex items-center gap-1">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COR_COMEMORATIVA }} /> Data comemorativa
                     </span>
@@ -416,7 +423,7 @@ export default function Calendario() {
 
         <DragOverlay>
           {cardArrastado ? (
-            <ChipPreview titulo={cardArrastado.titulo} cor={corDoCard(marcaDoCard(cardArrastado))} />
+            <ChipPreview titulo={cardArrastado.titulo} cor={corDoCard(marcaPorId, marcaDoCard(cardArrastado))} />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -452,7 +459,11 @@ export default function Calendario() {
   );
 }
 
-/** Celula quadrada de um dia (area de drop + abre o detalhe ao tocar). */
+/**
+ * Celula quadrada de um dia: area de drop + abre o detalhe ao tocar. No desktop,
+ * cada mini etiqueta e arrastavel, entao da para mover um conteudo para outro dia
+ * (ou para a lista "Sem data") arrastando direto do calendario.
+ */
 function DiaCelula({
   chave,
   numero,
@@ -476,15 +487,23 @@ function DiaCelula({
   marcaDoCard: (c: CardConteudo) => Marca | undefined;
   onAbrir: () => void;
 }) {
+  const { marcaPorId } = useBoard();
   const { setNodeRef, isOver } = useDroppable({ id: chave });
 
   return (
-    <button
+    <div
       ref={setNodeRef}
-      type="button"
+      role="button"
+      tabIndex={0}
       onClick={onAbrir}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onAbrir();
+        }
+      }}
       aria-label={`${numero}, ${cards.length} conteúdo(s)`}
-      className={`group relative flex aspect-square flex-col overflow-hidden rounded-marca border p-1 text-left outline-none transition will-change-transform focus-visible:ring-2 focus-visible:ring-marca-laranja sm:p-1.5 ${
+      className={`group relative flex aspect-square cursor-pointer flex-col overflow-hidden rounded-marca border p-1 text-left outline-none transition will-change-transform focus-visible:ring-2 focus-visible:ring-marca-laranja sm:p-1.5 ${
         noMes ? "bg-marca-branco/40" : "bg-white"
       } ${
         isOver
@@ -522,7 +541,7 @@ function DiaCelula({
           <span
             key={c.id}
             className="h-1.5 w-1.5 rounded-full animate-pop"
-            style={{ backgroundColor: corDoCard(marcaDoCard(c)) }}
+            style={{ backgroundColor: corDoCard(marcaPorId, marcaDoCard(c)) }}
           />
         ))}
         {cards.length > 4 && (
@@ -530,22 +549,49 @@ function DiaCelula({
         )}
       </div>
 
-      {/* Desktop: mini etiquetas com titulo curto */}
+      {/* Desktop: mini etiquetas arrastaveis (mover para outro dia) */}
       <div className="mt-1.5 hidden flex-col gap-0.5 overflow-hidden sm:flex">
         {cards.slice(0, 3).map((c) => (
-          <span
+          <EtiquetaDia
             key={c.id}
-            className="truncate rounded px-1.5 py-0.5 text-[11px] font-semibold text-white animate-pop"
-            style={{ backgroundColor: corDoCard(marcaDoCard(c)) }}
-            title={c.titulo}
-          >
-            {c.titulo}
-          </span>
+            card={c}
+            cor={corDoCard(marcaPorId, marcaDoCard(c))}
+            onAbrir={onAbrir}
+          />
         ))}
         {cards.length > 3 && (
           <span className="px-1 text-[11px] font-bold text-marca-cinza">+{cards.length - 3} mais</span>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Mini etiqueta de um conteudo numa celula: arrastavel para reagendar em outro dia. */
+function EtiquetaDia({
+  card,
+  cor,
+  onAbrir,
+}: {
+  card: CardConteudo;
+  cor: string;
+  onAbrir: () => void;
+}) {
+  const { listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onAbrir();
+      }}
+      style={{ backgroundColor: cor, opacity: isDragging ? 0.4 : 1 }}
+      className="block w-full cursor-grab truncate rounded px-1.5 py-0.5 text-left text-[11px] font-semibold text-white animate-pop active:cursor-grabbing"
+      title={card.titulo}
+    >
+      {card.titulo}
     </button>
   );
 }
@@ -603,8 +649,9 @@ function LinhaConteudo({
   marca: Marca | undefined;
   onAbrir: (id: string) => void;
 }) {
+  const { marcaPorId } = useBoard();
   const Icone = TIPOS[card.tipo].icone;
-  const cor = corDoCard(marca);
+  const cor = corDoCard(marcaPorId, marca);
   const postado = card.etapa === "publicado";
   return (
     <button
@@ -653,6 +700,7 @@ function DetalheDia({
   onCriarDeData: (d: DataComemorativa, marca: Marca, chave: string) => void;
   onFechar: () => void;
 }) {
+  const { marcaPorId, marcas } = useBoard();
   const d = dataDeISO(chave);
 
   useEffect(() => {
@@ -713,23 +761,27 @@ function DetalheDia({
                 Criar um conteúdo já agendado para esta data:
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {MARCAS_ORDEM.filter(
-                  (m) => comemorativa.sugestoes[m] && (marcaFiltro === "todas" || marcaFiltro === m)
-                ).map((m) => {
-                  const semCampanha = !marcasComCampanha.has(m);
-                  return (
-                    <button
-                      key={m}
-                      type="button"
-                      disabled={semCampanha}
-                      onClick={() => onCriarDeData(comemorativa, m, chave)}
-                      className="flex items-center gap-1 rounded-marca px-2.5 py-1.5 text-xs font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-                      style={{ backgroundColor: MARCAS[m].cor }}
-                    >
-                      <Plus size={12} aria-hidden /> {MARCAS[m].label}
-                    </button>
-                  );
-                })}
+                {marcas
+                  .filter(
+                    (m) =>
+                      comemorativa.sugestoes[m.id] &&
+                      (marcaFiltro === "todas" || marcaFiltro === m.id)
+                  )
+                  .map((m) => {
+                    const semCampanha = !marcasComCampanha.has(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        disabled={semCampanha}
+                        onClick={() => onCriarDeData(comemorativa, m.id, chave)}
+                        className="flex items-center gap-1 rounded-marca px-2.5 py-1.5 text-xs font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                        style={{ backgroundColor: m.cor }}
+                      >
+                        <Plus size={12} aria-hidden /> {m.nome}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -766,7 +818,7 @@ function DetalheDia({
                     >
                       <span
                         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-marca text-white"
-                        style={{ backgroundColor: corDoCard(marcaDoCard(c)) }}
+                        style={{ backgroundColor: corDoCard(marcaPorId, marcaDoCard(c)) }}
                       >
                         <Icone size={14} aria-hidden />
                       </span>
@@ -804,6 +856,7 @@ function PainelDatas({
   marcasComCampanha: Set<Marca>;
   onCriar: (d: DataComemorativa, marca: Marca, chave: string) => void;
 }) {
+  const { marcas } = useBoard();
   return (
     <div className="flex flex-col rounded-marca border border-marca-cinza/30 bg-white p-3">
       <div className="mb-1 flex items-center gap-2 text-sm font-bold text-marca-azulEscuro">
@@ -823,29 +876,31 @@ function PainelDatas({
               {formatarData(chave)} &middot; {textoContagem(dias)}
             </p>
             <div className="flex flex-wrap gap-1">
-              {MARCAS_ORDEM.filter(
-                (m) => data.sugestoes[m] && (marcaFiltro === "todas" || marcaFiltro === m)
-              ).map((m) => {
-                const semCampanha = !marcasComCampanha.has(m);
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    disabled={semCampanha}
-                    onClick={() => onCriar(data, m, chave)}
-                    title={
-                      semCampanha
-                        ? `Crie uma campanha ${MARCAS[m].label} primeiro`
-                        : `Criar sugestão para ${MARCAS[m].label}`
-                    }
-                    className="flex items-center gap-1 rounded-marca px-2 py-1 text-[11px] font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-                    style={{ backgroundColor: MARCAS[m].cor }}
-                  >
-                    <Plus size={11} aria-hidden />
-                    {MARCAS[m].label}
-                  </button>
-                );
-              })}
+              {marcas
+                .filter(
+                  (m) => data.sugestoes[m.id] && (marcaFiltro === "todas" || marcaFiltro === m.id)
+                )
+                .map((m) => {
+                  const semCampanha = !marcasComCampanha.has(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      disabled={semCampanha}
+                      onClick={() => onCriar(data, m.id, chave)}
+                      title={
+                        semCampanha
+                          ? `Crie uma campanha ${m.nome} primeiro`
+                          : `Criar sugestão para ${m.nome}`
+                      }
+                      className="flex items-center gap-1 rounded-marca px-2 py-1 text-[11px] font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{ backgroundColor: m.cor }}
+                    >
+                      <Plus size={11} aria-hidden />
+                      {m.nome}
+                    </button>
+                  );
+                })}
             </div>
           </div>
         ))}
@@ -909,6 +964,7 @@ function ChipCard({
   onAbrir: (id: string) => void;
   grande?: boolean;
 }) {
+  const { marcaPorId } = useBoard();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
   const TipoIcone = TIPOS[card.tipo].icone;
   const postado = card.etapa === "publicado";
@@ -920,7 +976,7 @@ function ChipCard({
       {...listeners}
       type="button"
       onClick={() => onAbrir(card.id)}
-      style={{ backgroundColor: corDoCard(marca), opacity: isDragging ? 0.4 : 1 }}
+      style={{ backgroundColor: corDoCard(marcaPorId, marca), opacity: isDragging ? 0.4 : 1 }}
       className={`flex w-full items-center gap-1.5 rounded-marca px-1.5 py-1 text-left text-[11px] font-semibold text-white shadow-sm transition hover:brightness-95 hover:shadow-cardHover ${
         grande ? "py-1.5 text-xs" : ""
       }`}

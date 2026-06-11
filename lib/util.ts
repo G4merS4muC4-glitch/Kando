@@ -14,6 +14,19 @@ export function agora(): string {
   return new Date().toISOString();
 }
 
+/** Versao bem clara de uma cor hex (mistura com branco), para fundos suaves de marca. */
+export function corClara(hex: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return "#F4F5FA";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const mix = (c: number) => Math.round(c + (255 - c) * 0.88);
+  const h = (c: number) => c.toString(16).padStart(2, "0");
+  return `#${h(mix(r))}${h(mix(g))}${h(mix(b))}`;
+}
+
 /** Converte uma data para o formato yyyy-mm-dd (horario local). */
 export function chaveData(d: Date): string {
   const ano = d.getFullYear();

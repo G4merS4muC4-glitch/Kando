@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Plus, FolderOpen, Archive } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM, campanhaArquivada } from "@/lib/config";
+import { campanhaArquivada } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import type { Campanha, MarcaFiltro, StatusFiltro } from "@/lib/types";
 import CampanhaCard from "@/components/CampanhaCard";
@@ -19,7 +19,7 @@ const STATUS_OPCOES: { id: StatusFiltro; rotulo: string }[] = [
  * Cada campanha abre o seu proprio quadro Kanban de conteudos.
  */
 export default function Inicial() {
-  const { campanhas, cardsDaCampanha, campanhaPorId, pronto } = useBoard();
+  const { campanhas, cardsDaCampanha, campanhaPorId, pronto, marcas } = useBoard();
   const [marcaFiltro, setMarcaFiltro] = useState<MarcaFiltro>("todas");
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("ativas");
   const [criando, setCriando] = useState(false);
@@ -77,14 +77,14 @@ export default function Inicial() {
           <FiltroMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
             Todas
           </FiltroMarca>
-          {MARCAS_ORDEM.map((m) => (
+          {marcas.map((m) => (
             <FiltroMarca
-              key={m}
-              ativo={marcaFiltro === m}
-              cor={MARCAS[m].cor}
-              onClick={() => setMarcaFiltro(m)}
+              key={m.id}
+              ativo={marcaFiltro === m.id}
+              cor={m.cor}
+              onClick={() => setMarcaFiltro(m.id)}
             >
-              {MARCAS[m].label}
+              {m.nome}
             </FiltroMarca>
           ))}
         </div>

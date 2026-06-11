@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { BarChart3, ClipboardPaste, Copy, Sparkles } from "lucide-react";
-import { MARCAS } from "@/lib/config";
 import {
   HANDLE_PADRAO,
   rotuloPerfil,
@@ -10,6 +9,7 @@ import {
   type PerfilMetrica,
 } from "@/lib/metricas";
 import { getMetricas, saveMetricas } from "@/lib/metricasStorage";
+import { useBoard } from "@/lib/store";
 import { useOrg } from "@/lib/orgProvider";
 import SeletorPerfil from "@/components/metricas/SeletorPerfil";
 import BlocoPromptAtualizacao from "@/components/metricas/BlocoPromptAtualizacao";
@@ -22,7 +22,15 @@ type Aba = "metricas" | "planejamento";
 /** Secao de Metricas e Planejamento dos perfis de Instagram (Brusoft e Evotalks). */
 export default function PaginaMetricas() {
   const { orgId } = useOrg();
+  const { marcas, marcaPorId } = useBoard();
   const [perfil, setPerfil] = useState<PerfilMetrica>("brusoft");
+
+  // Alinha o perfil ativo as marcas da organizacao (a 1a, quando o atual nao existe).
+  useEffect(() => {
+    if (marcas.length > 0 && !marcas.some((m) => m.id === perfil)) {
+      setPerfil(marcas[0].id);
+    }
+  }, [marcas, perfil]);
   const [aba, setAba] = useState<Aba>("metricas");
   const [dados, setDados] = useState<MetricasInstagram | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -61,8 +69,8 @@ export default function PaginaMetricas() {
     };
   }, [perfil, orgId]);
 
-  const cor = MARCAS[perfil].cor;
-  const handle = dados?.handle || HANDLE_PADRAO[perfil];
+  const cor = marcaPorId(perfil).cor;
+  const handle = dados?.handle || HANDLE_PADRAO[perfil] || "";
 
   async function salvar(d: MetricasInstagram) {
     if (orgId) await saveMetricas(orgId, d.perfil, d);

@@ -23,10 +23,10 @@ export type Etapa =
   | "aprovado"
   | "publicado";
 
-// Marcas atendidas pelo time de marketing.
-// Na F1 ainda e um tipo fixo; na F2 vira o id de uma marca cadastrada pela
-// organizacao (ver MarcaOrg e Board.marcas).
-export type Marca = "brusoft" | "evotalks";
+// Marca = id de uma marca cadastrada pela organizacao (ver MarcaOrg e
+// Board.marcas). Os dados antigos usam "brusoft"/"evotalks", que viram ids de
+// marca da organizacao Brusoft, entao continuam validos.
+export type Marca = string;
 
 /**
  * Marca cadastrada por uma organizacao (dados, nao mais um tipo fixo de codigo).

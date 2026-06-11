@@ -6,6 +6,9 @@ import Link from "next/link";
 import { Building2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { useOrg } from "@/lib/orgProvider";
 import { supabaseConfigurado } from "@/lib/supabase/client";
+import { salvarBoard } from "@/lib/storage";
+import { corClara, gerarId } from "@/lib/util";
+import type { MarcaOrg } from "@/lib/types";
 
 /**
  * Onboarding: cria a organizacao (empresa) do usuario. Aparece quando o usuario
@@ -19,6 +22,7 @@ export default function PaginaOnboarding() {
   const router = useRouter();
   const { criarOrg, orgs } = useOrg();
   const [nome, setNome] = useState("");
+  const [cor, setCor] = useState("#FA611E");
   const [erro, setErro] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
   const temOrgs = orgs.length > 0;
@@ -37,7 +41,10 @@ export default function PaginaOnboarding() {
     }
     setCriando(true);
     try {
-      await criarOrg(limpo);
+      const orgId = await criarOrg(limpo);
+      // Ja cria a primeira marca (com o nome da empresa) para liberar as campanhas.
+      const primeira: MarcaOrg = { id: gerarId(), nome: limpo, cor, corSuave: corClara(cor) };
+      await salvarBoard({ marcas: [primeira], campanhas: [], cards: [] }, "onboarding", orgId);
       router.replace("/");
       router.refresh();
     } catch {
@@ -77,6 +84,24 @@ export default function PaginaOnboarding() {
               className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
               placeholder="Ex: Minha Agência"
             />
+          </label>
+
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+              Cor da sua marca
+            </span>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={cor}
+                onChange={(e) => setCor(e.target.value)}
+                aria-label="Cor da marca"
+                className="h-10 w-12 shrink-0 cursor-pointer rounded-marca border border-marca-cinza/30 bg-white p-0.5"
+              />
+              <span className="text-xs text-marca-cinza">
+                Você poderá renomear e adicionar mais marcas depois, no menu &ldquo;Marcas&rdquo;.
+              </span>
+            </div>
           </label>
 
           {erro && (

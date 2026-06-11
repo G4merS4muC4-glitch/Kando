@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Trash2, Save, CheckCircle2, Ban, RotateCcw } from "lucide-react";
 import {
-  MARCAS,
-  MARCAS_ORDEM,
   STATUS_CAMPANHA,
   TIPOS_CAMPANHA,
   TIPOS_CAMPANHA_ORDEM,
@@ -29,14 +27,21 @@ export default function ModalCampanha({
   onFechar: () => void;
   onCriada?: (marca: Marca) => void; // avisa a marca da campanha recem-criada
 }) {
-  const { adicionarCampanha, atualizarCampanha, arquivarCampanha, reabrirCampanha, excluirCampanha } =
-    useBoard();
+  const {
+    marcas,
+    adicionarCampanha,
+    atualizarCampanha,
+    arquivarCampanha,
+    reabrirCampanha,
+    excluirCampanha,
+  } = useBoard();
   const editando = Boolean(campanha);
   const status = campanha?.status ?? "ativa";
   const arquivada = campanhaArquivada(status);
+  const semMarcas = marcas.length === 0;
 
   const [nome, setNome] = useState(campanha?.nome ?? "");
-  const [marca, setMarca] = useState<Marca>(campanha?.marca ?? "brusoft");
+  const [marca, setMarca] = useState<Marca>(campanha?.marca ?? marcas[0]?.id ?? "");
   const [tipo, setTipo] = useState<TipoCampanha>(campanha?.tipo ?? "geral");
   const [descricao, setDescricao] = useState(campanha?.descricao ?? "");
   const [inicio, setInicio] = useState(campanha?.inicio ?? "");
@@ -59,6 +64,8 @@ export default function ModalCampanha({
   }, [onFechar]);
 
   function salvar() {
+    // Sem marca cadastrada nao da para criar campanha (a marca define cor/filtro).
+    if (!editando && !marca) return;
     // Garante coerencia: se o fim vier antes do inicio, troca a ordem.
     let ini = inicio || undefined;
     let f = fim || undefined;
@@ -127,17 +134,24 @@ export default function ModalCampanha({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo rotulo="Marca">
-              <select
-                value={marca}
-                onChange={(e) => setMarca(e.target.value as Marca)}
-                className={inputClasse}
-              >
-                {MARCAS_ORDEM.map((m) => (
-                  <option key={m} value={m}>
-                    {MARCAS[m].label}
-                  </option>
-                ))}
-              </select>
+              {semMarcas ? (
+                <p className="rounded-marca border border-dashed border-marca-cinza/40 px-3 py-2 text-xs text-marca-cinza">
+                  Nenhuma marca cadastrada nesta organização. Crie uma marca em
+                  &ldquo;Marcas&rdquo; (no topo) antes de criar campanhas.
+                </p>
+              ) : (
+                <select
+                  value={marca}
+                  onChange={(e) => setMarca(e.target.value as Marca)}
+                  className={inputClasse}
+                >
+                  {marcas.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nome}
+                    </option>
+                  ))}
+                </select>
+              )}
             </Campo>
 
             <Campo rotulo="Tipo">
@@ -295,7 +309,8 @@ export default function ModalCampanha({
             <button
               type="button"
               onClick={salvar}
-              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95"
+              disabled={!editando && semMarcas}
+              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save size={16} aria-hidden />
               {editando ? "Salvar" : "Criar campanha"}

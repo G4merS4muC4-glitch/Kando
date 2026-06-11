@@ -51,14 +51,19 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     .map((c) => cardVisivel(c, s.visibilidade));
   if (cards.length === 0) return NextResponse.json({ estado: "inexistente" });
 
-  // Marca pela campanha do primeiro card encontrado.
+  // Marca pela campanha do primeiro card encontrado. Resolve cor/nome a partir
+  // das marcas da organizacao (o visitante nao tem contexto do board).
   const primeiro = board?.cards.find((c) => c.id === cards[0].id);
   const campanha = board?.campanhas.find((c) => c.id === primeiro?.campanhaId);
+  const marcaId = campanha?.marca ?? "";
+  const marcaOrg = (board?.marcas ?? []).find((mm) => mm.id === marcaId);
 
   return NextResponse.json({
     estado: "ok",
     edicaoTeleprompter: s.edicao_teleprompter,
-    marca: campanha?.marca ?? "brusoft",
+    marca: marcaId || "brusoft",
+    marcaCor: marcaOrg?.cor ?? null,
+    marcaNome: marcaOrg?.nome ?? null,
     cards,
   });
 }

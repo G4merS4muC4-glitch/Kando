@@ -1,7 +1,9 @@
-import { MARCAS } from "@/lib/config";
+"use client";
+
+import { useBoard } from "@/lib/store";
 import type { Marca } from "@/lib/types";
 
-/** Etiqueta colorida que identifica a marca (Brusoft ou Evotalks). */
+/** Etiqueta colorida que identifica a marca da organizacao. */
 export default function MarcaBadge({
   marca,
   tamanho = "normal",
@@ -9,7 +11,8 @@ export default function MarcaBadge({
   marca: Marca;
   tamanho?: "normal" | "pequeno";
 }) {
-  const conf = MARCAS[marca];
+  const { marcaPorId } = useBoard();
+  const conf = marcaPorId(marca);
   const ehPequeno = tamanho === "pequeno";
   return (
     <span
@@ -23,7 +26,7 @@ export default function MarcaBadge({
         style={{ width: ehPequeno ? 5 : 6, height: ehPequeno ? 5 : 6 }}
         aria-hidden
       />
-      {conf.label}
+      {conf.nome}
     </span>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { X, Play, Search, AlertTriangle, History } from "lucide-react";
-import { MARCAS, MARCAS_ORDEM, campanhaArquivada } from "@/lib/config";
+import { campanhaArquivada } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import type { CardConteudo, Marca, MarcaFiltro } from "@/lib/types";
@@ -14,7 +14,7 @@ import BadgeTipo from "@/components/BadgeTipo";
  * Se ja houver um timer rodando, avisa que iniciar um novo para o atual.
  */
 export default function ModalIniciarTimer({ onFechar }: { onFechar: () => void }) {
-  const { cards, campanhas, campanhaPorId } = useBoard();
+  const { cards, campanhas, marcas, marcaPorId, campanhaPorId } = useBoard();
   const { registros, timerAtivo, iniciarTimer } = useApontamentos();
 
   const [busca, setBusca] = useState("");
@@ -128,14 +128,14 @@ export default function ModalIniciarTimer({ onFechar }: { onFechar: () => void }
             <ChipMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
               Todas
             </ChipMarca>
-            {MARCAS_ORDEM.map((m) => (
+            {marcas.map((m) => (
               <ChipMarca
-                key={m}
-                ativo={marcaFiltro === m}
-                cor={MARCAS[m].cor}
-                onClick={() => setMarcaFiltro(m)}
+                key={m.id}
+                ativo={marcaFiltro === m.id}
+                cor={m.cor}
+                onClick={() => setMarcaFiltro(m.id)}
               >
-                {MARCAS[m].label}
+                {m.nome}
               </ChipMarca>
             ))}
           </div>
@@ -194,7 +194,7 @@ export default function ModalIniciarTimer({ onFechar }: { onFechar: () => void }
                       </span>
                       {camp && (
                         <span className="block truncate text-xs text-marca-cinza">
-                          {camp.nome} · {MARCAS[camp.marca].label}
+                          {camp.nome} · {marcaPorId(camp.marca).nome}
                         </span>
                       )}
                     </span>

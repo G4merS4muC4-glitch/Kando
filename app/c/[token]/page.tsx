@@ -12,11 +12,10 @@ import {
   User,
   ChevronRight,
 } from "lucide-react";
-import { CANAIS, MARCAS } from "@/lib/config";
+import { CANAIS } from "@/lib/config";
 import { formatarData } from "@/lib/util";
 import { faseProgresso } from "@/lib/projeto";
 import type { CardPublico } from "@/lib/share";
-import type { Marca } from "@/lib/types";
 import { useCanalTeleprompter } from "@/lib/teleprompterAoVivo";
 import BadgeTipo from "@/components/BadgeTipo";
 import Teleprompter from "@/components/Teleprompter";
@@ -44,7 +43,6 @@ export default function PaginaVisitante() {
   const [cards, setCards] = useState<CardPublico[]>([]);
   const [selecionadoId, setSelecionadoId] = useState<string>("");
   const [edicao, setEdicao] = useState(false);
-  const [marca, setMarca] = useState<Marca>("brusoft");
   const [pin, setPin] = useState("");
   const [pinErro, setPinErro] = useState<string | null>(null);
   const [tpPorCard, setTpPorCard] = useState<Record<string, string>>({});
@@ -68,7 +66,6 @@ export default function PaginaVisitante() {
         setCards(lista);
         setSelecionadoId(lista[0]?.id ?? "");
         setEdicao(Boolean(j.edicaoTeleprompter));
-        setMarca((j.marca as Marca) ?? "brusoft");
         const mapa: Record<string, string> = {};
         for (const c of lista) if (typeof c.teleprompter === "string") mapa[c.id] = c.teleprompter;
         setTpPorCard(mapa);
@@ -91,7 +88,6 @@ export default function PaginaVisitante() {
       }
       const lista = (j.cards as CardPublico[]) ?? [];
       setEdicao(Boolean(j.edicaoTeleprompter));
-      setMarca((j.marca as Marca) ?? "brusoft");
       setCards(lista);
       setSelecionadoId((sel) => (lista.some((c) => c.id === sel) ? sel : lista[0]?.id ?? ""));
       setTpPorCard((prev) => {
@@ -233,7 +229,9 @@ export default function PaginaVisitante() {
     }, 800);
   }
 
-  const cor = MARCAS[marca]?.cor ?? "#FA611E";
+  // Kando e um produto da Brusoft: o painel publico usa sempre a cor da marca
+  // Kando (laranja), independente da marca/organizacao dona da campanha.
+  const cor = "#FA611E";
 
   if (estado === "carregando") {
     return (
@@ -322,10 +320,28 @@ export default function PaginaVisitante() {
     <div className="min-h-dvh bg-marca-branco">
       <div className="h-1.5 w-full" style={{ backgroundColor: cor }} />
       <div className={`mx-auto px-4 py-6 sm:px-6 ${umCard ? "max-w-2xl" : "max-w-5xl"}`}>
-        <div className="mb-4 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-marca-cinza">
-          <span style={{ color: cor }}>Kando</span>
-          <span>por {MARCAS[marca]?.label ?? "Brusoft"}</span>
-          {!umCard && <span className="text-marca-cinza/60">- {cards.length} cards</span>}
+        {/* Logo Kando by Brusoft (fixa: o Kando e um produto da Brusoft). */}
+        <div className="mb-4 flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kando-logo.svg"
+            alt=""
+            aria-hidden
+            className="h-8 w-8 shrink-0 object-contain"
+            width={32}
+            height={32}
+          />
+          <span className="flex items-baseline gap-1.5 leading-none">
+            <span className="font-titulo text-lg font-bold uppercase tracking-wide text-marca-azulEscuro">
+              Kando
+            </span>
+            <span className="text-[11px] font-medium tracking-wide text-marca-cinza">by Brusoft</span>
+          </span>
+          {!umCard && (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-marca-cinza/60">
+              · {cards.length} cards
+            </span>
+          )}
         </div>
 
         {umCard ? (

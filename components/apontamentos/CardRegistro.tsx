@@ -1,7 +1,7 @@
 "use client";
 
 import { Clock, User } from "lucide-react";
-import { MARCAS } from "@/lib/config";
+import { useBoard } from "@/lib/store";
 import type { CardConteudo, Marca, RegistroTempo } from "@/lib/types";
 import { duracaoMs, formatarDuracao, diaDoRegistro, horaLocal } from "@/lib/apontamentos";
 import { formatarData } from "@/lib/util";
@@ -25,7 +25,8 @@ export default function CardRegistro({
   marca?: Marca;
   onAbrir: (reg: RegistroTempo) => void;
 }) {
-  const corMarca = marca ? MARCAS[marca].cor : "#8790AB";
+  const { marcaPorId } = useBoard();
+  const corMarca = marcaPorId(marca ?? "").cor;
   return (
     <button
       type="button"

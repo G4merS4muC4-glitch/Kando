@@ -18,11 +18,12 @@ import type {
   CardConteudo,
   Etapa,
   Marca,
+  MarcaOrg,
   StatusCampanha,
   TipoCampanha,
   TipoConteudo,
 } from "./types";
-import { ETAPAS } from "./config";
+import { ETAPAS, MARCAS } from "./config";
 import { criarProjetoVazio } from "./projeto";
 import { assinarBoard, carregarBoard, salvarBoard } from "./storage";
 import { useOrg } from "./orgProvider";
@@ -38,6 +39,9 @@ import { agora, gerarId } from "./util";
 
 type Acao =
   | { tipo: "INICIALIZAR"; board: Board }
+  | { tipo: "ADD_MARCA"; marca: MarcaOrg }
+  | { tipo: "UPD_MARCA"; marca: MarcaOrg }
+  | { tipo: "DEL_MARCA"; id: string }
   | { tipo: "ADD_CAMPANHA"; campanha: Campanha }
   | { tipo: "UPD_CAMPANHA"; campanha: Campanha }
   | { tipo: "STATUS_CAMPANHA"; id: string; status: StatusCampanha }
@@ -53,6 +57,18 @@ function reducer(estado: Board, acao: Acao): Board {
   switch (acao.tipo) {
     case "INICIALIZAR":
       return acao.board;
+
+    case "ADD_MARCA":
+      return { ...estado, marcas: [...(estado.marcas ?? []), acao.marca] };
+
+    case "UPD_MARCA":
+      return {
+        ...estado,
+        marcas: (estado.marcas ?? []).map((m) => (m.id === acao.marca.id ? acao.marca : m)),
+      };
+
+    case "DEL_MARCA":
+      return { ...estado, marcas: (estado.marcas ?? []).filter((m) => m.id !== acao.id) };
 
     case "ADD_CAMPANHA":
       return { ...estado, campanhas: [...estado.campanhas, acao.campanha] };
@@ -264,13 +280,14 @@ function criarCardVazio(
   };
 }
 
-/** Cria uma campanha nova com valores padrao. */
+/** Cria uma campanha nova com valores padrao. A marca vem de quem cria (a 1a da
+ *  organizacao); fica vazia so se a organizacao ainda nao tiver marcas. */
 function criarCampanhaVazia(parcial?: Partial<Campanha>): Campanha {
   const ts = agora();
   return {
     id: gerarId(),
     nome: "Nova campanha",
-    marca: "brusoft" as Marca,
+    marca: "",
     tipo: "geral" as TipoCampanha,
     descricao: "",
     inicio: undefined,
@@ -281,11 +298,28 @@ function criarCampanhaVazia(parcial?: Partial<Campanha>): Campanha {
   };
 }
 
+/** Cria uma marca nova com cor padrao da marca (laranja). */
+function criarMarcaVazia(parcial?: Partial<MarcaOrg>): MarcaOrg {
+  return {
+    id: gerarId(),
+    nome: "Nova marca",
+    cor: "#FA611E",
+    corSuave: "#FFF1E9",
+    ...parcial,
+  };
+}
+
 interface BoardStore {
+  marcas: MarcaOrg[];
   campanhas: Campanha[];
   cards: CardConteudo[];
   pronto: boolean;
   erroCarregar: boolean; // falha ao carregar do Supabase (rede/login)
+  // Marcas (da organizacao)
+  marcaPorId: (id: string) => MarcaOrg;
+  adicionarMarca: (parcial?: Partial<MarcaOrg>) => MarcaOrg;
+  atualizarMarca: (marca: MarcaOrg) => void;
+  excluirMarca: (id: string) => void;
   // Campanhas
   adicionarCampanha: (parcial?: Partial<Campanha>) => Campanha;
   atualizarCampanha: (campanha: Campanha) => void;
@@ -310,7 +344,7 @@ interface BoardStore {
 
 const BoardContext = createContext<BoardStore | null>(null);
 
-const ESTADO_VAZIO: Board = { campanhas: [], cards: [] };
+const ESTADO_VAZIO: Board = { marcas: [], campanhas: [], cards: [] };
 
 export function BoardProvider({ children }: { children: ReactNode }) {
   // A organizacao ativa define de qual quadro carregamos/salvamos os dados.
@@ -405,9 +439,26 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     };
   }, [board, pronto]);
 
+  // ----- Marcas (da organizacao) -----
+  const adicionarMarca = useCallback((parcial?: Partial<MarcaOrg>): MarcaOrg => {
+    const marca = criarMarcaVazia(parcial);
+    dispatch({ tipo: "ADD_MARCA", marca });
+    return marca;
+  }, []);
+
+  const atualizarMarca = useCallback((marca: MarcaOrg) => {
+    dispatch({ tipo: "UPD_MARCA", marca });
+  }, []);
+
+  const excluirMarca = useCallback((id: string) => {
+    dispatch({ tipo: "DEL_MARCA", id });
+  }, []);
+
   // ----- Campanhas -----
   const adicionarCampanha = useCallback((parcial?: Partial<Campanha>): Campanha => {
-    const campanha = criarCampanhaVazia(parcial);
+    // Marca padrao = a primeira da organizacao (vazia so se ainda nao houver marca).
+    const padraoMarca = boardRef.current.marcas?.[0]?.id ?? "";
+    const campanha = criarCampanhaVazia({ marca: padraoMarca, ...parcial });
     dispatch({ tipo: "ADD_CAMPANHA", campanha });
     return campanha;
   }, []);
@@ -472,6 +523,16 @@ export function BoardProvider({ children }: { children: ReactNode }) {
 
   // Seletores derivados (recriados quando o board muda).
   const seletores = useMemo(() => {
+    const lista = board.marcas ?? [];
+    // Resolve uma marca pelo id: primeiro nas marcas da organizacao; senao no
+    // catalogo estatico (compatibilidade/demo); senao um cinza neutro.
+    const marcaPorId = (id: string): MarcaOrg => {
+      const m = lista.find((x) => x.id === id);
+      if (m) return m;
+      const f = MARCAS[id];
+      if (f) return { id, nome: f.label, cor: f.cor, corSuave: f.corSuave };
+      return { id, nome: id || "Sem marca", cor: "#8790AB", corSuave: "#EEF0F5" };
+    };
     const campanhaPorId = (id: string) => board.campanhas.find((c) => c.id === id);
     const cardPorId = (id: string) => board.cards.find((c) => c.id === id);
     const cardsDaCampanha = (campanhaId: string) =>
@@ -485,15 +546,19 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       });
       return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
     };
-    return { campanhaPorId, cardPorId, cardsDaCampanha, temasDaCampanha };
-  }, [board.campanhas, board.cards]);
+    return { marcaPorId, campanhaPorId, cardPorId, cardsDaCampanha, temasDaCampanha };
+  }, [board.marcas, board.campanhas, board.cards]);
 
   const valor: BoardStore = useMemo(
     () => ({
+      marcas: board.marcas ?? [],
       campanhas: board.campanhas,
       cards: board.cards,
       pronto,
       erroCarregar,
+      adicionarMarca,
+      atualizarMarca,
+      excluirMarca,
       adicionarCampanha,
       atualizarCampanha,
       arquivarCampanha,
@@ -511,10 +576,14 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       ...seletores,
     }),
     [
+      board.marcas,
       board.campanhas,
       board.cards,
       pronto,
       erroCarregar,
+      adicionarMarca,
+      atualizarMarca,
+      excluirMarca,
       adicionarCampanha,
       atualizarCampanha,
       arquivarCampanha,

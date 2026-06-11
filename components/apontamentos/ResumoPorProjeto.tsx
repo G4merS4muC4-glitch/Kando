@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { FolderKanban, Users } from "lucide-react";
-import { MARCAS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import type { Marca, RegistroTempo } from "@/lib/types";
 import { formatarDuracao, totalPorAutor, totalPorCard } from "@/lib/apontamentos";
@@ -15,7 +14,7 @@ function nomeCurto(nome: string): string {
 
 /** Horas por projeto (maior para menor) e por pessoa, com barra de proporcao. */
 export default function ResumoPorProjeto({ registros }: { registros: RegistroTempo[] }) {
-  const { cardPorId, campanhaPorId } = useBoard();
+  const { cardPorId, campanhaPorId, marcaPorId } = useBoard();
 
   const porProjeto = useMemo(() => {
     const tot = totalPorCard(registros);
@@ -23,11 +22,16 @@ export default function ResumoPorProjeto({ registros }: { registros: RegistroTem
       .map(([cardId, ms]) => {
         const card = cardPorId(cardId);
         const marca: Marca | undefined = card ? campanhaPorId(card.campanhaId)?.marca : undefined;
-        return { cardId, ms, titulo: card?.titulo || "Card removido", cor: marca ? MARCAS[marca].cor : "#8790AB" };
+        return {
+          cardId,
+          ms,
+          titulo: card?.titulo || "Card removido",
+          cor: marcaPorId(marca ?? "").cor,
+        };
       })
       .sort((a, b) => b.ms - a.ms)
       .slice(0, 12);
-  }, [registros, cardPorId, campanhaPorId]);
+  }, [registros, cardPorId, campanhaPorId, marcaPorId]);
 
   const porPessoa = useMemo(() => totalPorAutor(registros), [registros]);
 

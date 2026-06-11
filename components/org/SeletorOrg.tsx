@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, ChevronDown, Check, Plus } from "lucide-react";
+import { Building2, ChevronDown, Check, Plus, Tag } from "lucide-react";
 import { useOrg } from "@/lib/orgProvider";
 import { supabaseConfigurado } from "@/lib/supabase/client";
+import GerenciarMarcas from "./GerenciarMarcas";
 
 /**
  * Seletor da organizacao ativa, no topo. Mostra a organizacao atual e, ao abrir,
@@ -16,6 +17,7 @@ import { supabaseConfigurado } from "@/lib/supabase/client";
 export default function SeletorOrg() {
   const { orgs, orgAtiva, trocarOrg } = useOrg();
   const [aberto, setAberto] = useState(false);
+  const [marcasAberto, setMarcasAberto] = useState(false);
   const router = useRouter();
 
   // Modo local (sem login) ou ainda resolvendo: nao mostra o seletor.
@@ -72,6 +74,17 @@ export default function SeletorOrg() {
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              onClick={() => {
+                setAberto(false);
+                setMarcasAberto(true);
+              }}
+              className="flex w-full items-center gap-1.5 border-t border-marca-cinza/20 px-3 py-2 text-left text-sm font-semibold text-marca-azulEscuro transition hover:bg-marca-branco"
+            >
+              <Tag size={15} aria-hidden />
+              Gerenciar marcas
+            </button>
             <Link
               href="/onboarding"
               onClick={() => setAberto(false)}
@@ -83,6 +96,8 @@ export default function SeletorOrg() {
           </div>
         </>
       )}
+
+      {marcasAberto && <GerenciarMarcas onFechar={() => setMarcasAberto(false)} />}
     </div>
   );
 }
