@@ -14,9 +14,9 @@
 import type { ApontamentosDoc, RegistroTempo, TimerAtivo } from "./types";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
 
-const ID_LINHA = "apontamentos"; // linha propria na tabela boards
+const idLinha = (orgId: string) => `apontamentos:${orgId}`; // linha por organizacao
 const CHAVE_REGISTROS = "kando:apontamentos"; // fallback localStorage
-const CHAVE_TIMER = "kando:timer-ativo"; // timer em andamento, por aparelho
+const chaveTimer = (orgId: string) => `kando:timer-ativo:${orgId}`; // timer por aparelho e org
 
 function temLocalStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -50,15 +50,15 @@ function salvarRegistrosLocal(registros: RegistroTempo[]): void {
   }
 }
 
-/** Le os registros salvos (documento compartilhado ou localStorage). */
-export async function getApontamentos(): Promise<RegistroTempo[]> {
+/** Le os registros salvos da organizacao (documento compartilhado ou localStorage). */
+export async function getApontamentos(orgId: string): Promise<RegistroTempo[]> {
   if (!supabaseConfigurado()) return lerRegistrosLocal();
   try {
     const sb = criarClienteNavegador();
     const { data, error } = await sb
       .from("boards")
       .select("dados")
-      .eq("id", ID_LINHA)
+      .eq("id", idLinha(orgId))
       .maybeSingle();
     if (error) throw error;
     return registrosValidos(data?.dados) ? (data!.dados as ApontamentosDoc).registros : [];
@@ -67,8 +67,8 @@ export async function getApontamentos(): Promise<RegistroTempo[]> {
   }
 }
 
-/** Salva todos os registros (documento compartilhado ou localStorage). */
-export async function salvarApontamentos(registros: RegistroTempo[]): Promise<void> {
+/** Salva todos os registros da organizacao (documento compartilhado ou localStorage). */
+export async function salvarApontamentos(orgId: string, registros: RegistroTempo[]): Promise<void> {
   if (!supabaseConfigurado()) {
     salvarRegistrosLocal(registros);
     return;
@@ -76,9 +76,10 @@ export async function salvarApontamentos(registros: RegistroTempo[]): Promise<vo
   try {
     const sb = criarClienteNavegador();
     await sb.from("boards").upsert({
-      id: ID_LINHA,
+      id: idLinha(orgId),
       dados: { registros } satisfies ApontamentosDoc,
       cliente_id: "apontamentos",
+      org_id: orgId,
       atualizado_em: new Date().toISOString(),
     });
   } catch {
@@ -87,22 +88,25 @@ export async function salvarApontamentos(registros: RegistroTempo[]): Promise<vo
 }
 
 /**
- * Assina mudancas dos registros em tempo real (so no modo Supabase). No evento,
- * RE-LE a lista do banco (nao confia no payload, que pode vir cortado se crescer
- * muito) e entrega para o assinante. Devolve uma funcao para cancelar.
+ * Assina mudancas dos registros da organizacao em tempo real (so no Supabase).
+ * Canal e filtro por organizacao. No evento, RE-LE a lista do banco (nao confia
+ * no payload, que pode vir cortado se crescer muito) e entrega para o assinante.
+ * Devolve uma funcao para cancelar.
  */
 export function assinarApontamentos(
+  orgId: string,
   aoMudar: (registros: RegistroTempo[]) => void
 ): (() => void) | undefined {
   if (!supabaseConfigurado()) return undefined;
   const sb = criarClienteNavegador();
+  const id = idLinha(orgId);
   const canal = sb
-    .channel(`boards-${ID_LINHA}`)
+    .channel(`boards-${id}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "boards", filter: `id=eq.${ID_LINHA}` },
+      { event: "*", schema: "public", table: "boards", filter: `id=eq.${id}` },
       () => {
-        void getApontamentos().then(aoMudar);
+        void getApontamentos(orgId).then(aoMudar);
       }
     )
     .subscribe();
@@ -111,13 +115,13 @@ export function assinarApontamentos(
   };
 }
 
-// ----- Timer ativo (por aparelho) -----
+// ----- Timer ativo (por aparelho e por organizacao) -----
 
-/** Le o timer em andamento guardado neste aparelho (ou null). */
-export function lerTimerLocal(): TimerAtivo | null {
+/** Le o timer em andamento guardado neste aparelho para a organizacao (ou null). */
+export function lerTimerLocal(orgId: string): TimerAtivo | null {
   if (!temLocalStorage()) return null;
   try {
-    const bruto = window.localStorage.getItem(CHAVE_TIMER);
+    const bruto = window.localStorage.getItem(chaveTimer(orgId));
     if (!bruto) return null;
     const t = JSON.parse(bruto) as TimerAtivo;
     return t && typeof t.cardId === "string" && typeof t.inicio === "string" ? t : null;
@@ -126,21 +130,21 @@ export function lerTimerLocal(): TimerAtivo | null {
   }
 }
 
-/** Guarda o timer em andamento neste aparelho. */
-export function salvarTimerLocal(timer: TimerAtivo): void {
+/** Guarda o timer em andamento neste aparelho para a organizacao. */
+export function salvarTimerLocal(orgId: string, timer: TimerAtivo): void {
   if (!temLocalStorage()) return;
   try {
-    window.localStorage.setItem(CHAVE_TIMER, JSON.stringify(timer));
+    window.localStorage.setItem(chaveTimer(orgId), JSON.stringify(timer));
   } catch {
     // ignora
   }
 }
 
-/** Remove o timer em andamento deste aparelho. */
-export function limparTimerLocal(): void {
+/** Remove o timer em andamento deste aparelho para a organizacao. */
+export function limparTimerLocal(orgId: string): void {
   if (!temLocalStorage()) return;
   try {
-    window.localStorage.removeItem(CHAVE_TIMER);
+    window.localStorage.removeItem(chaveTimer(orgId));
   } catch {
     // ignora
   }

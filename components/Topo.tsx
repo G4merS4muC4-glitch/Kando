@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
 import BotaoSair from "./BotaoSair";
 import IndicadorTimerTopo from "./apontamentos/IndicadorTimerTopo";
+import SeletorOrg from "./org/SeletorOrg";
 
 /**
  * Cabecalho global fixo, presente em todas as telas: wordmark a esquerda e
@@ -26,25 +27,34 @@ export default function Topo() {
         noCampanha ? "hidden espacoso:block" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-4 px-4 py-3">
-        {/* Simbolo laranja + logo completa (Kando by Brusoft) lado a lado */}
-        <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Kando by Brusoft">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/kando-logo.svg"
-            alt=""
-            aria-hidden
-            className="h-7 w-7 shrink-0 object-contain"
-            width={28}
-            height={28}
-          />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/kando-completa.svg"
-            alt="Kando by Brusoft"
-            className="h-7 w-auto object-contain sm:h-8"
-          />
-        </Link>
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        {/* Esquerda: logo + seletor da organizacao ativa. */}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {/* Simbolo laranja + logo completa (Kando by Brusoft) lado a lado */}
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-2.5"
+            aria-label="Kando by Brusoft"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kando-logo.svg"
+              alt=""
+              aria-hidden
+              className="h-7 w-7 shrink-0 object-contain"
+              width={28}
+              height={28}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kando-completa.svg"
+              alt="Kando by Brusoft"
+              className="hidden h-7 w-auto object-contain min-[420px]:block sm:h-8"
+            />
+          </Link>
+          <span className="h-5 w-px shrink-0 bg-white/20" aria-hidden />
+          <SeletorOrg />
+        </div>
 
         {/* Indicador de timer + navegacao. No mobile, a navegacao migra para a
             barra inferior (ao alcance do polegar) e o timer para uma faixa acima

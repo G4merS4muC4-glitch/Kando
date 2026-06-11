@@ -11,13 +11,16 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const ID_BOARD = "principal";
 const API_VERSION = Deno.env.get("META_API_VERSION") ?? "v21.0";
 const GRAPH = `https://graph.facebook.com/${API_VERSION}`;
-const MAX_POR_EXECUCAO = 10; // limite por rodada, para nao estourar o tempo
+const MAX_POR_EXECUCAO = 10; // limite por rodada (somando todas as organizacoes)
 const FUSO = "-03:00"; // Brasil (sem horario de verao desde 2019)
 
-type Marca = "brusoft" | "evotalks";
+// Multiempresa: cada quadro fica numa linha principal:<org>. A marca virou um id
+// livre por organizacao. As credenciais do Meta vem de secrets com o prefixo do
+// id da marca em maiusculas (ex.: BRUSOFT_FB_TOKEN); marca sem secret cai no erro
+// "nao configurado" (so a organizacao Brusoft publica por enquanto).
+type Marca = string;
 
 interface Tarefa {
   statusPub?: "agendado" | "publicado" | "erro";
@@ -169,26 +172,14 @@ interface Patch {
   publicar?: boolean; // mover etapa para publicado quando deu certo
 }
 
-Deno.serve(async () => {
-  const url = Deno.env.get("SUPABASE_URL") ?? "";
-  const servico = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (!url || !servico) {
-    return new Response(JSON.stringify({ erro: "ambiente sem SUPABASE_URL/SERVICE_ROLE" }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
-  }
-  const sb = createClient(url, servico);
-
-  // Le o quadro.
-  const { data, error } = await sb.from("boards").select("dados").eq("id", ID_BOARD).maybeSingle();
-  if (error) {
-    return new Response(JSON.stringify({ erro: error.message }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
-  }
-  const board = (data?.dados ?? { campanhas: [], cards: [] }) as Board;
+/** Publica os pendentes de UM quadro (uma organizacao) e grava so os patches. */
+async function processarQuadro(
+  sb: ReturnType<typeof createClient>,
+  boardId: string,
+  orgId: string,
+  board: Board,
+  limite: number
+): Promise<{ verificados: number; publicados: number; erros: number }> {
   const marcaPorCampanha = new Map(board.campanhas.map((c) => [c.id, c.marca]));
 
   const agora = Date.now();
@@ -200,7 +191,7 @@ Deno.serve(async () => {
       const t = instanteAgendado(c);
       return t !== null && t <= agora;
     })
-    .slice(0, MAX_POR_EXECUCAO);
+    .slice(0, limite);
 
   const patches = new Map<string, Patch>();
 
@@ -229,21 +220,16 @@ Deno.serve(async () => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const jaFoi = feitos.length ? ` Ja publicado em: ${feitos.join(", ")}.` : "";
-      patches.set(card.id, {
-        statusPub: "erro",
-        erroPub: `${msg}.${jaFoi}`,
-      });
+      patches.set(card.id, { statusPub: "erro", erroPub: `${msg}.${jaFoi}` });
     }
   }
 
   if (patches.size === 0) {
-    return new Response(JSON.stringify({ verificados: pendentes.length, publicados: 0 }), {
-      headers: { "content-type": "application/json" },
-    });
+    return { verificados: pendentes.length, publicados: 0, erros: 0 };
   }
 
   // RE-LE o quadro fresco e aplica so os patches (nao sobrescreve edicoes do time).
-  const { data: data2 } = await sb.from("boards").select("dados").eq("id", ID_BOARD).maybeSingle();
+  const { data: data2 } = await sb.from("boards").select("dados").eq("id", boardId).maybeSingle();
   const atual = (data2?.dados ?? board) as Board;
   const cardsAtualizados = atual.cards.map((c) => {
     const p = patches.get(c.id);
@@ -259,22 +245,59 @@ Deno.serve(async () => {
   });
 
   const novo: Board = { ...atual, cards: cardsAtualizados };
-  const { error: erroSalvar } = await sb.from("boards").upsert({
-    id: ID_BOARD,
+  await sb.from("boards").upsert({
+    id: boardId,
     dados: novo,
     cliente_id: "robo-publicador",
+    org_id: orgId,
     atualizado_em: new Date().toISOString(),
   });
-  if (erroSalvar) {
-    return new Response(JSON.stringify({ erro: erroSalvar.message }), {
+
+  const publicados = [...patches.values()].filter((p) => p.statusPub === "publicado").length;
+  const erros = [...patches.values()].filter((p) => p.statusPub === "erro").length;
+  return { verificados: pendentes.length, publicados, erros };
+}
+
+Deno.serve(async () => {
+  const url = Deno.env.get("SUPABASE_URL") ?? "";
+  const servico = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!url || !servico) {
+    return new Response(JSON.stringify({ erro: "ambiente sem SUPABASE_URL/SERVICE_ROLE" }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  const sb = createClient(url, servico);
+
+  // Le os quadros de todas as organizacoes (uma linha principal:<org> por empresa).
+  const { data, error } = await sb
+    .from("boards")
+    .select("id, org_id, dados")
+    .like("id", "principal:%");
+  if (error) {
+    return new Response(JSON.stringify({ erro: error.message }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
   }
 
-  const publicados = [...patches.values()].filter((p) => p.statusPub === "publicado").length;
-  const erros = [...patches.values()].filter((p) => p.statusPub === "erro").length;
-  return new Response(JSON.stringify({ verificados: pendentes.length, publicados, erros }), {
+  let restante = MAX_POR_EXECUCAO; // teto somado entre todas as organizacoes
+  let verificados = 0;
+  let publicados = 0;
+  let erros = 0;
+
+  for (const linha of (data ?? []) as { id: string; org_id: string | null; dados: unknown }[]) {
+    if (restante <= 0) break;
+    const orgId = linha.org_id ?? linha.id.replace(/^principal:/, "");
+    const board = (linha.dados ?? { campanhas: [], cards: [] }) as Board;
+    const r = await processarQuadro(sb, linha.id, orgId, board, restante);
+    verificados += r.verificados;
+    publicados += r.publicados;
+    erros += r.erros;
+    restante -= r.verificados;
+  }
+
+  return new Response(JSON.stringify({ verificados, publicados, erros }), {
     headers: { "content-type": "application/json" },
   });
 });

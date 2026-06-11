@@ -20,6 +20,7 @@ import {
   supabaseConfigurado,
 } from "@/lib/shareClient";
 import { useBoard } from "@/lib/store";
+import { useOrg } from "@/lib/orgProvider";
 import type { CardConteudo } from "@/lib/types";
 import BadgeTipo from "./BadgeTipo";
 
@@ -36,6 +37,7 @@ export default function ModalCompartilhar({
 }) {
   const disponivel = supabaseConfigurado();
   const { cardsDaCampanha } = useBoard();
+  const { orgId } = useOrg();
   const cardsCampanha = cardsDaCampanha(card.campanhaId);
   const [selecionados, setSelecionados] = useState<string[]>([card.id]);
   const cardIds = [card.id, ...selecionados.filter((id) => id !== card.id)];
@@ -107,12 +109,17 @@ export default function ModalCompartilhar({
       setErro("O código (PIN) precisa de pelo menos 4 caracteres.");
       return;
     }
+    if (!orgId) {
+      setErro("Organização não identificada. Recarregue a página e tente de novo.");
+      return;
+    }
     setGerando(true);
     try {
       const expiraEm = expiraData ? new Date(`${expiraData}T23:59:59`).toISOString() : undefined;
       const novo = await criarCompartilhamento({
         cardIds,
         campanhaId: card.campanhaId,
+        orgId,
         visibilidade,
         edicaoTeleprompter,
         pin: usarPin ? pin.trim() : undefined,

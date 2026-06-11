@@ -34,10 +34,12 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     }
   }
 
+  // O quadro fica na linha da organizacao dona do link (principal:<org>).
+  if (!s.org_id) return NextResponse.json({ estado: "inexistente" });
   const { data: row } = await admin
     .from("boards")
     .select("dados")
-    .eq("id", "principal")
+    .eq("id", `principal:${s.org_id}`)
     .maybeSingle();
   const board = (row?.dados ?? null) as Board | null;
 

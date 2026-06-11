@@ -10,6 +10,7 @@ import {
   type PerfilMetrica,
 } from "@/lib/metricas";
 import { getMetricas, saveMetricas } from "@/lib/metricasStorage";
+import { useOrg } from "@/lib/orgProvider";
 import SeletorPerfil from "@/components/metricas/SeletorPerfil";
 import BlocoPromptAtualizacao from "@/components/metricas/BlocoPromptAtualizacao";
 import ModalColarMetricas from "@/components/metricas/ModalColarMetricas";
@@ -20,6 +21,7 @@ type Aba = "metricas" | "planejamento";
 
 /** Secao de Metricas e Planejamento dos perfis de Instagram (Brusoft e Evotalks). */
 export default function PaginaMetricas() {
+  const { orgId } = useOrg();
   const [perfil, setPerfil] = useState<PerfilMetrica>("brusoft");
   const [aba, setAba] = useState<Aba>("metricas");
   const [dados, setDados] = useState<MetricasInstagram | null>(null);
@@ -36,11 +38,12 @@ export default function PaginaMetricas() {
     setPeriodoLabel(`${f(inicio)} a ${f(fim)} (30 dias)`);
   }, []);
 
-  // Carrega as metricas do perfil ativo.
+  // Carrega as metricas do perfil ativo da organizacao.
   useEffect(() => {
+    if (!orgId) return;
     let ativo = true;
     setCarregando(true);
-    getMetricas(perfil)
+    getMetricas(orgId, perfil)
       .then((d) => {
         if (ativo) {
           setDados(d);
@@ -56,13 +59,13 @@ export default function PaginaMetricas() {
     return () => {
       ativo = false;
     };
-  }, [perfil]);
+  }, [perfil, orgId]);
 
   const cor = MARCAS[perfil].cor;
   const handle = dados?.handle || HANDLE_PADRAO[perfil];
 
   async function salvar(d: MetricasInstagram) {
-    await saveMetricas(d.perfil, d);
+    if (orgId) await saveMetricas(orgId, d.perfil, d);
     setDados(d);
     setPerfil(d.perfil); // se o JSON for de outro perfil, abre o perfil correto
     setAba("metricas");

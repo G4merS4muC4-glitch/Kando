@@ -21,6 +21,7 @@ import {
   salvarApontamentos,
   salvarTimerLocal,
 } from "./apontamentosStorage";
+import { useOrg } from "./orgProvider";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
 
 /**
@@ -57,6 +58,8 @@ const AUTOR_LOCAL: Autor = { id: "local", nome: "Você" };
 const ApontamentosContext = createContext<ApontamentosStore | null>(null);
 
 export function ApontamentosProvider({ children }: { children: ReactNode }) {
+  // A organizacao ativa define de quais horas (registros e timer) cuidamos.
+  const { orgId } = useOrg();
   const [registros, setRegistros] = useState<RegistroTempo[]>([]);
   const [timerAtivo, setTimerAtivo] = useState<TimerAtivo | null>(null);
   const [autor, setAutor] = useState<Autor>(AUTOR_LOCAL);
@@ -69,12 +72,17 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   timerRef.current = timerAtivo;
   const autorRef = useRef(autor);
   autorRef.current = autor;
+  const orgIdRef = useRef(orgId);
+  orgIdRef.current = orgId;
 
-  // Carrega registros, le o timer do aparelho, descobre o autor e assina mudancas.
+  // Carrega registros e timer da organizacao ativa, descobre o autor e assina
+  // mudancas. Recarrega ao trocar de organizacao.
   useEffect(() => {
+    if (!orgId) return;
     let ativo = true;
+    setPronto(false);
 
-    getApontamentos()
+    getApontamentos(orgId)
       .then((r) => {
         if (!ativo) return;
         setRegistros(r);
@@ -84,7 +92,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         if (ativo) setPronto(true);
       });
 
-    setTimerAtivo(lerTimerLocal());
+    setTimerAtivo(lerTimerLocal(orgId));
 
     if (supabaseConfigurado()) {
       try {
@@ -100,7 +108,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const cancelar = assinarApontamentos((r) => {
+    const cancelar = assinarApontamentos(orgId, (r) => {
       if (ativo) setRegistros(r);
     });
 
@@ -108,12 +116,13 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       ativo = false;
       if (cancelar) cancelar();
     };
-  }, []);
+  }, [orgId]);
 
   /** Atualiza o estado e persiste a lista inteira (acoes sao pouco frequentes). */
   const aplicar = useCallback((novos: RegistroTempo[]) => {
     setRegistros(novos);
-    void salvarApontamentos(novos);
+    const org = orgIdRef.current;
+    if (org) void salvarApontamentos(org, novos);
   }, []);
 
   /** Encerra o timer atual gravando um registro (com o fim informado). */
@@ -135,7 +144,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       };
       // Descarta intervalos sem duracao (play/stop acidental).
       if (duracaoMs(reg) > 0) aplicar([reg, ...registrosRef.current]);
-      limparTimerLocal();
+      if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
       setTimerAtivo(null);
     },
     [aplicar]
@@ -153,7 +162,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   );
 
   const descartarTimer = useCallback(() => {
-    limparTimerLocal();
+    if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
     setTimerAtivo(null);
   }, []);
 
@@ -169,7 +178,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         autorId: a.id,
         autorNome: a.nome,
       };
-      salvarTimerLocal(novo);
+      if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
       setTimerAtivo(novo);
     },
     [pararInterno]

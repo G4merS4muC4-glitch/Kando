@@ -1,26 +1,52 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 import { BoardProvider } from "@/lib/store";
 import { ApontamentosProvider } from "@/lib/apontamentosProvider";
+import { OrgProvider, useOrg } from "@/lib/orgProvider";
 import Topo from "./Topo";
 import BarraNavInferior from "./BarraNavInferior";
 import FaixaTimerMobile from "./FaixaTimerMobile";
 import AvisoErroCarregar from "./AvisoErroCarregar";
 
 /**
- * Casca da aplicacao. Nas paginas do painel, envolve tudo com o estado central
- * (BoardProvider) e a navegacao global (Topo). Na tela de login, renderiza so o
- * conteudo, sem navegacao nem provider.
+ * Casca da aplicacao. Resolve primeiro a organizacao ativa (OrgProvider) e so
+ * entao monta o estado do quadro (BoardProvider) e a navegacao. Na tela de
+ * login e no painel publico do visitante, renderiza so o conteudo.
  */
 export default function AppShell({ children }: { children: ReactNode }) {
   const caminho = usePathname();
 
-  // Login e o painel publico do visitante (/c/...) nao tem navegacao nem o estado
-  // do quadro: renderizam so o conteudo.
   if (caminho === "/login" || caminho.startsWith("/c/")) {
     return <>{children}</>;
+  }
+
+  return (
+    <OrgProvider>
+      <ShellComOrg>{children}</ShellComOrg>
+    </OrgProvider>
+  );
+}
+
+/** Decide, ja com a organizacao resolvida, o que renderizar. */
+function ShellComOrg({ children }: { children: ReactNode }) {
+  const caminho = usePathname();
+  const router = useRouter();
+  const { pronto, semOrg, orgId, erro } = useOrg();
+  const naOnboarding = caminho.startsWith("/onboarding");
+
+  // Logado e sem nenhuma organizacao: leva para criar a primeira.
+  useEffect(() => {
+    if (pronto && semOrg && !naOnboarding) router.replace("/onboarding");
+  }, [pronto, semOrg, naOnboarding, router]);
+
+  // O onboarding (criar organizacao) nao precisa do quadro nem da navegacao.
+  if (naOnboarding) return <>{children}</>;
+
+  // Aguardando resolver a organizacao (ou redirecionando para o onboarding).
+  if (!pronto || semOrg || !orgId) {
+    return <TelaCarregando erro={erro} />;
   }
 
   return (
@@ -37,5 +63,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </ApontamentosProvider>
     </BoardProvider>
+  );
+}
+
+function TelaCarregando({ erro }: { erro: boolean }) {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-marca-branco px-4 text-center">
+      {erro ? (
+        <p className="max-w-xs text-sm text-marca-cinza">
+          Não foi possível carregar suas organizações. Recarregue a página e tente de novo.
+        </p>
+      ) : (
+        <p className="text-sm text-marca-cinza">Carregando...</p>
+      )}
+    </div>
   );
 }

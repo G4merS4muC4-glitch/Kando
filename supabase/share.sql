@@ -1,10 +1,15 @@
 -- Compartilhamento publico de cards (link de leitura + edicao do teleprompter).
 -- Cole e rode no Supabase: SQL Editor > New query > Run.
 --
+-- DEPENDENCIA: no modo multiempresa, este arquivo usa a coluna org_id e a funcao
+-- public.eh_membro, criadas por supabase/organizacoes.sql. Rode organizacoes.sql
+-- antes. As policies abaixo ja sao a versao isolada por organizacao (seguro
+-- re-rodar este arquivo depois da migracao).
+--
 -- Esta tabela e separada do quadro (boards). O acesso publico ao link NAO passa
 -- por aqui direto: ele e feito pelos endpoints do servidor (Route Handlers do
 -- Next) usando a service role, que ignora o RLS. O RLS abaixo so permite que o
--- TIME (usuarios autenticados) crie, veja e revogue os proprios links.
+-- TIME (membros da organizacao do link) crie, veja e revogue os proprios links.
 
 create table if not exists public.compartilhamentos (
   token text primary key,
@@ -29,32 +34,39 @@ create table if not exists public.compartilhamentos (
 
 -- Para tabelas ja criadas antes do multi-card: adiciona a coluna se faltar.
 alter table public.compartilhamentos add column if not exists card_ids text[];
+-- Multiempresa: a coluna org_id e criada por organizacoes.sql (FK organizations).
+alter table public.compartilhamentos add column if not exists org_id text;
 
 create index if not exists idx_compartilhamentos_card on public.compartilhamentos (card_id);
 
 alter table public.compartilhamentos enable row level security;
 
--- O time autenticado gerencia os links. O visitante publico NAO usa estas
--- policies (ele acessa via endpoints com service role).
+-- Apenas os MEMBROS da organizacao do link o gerenciam. O visitante publico NAO
+-- usa estas policies (ele acessa via endpoints com service role).
 drop policy if exists "ler compartilhamentos (autenticado)" on public.compartilhamentos;
-create policy "ler compartilhamentos (autenticado)"
-  on public.compartilhamentos for select
-  to authenticated using (true);
-
 drop policy if exists "inserir compartilhamentos (autenticado)" on public.compartilhamentos;
-create policy "inserir compartilhamentos (autenticado)"
-  on public.compartilhamentos for insert
-  to authenticated with check (true);
-
 drop policy if exists "atualizar compartilhamentos (autenticado)" on public.compartilhamentos;
-create policy "atualizar compartilhamentos (autenticado)"
-  on public.compartilhamentos for update
-  to authenticated using (true) with check (true);
-
 drop policy if exists "excluir compartilhamentos (autenticado)" on public.compartilhamentos;
-create policy "excluir compartilhamentos (autenticado)"
+
+drop policy if exists "ler compartilhamentos (org)" on public.compartilhamentos;
+create policy "ler compartilhamentos (org)"
+  on public.compartilhamentos for select
+  to authenticated using (public.eh_membro(org_id));
+
+drop policy if exists "inserir compartilhamentos (org)" on public.compartilhamentos;
+create policy "inserir compartilhamentos (org)"
+  on public.compartilhamentos for insert
+  to authenticated with check (org_id is not null and public.eh_membro(org_id));
+
+drop policy if exists "atualizar compartilhamentos (org)" on public.compartilhamentos;
+create policy "atualizar compartilhamentos (org)"
+  on public.compartilhamentos for update
+  to authenticated using (public.eh_membro(org_id)) with check (public.eh_membro(org_id));
+
+drop policy if exists "excluir compartilhamentos (org)" on public.compartilhamentos;
+create policy "excluir compartilhamentos (org)"
   on public.compartilhamentos for delete
-  to authenticated using (true);
+  to authenticated using (public.eh_membro(org_id));
 
 -- ----------------------------------------------------------------------------
 -- Funcoes atomicas usadas pelos endpoints publicos (chamadas via service role).
@@ -62,14 +74,21 @@ create policy "excluir compartilhamentos (autenticado)"
 
 -- Ajusta SO o teleprompter de um card, direto no jsonb (sem reescrever o quadro
 -- inteiro a partir de uma copia possivelmente velha). Guarda a versao anterior.
+-- Recebe a organizacao (p_org) para mexer na linha certa (principal:<org>).
 -- Retorna quantos cards casaram (0 = card inexistente).
-create or replace function public.ajustar_teleprompter(p_card_id text, p_texto text, p_em text)
+drop function if exists public.ajustar_teleprompter(text, text, text);
+
+create or replace function public.ajustar_teleprompter(
+  p_org text, p_card_id text, p_texto text, p_em text
+)
 returns int language plpgsql as $$
-declare achou int;
+declare
+  achou int;
+  v_id text := 'principal:' || p_org;
 begin
   select count(*) into achou
   from public.boards, jsonb_array_elements(dados->'cards') c
-  where id = 'principal' and c->>'id' = p_card_id;
+  where id = v_id and c->>'id' = p_card_id;
 
   if achou = 0 then
     return 0;
@@ -95,7 +114,7 @@ begin
       ),
       cliente_id = 'compartilhamento',
       atualizado_em = now()
-  where id = 'principal';
+  where id = v_id;
 
   return achou;
 end;

@@ -25,6 +25,7 @@ import type {
 import { ETAPAS } from "./config";
 import { criarProjetoVazio } from "./projeto";
 import { assinarBoard, carregarBoard, salvarBoard } from "./storage";
+import { useOrg } from "./orgProvider";
 import { agora, gerarId } from "./util";
 
 /**
@@ -312,6 +313,8 @@ const BoardContext = createContext<BoardStore | null>(null);
 const ESTADO_VAZIO: Board = { campanhas: [], cards: [] };
 
 export function BoardProvider({ children }: { children: ReactNode }) {
+  // A organizacao ativa define de qual quadro carregamos/salvamos os dados.
+  const { orgId } = useOrg();
   // Estado inicial deterministico (igual no servidor e no cliente) para evitar
   // erro de hidratacao. Os dados reais sao carregados logo apos a montagem.
   const [board, dispatch] = useReducer(reducer, ESTADO_VAZIO);
@@ -327,14 +330,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   // Marca quando a proxima mudanca de board veio do load/realtime (nao do
   // usuario), para nao re-salvar (evita eco) nem persistir o estado recem-lido.
   const origemRemota = useRef(false);
-  // Espelho do board atual, para o flush no unmount.
+  // Espelho do board atual, para o flush ao trocar de org ou desmontar.
   const boardRef = useRef(board);
   boardRef.current = board;
+  // Espelho do orgId para o salvamento com debounce nao precisar dele na dependencia.
+  const orgIdRef = useRef(orgId);
+  orgIdRef.current = orgId;
 
-  // Carrega o quadro (localStorage ou Supabase) e assina mudancas em tempo real.
+  // Carrega o quadro da organizacao ativa e assina mudancas em tempo real.
+  // Recarrega quando a organizacao muda; antes de trocar, grava o que estiver
+  // pendente (nao perde edicao ao trocar de org nem ao desmontar).
   useEffect(() => {
+    if (!orgId) return; // ainda resolvendo a organizacao
     let ativo = true;
-    carregarBoard()
+    setPronto(false);
+    setErroCarregar(false);
+
+    carregarBoard(orgId)
       .then((b) => {
         if (!ativo) return;
         origemRemota.current = true; // o INICIALIZAR a seguir nao deve ser re-salvo
@@ -348,7 +360,7 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       });
 
     // No modo Supabase, recarrega quando OUTRO cliente salva (sincronizacao).
-    const cancelar = assinarBoard((dados, remoteId) => {
+    const cancelar = assinarBoard(orgId, (dados, remoteId) => {
       if (remoteId === clienteId.current) return; // ignora a propria escrita
       if (timerSalvar.current) return; // ha edicao local pendente: nao sobrescreve
       // Acabei de salvar: ignora por uma curta janela para um eco mais antigo de
@@ -361,9 +373,16 @@ export function BoardProvider({ children }: { children: ReactNode }) {
 
     return () => {
       ativo = false;
+      // Grava a ultima alteracao pendente desta organizacao antes de sair.
+      if (timerSalvar.current) {
+        clearTimeout(timerSalvar.current);
+        timerSalvar.current = null;
+        salvoEm.current = Date.now();
+        void salvarBoard(boardRef.current, clienteId.current, orgId);
+      }
       if (cancelar) cancelar();
     };
-  }, []);
+  }, [orgId]);
 
   // Persiste com debounce a cada alteracao local (evita gravar a cada tecla).
   // Mudancas vindas do load/realtime nao geram gravacao (sem eco).
@@ -373,28 +392,18 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       origemRemota.current = false;
       return;
     }
+    const org = orgIdRef.current;
+    if (!org) return;
     if (timerSalvar.current) clearTimeout(timerSalvar.current);
     timerSalvar.current = setTimeout(() => {
       timerSalvar.current = null;
       salvoEm.current = Date.now();
-      void salvarBoard(board, clienteId.current);
+      void salvarBoard(board, clienteId.current, org);
     }, 500);
     return () => {
       if (timerSalvar.current) clearTimeout(timerSalvar.current);
     };
   }, [board, pronto]);
-
-  // Flush no unmount: grava a ultima alteracao pendente (nao perde edicao).
-  useEffect(() => {
-    return () => {
-      if (timerSalvar.current) {
-        clearTimeout(timerSalvar.current);
-        timerSalvar.current = null;
-        salvoEm.current = Date.now();
-        void salvarBoard(boardRef.current, clienteId.current);
-      }
-    };
-  }, []);
 
   // ----- Campanhas -----
   const adicionarCampanha = useCallback((parcial?: Partial<Campanha>): Campanha => {

@@ -72,6 +72,9 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (!idsDoShare(s).includes(corpo.cardId)) {
     return NextResponse.json({ ok: false, erro: "Card fora do compartilhamento." }, { status: 403 });
   }
+  if (!s.org_id) {
+    return NextResponse.json({ ok: false, erro: "Link sem organizacao." }, { status: 409 });
+  }
 
   // Limite de taxa atomico (so consome a cota DEPOIS de autorizar).
   const { data: permitido, error: erroLim } = await admin.rpc("consumir_escrita", {
@@ -89,6 +92,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   const limpo = higienizarTexto(corpo.texto.slice(0, MAX_TELEPROMPTER + 1));
   const nowIso = new Date().toISOString();
   const { data: n, error } = await admin.rpc("ajustar_teleprompter", {
+    p_org: s.org_id,
     p_card_id: corpo.cardId,
     p_texto: limpo,
     p_em: nowIso,

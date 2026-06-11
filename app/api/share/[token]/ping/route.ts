@@ -18,12 +18,15 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const token = params.token;
   const { data } = await admin
     .from("compartilhamentos")
-    .select("revogado, expira_em, pin_hash")
+    .select("revogado, expira_em, pin_hash, org_id")
     .eq("token", token)
     .maybeSingle();
   if (!data) return NextResponse.json({ estado: "inexistente" });
 
-  const s = data as Pick<CompartilhamentoCompleto, "revogado" | "expira_em" | "pin_hash">;
+  const s = data as Pick<
+    CompartilhamentoCompleto,
+    "revogado" | "expira_em" | "pin_hash" | "org_id"
+  >;
   if (s.revogado) return NextResponse.json({ estado: "revogado" });
   if (estaExpirado(s.expira_em)) return NextResponse.json({ estado: "expirado" });
   if (s.pin_hash) {
@@ -33,11 +36,12 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     }
   }
 
-  // Le so o carimbo de atualizacao do quadro (campo minusculo), nao o blob.
+  // Le so o carimbo de atualizacao do quadro da organizacao (campo minusculo).
+  if (!s.org_id) return NextResponse.json({ estado: "ok", v: "" });
   const { data: row } = await admin
     .from("boards")
     .select("atualizado_em")
-    .eq("id", "principal")
+    .eq("id", `principal:${s.org_id}`)
     .maybeSingle();
 
   return NextResponse.json({ estado: "ok", v: (row?.atualizado_em as string | null) ?? "" });

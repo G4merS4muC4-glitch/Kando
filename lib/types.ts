@@ -24,7 +24,21 @@ export type Etapa =
   | "publicado";
 
 // Marcas atendidas pelo time de marketing.
+// Na F1 ainda e um tipo fixo; na F2 vira o id de uma marca cadastrada pela
+// organizacao (ver MarcaOrg e Board.marcas).
 export type Marca = "brusoft" | "evotalks";
+
+/**
+ * Marca cadastrada por uma organizacao (dados, nao mais um tipo fixo de codigo).
+ * O `id` e imutavel (usado para casar com Campanha.marca e a linha de metricas);
+ * so `nome` e `cor`/`corSuave` mudam.
+ */
+export interface MarcaOrg {
+  id: string;
+  nome: string;
+  cor: string; // cor de destaque da marca
+  corSuave: string; // fundo suave da marca
+}
 
 // Tipo de campanha: a geral (sempre rodando) e a bimestral (por periodo).
 export type TipoCampanha = "geral" | "bimestral";
@@ -98,6 +112,7 @@ export interface ProjetoDados {
 
 /** Estado completo. Estrutura isolada para facilitar futura migracao para banco. */
 export interface Board {
+  marcas?: MarcaOrg[]; // marcas da organizacao (ausente em dados antigos)
   campanhas: Campanha[];
   cards: CardConteudo[];
 }
@@ -151,3 +166,22 @@ export type MarcaFiltro = Marca | "todas";
 
 /** Filtro de situacao na tela inicial de campanhas. */
 export type StatusFiltro = "ativas" | "arquivadas" | "todas";
+
+// ----- Organizacoes (multiempresa) -----
+
+/** Papel de um membro dentro da organizacao. */
+export type PapelOrg = "dono" | "membro";
+
+/** Organizacao (empresa). Cada uma tem seus dados isolados. */
+export interface Organizacao {
+  id: string;
+  nome: string;
+  papel: PapelOrg; // papel do usuario logado nesta organizacao
+}
+
+/** Membro de uma organizacao (para a tela de gerenciar membros, F3). */
+export interface MembroOrg {
+  userId: string;
+  email: string;
+  papel: PapelOrg;
+}

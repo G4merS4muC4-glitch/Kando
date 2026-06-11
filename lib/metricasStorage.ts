@@ -1,17 +1,18 @@
 /**
  * Camada de dados das metricas, isolada (mesmo padrao de lib/storage.ts).
- * Cada perfil (brusoft, evotalks) guarda o seu ultimo JSON separadamente.
+ * Cada perfil/marca guarda o seu ultimo JSON separadamente, por organizacao.
  *
  * - Sem Supabase: localStorage, uma chave por perfil.
- * - Com Supabase: uma linha propria na tabela boards, id "metricas:<perfil>"
- *   (reaproveita a tabela e o RLS existentes; nao mexe no quadro principal).
+ * - Com Supabase: uma linha propria na tabela boards, id
+ *   "metricas:<org>:<perfil>" (reaproveita a tabela e o RLS por organizacao;
+ *   nao mexe no quadro principal).
  */
 
 import type { MetricasInstagram, PerfilMetrica } from "./metricas";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
 
 const PREFIXO_LOCAL = "kando:metricas:";
-const idLinha = (perfil: PerfilMetrica) => `metricas:${perfil}`;
+const idLinha = (orgId: string, perfil: PerfilMetrica) => `metricas:${orgId}:${perfil}`;
 
 function temLocalStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -36,15 +37,18 @@ function salvarLocal(perfil: PerfilMetrica, dados: MetricasInstagram): void {
   }
 }
 
-/** Le as metricas salvas do perfil (ou null se ainda nao houver). */
-export async function getMetricas(perfil: PerfilMetrica): Promise<MetricasInstagram | null> {
+/** Le as metricas salvas do perfil/marca da organizacao (ou null se nao houver). */
+export async function getMetricas(
+  orgId: string,
+  perfil: PerfilMetrica
+): Promise<MetricasInstagram | null> {
   if (!supabaseConfigurado()) return lerLocal(perfil);
   try {
     const sb = criarClienteNavegador();
     const { data, error } = await sb
       .from("boards")
       .select("dados")
-      .eq("id", idLinha(perfil))
+      .eq("id", idLinha(orgId, perfil))
       .maybeSingle();
     if (error) throw error;
     return (data?.dados as MetricasInstagram | undefined) ?? null;
@@ -54,8 +58,12 @@ export async function getMetricas(perfil: PerfilMetrica): Promise<MetricasInstag
   }
 }
 
-/** Salva as metricas do perfil (banco compartilhado ou localStorage). */
-export async function saveMetricas(perfil: PerfilMetrica, dados: MetricasInstagram): Promise<void> {
+/** Salva as metricas do perfil/marca da organizacao (banco ou localStorage). */
+export async function saveMetricas(
+  orgId: string,
+  perfil: PerfilMetrica,
+  dados: MetricasInstagram
+): Promise<void> {
   if (!supabaseConfigurado()) {
     salvarLocal(perfil, dados);
     return;
@@ -63,9 +71,10 @@ export async function saveMetricas(perfil: PerfilMetrica, dados: MetricasInstagr
   try {
     const sb = criarClienteNavegador();
     await sb.from("boards").upsert({
-      id: idLinha(perfil),
+      id: idLinha(orgId, perfil),
       dados,
       cliente_id: "metricas",
+      org_id: orgId,
       atualizado_em: new Date().toISOString(),
     });
   } catch {

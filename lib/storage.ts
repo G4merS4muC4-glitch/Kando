@@ -17,7 +17,14 @@ import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
  */
 
 const CHAVE_STORAGE = "conteudo-brusoft:board:v2";
-const ID_BOARD = "principal"; // id da linha unica do quadro compartilhado
+
+/** Id da linha do quadro de uma organizacao no Supabase. */
+function idBoard(orgId: string): string {
+  return `principal:${orgId}`;
+}
+
+/** Quadro vazio (org nova): nunca usa o seed de exemplo no modo Supabase. */
+const BOARD_VAZIO: Board = { marcas: [], campanhas: [], cards: [] };
 
 // ----- localStorage -----
 
@@ -56,34 +63,32 @@ function boardValido(dados: unknown): dados is Board {
 
 // ----- API publica (usada pelo store) -----
 
-/** Carrega o quadro. No Supabase, cria o quadro inicial no primeiro acesso. */
-export async function carregarBoard(): Promise<Board> {
+/**
+ * Carrega o quadro da organizacao. No modo Supabase, NAO semeia o quadro de
+ * exemplo: a linha de cada organizacao e criada (vazia) pela RPC criar_organizacao.
+ * Org sem linha (caso raro) volta vazia. O seed de exemplo fica so no modo local.
+ */
+export async function carregarBoard(orgId: string): Promise<Board> {
   if (!supabaseConfigurado()) return lerLocal();
 
   const sb = criarClienteNavegador();
-  const { data, error } = await sb.from("boards").select("dados").eq("id", ID_BOARD).maybeSingle();
+  const { data, error } = await sb
+    .from("boards")
+    .select("dados")
+    .eq("id", idBoard(orgId))
+    .maybeSingle();
 
   // Importante: NAO mascarar erro de leitura. Se a leitura falhar (rede ou RLS),
   // o erro e propagado para o store nao habilitar o salvamento automatico e,
-  // assim, evitar que o quadro de exemplo sobrescreva os dados reais do time.
+  // assim, evitar que o quadro vazio sobrescreva os dados reais da organizacao.
   if (error) throw error;
 
-  if (!data) {
-    // Linha ainda nao existe (primeiro acesso de verdade): semeia o quadro inicial.
-    const inicial = boardInicial();
-    await sb.from("boards").upsert({
-      id: ID_BOARD,
-      dados: inicial,
-      cliente_id: "seed",
-      atualizado_em: new Date().toISOString(),
-    });
-    return inicial;
-  }
-  return boardValido(data.dados) ? (data.dados as Board) : boardInicial();
+  if (!data) return BOARD_VAZIO;
+  return boardValido(data.dados) ? (data.dados as Board) : BOARD_VAZIO;
 }
 
-/** Persiste o quadro inteiro. Chamada (com debounce) a cada alteracao. */
-export async function salvarBoard(board: Board, clienteId: string): Promise<void> {
+/** Persiste o quadro inteiro da organizacao. Chamada (com debounce) a cada alteracao. */
+export async function salvarBoard(board: Board, clienteId: string, orgId: string): Promise<void> {
   if (!supabaseConfigurado()) {
     salvarLocal(board);
     return;
@@ -91,9 +96,10 @@ export async function salvarBoard(board: Board, clienteId: string): Promise<void
   try {
     const sb = criarClienteNavegador();
     await sb.from("boards").upsert({
-      id: ID_BOARD,
+      id: idBoard(orgId),
       dados: board,
       cliente_id: clienteId,
+      org_id: orgId,
       atualizado_em: new Date().toISOString(),
     });
   } catch {
@@ -102,21 +108,24 @@ export async function salvarBoard(board: Board, clienteId: string): Promise<void
 }
 
 /**
- * Assina mudancas do quadro em tempo real (somente no modo Supabase).
- * Chama `aoMudar` quando OUTRO cliente salva (ignora a propria escrita).
+ * Assina mudancas do quadro da organizacao em tempo real (somente no Supabase).
+ * O canal e o filtro sao por organizacao para nao receber (nem reagir a) o
+ * quadro de outra organizacao. Chama `aoMudar` quando OUTRO cliente salva.
  * Devolve uma funcao para cancelar a assinatura.
  */
 export function assinarBoard(
+  orgId: string,
   aoMudar: (dados: Board, clienteId: string) => void
 ): (() => void) | undefined {
   if (!supabaseConfigurado()) return undefined;
 
   const sb = criarClienteNavegador();
+  const id = idBoard(orgId);
   const canal = sb
-    .channel(`boards-${ID_BOARD}`)
+    .channel(`boards-${id}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "boards", filter: `id=eq.${ID_BOARD}` },
+      { event: "*", schema: "public", table: "boards", filter: `id=eq.${id}` },
       (payload: RealtimePostgresChangesPayload<{ dados: unknown; cliente_id: string }>) => {
         const nova = payload.new as { dados?: unknown; cliente_id?: string };
         if (nova && boardValido(nova.dados)) {

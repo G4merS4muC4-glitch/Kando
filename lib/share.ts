@@ -41,6 +41,7 @@ export interface Compartilhamento {
   card_id: string; // card de origem (onde foi criado)
   card_ids: string[] | null; // todos os cards do link; se vazio, usa [card_id]
   campanha_id: string | null;
+  org_id: string | null; // organizacao dona do link (resolve a linha principal:<org>)
   visibilidade: VisibilidadeShare;
   edicao_teleprompter: boolean;
   pin_hash: string | null;

@@ -17,6 +17,7 @@ export { supabaseConfigurado };
 export interface NovoShare {
   cardIds: string[]; // o primeiro e o card de origem
   campanhaId?: string;
+  orgId: string; // organizacao dona do link
   visibilidade: VisibilidadeShare;
   edicaoTeleprompter: boolean;
   pin?: string; // vazio = sem PIN
@@ -31,6 +32,7 @@ export async function criarCompartilhamento(p: NovoShare): Promise<Compartilhame
     card_id: p.cardIds[0],
     card_ids: p.cardIds,
     campanha_id: p.campanhaId ?? null,
+    org_id: p.orgId,
     visibilidade: p.visibilidade,
     edicao_teleprompter: p.edicaoTeleprompter,
     pin_hash: pinHash,
