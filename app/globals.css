@@ -50,3 +50,41 @@ body {
 input[type="search"]::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
+
+/* Barra liquida do teleprompter (velocidade e tamanho da fonte). O preenchimento
+   laranja vem por background inline (gradiente ate a posicao atual); aqui ficam a
+   pista arredondada e o "puxador" branco com leve animacao ao tocar. */
+.tp-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 10px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.18);
+}
+.tp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease;
+}
+.tp-slider::-webkit-slider-thumb:active {
+  transform: scale(1.18);
+}
+.tp-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 9999px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease;
+}
+.tp-slider::-moz-range-thumb:active {
+  transform: scale(1.18);
+}

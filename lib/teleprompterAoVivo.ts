@@ -105,6 +105,7 @@ interface OpcoesControle {
   modo: ModoTela;
   aoReceberControle: (c: ControleTeleprompter) => void;
   aoComandoModo: (modo: ModoTela) => void;
+  aoReceberPosicao: (pct: number) => void;
 }
 
 /**
@@ -120,6 +121,7 @@ export function useControleTeleprompter(
 ): {
   enviarControle: (c: ControleTeleprompter) => void;
   comandarModo: (alvoId: string, modo: ModoTela) => void;
+  enviarPosicao: (pct: number) => void;
   telas: PresencaTela[];
   ativo: boolean;
 } {
@@ -158,6 +160,12 @@ export function useControleTeleprompter(
       if (p && p.alvo === meuId && (p.modo === "controle" || p.modo === "exibir")) {
         optsRef.current.aoComandoModo(p.modo);
       }
+    });
+
+    // Posicao relativa da tela-guia (stream continuo, ~4x/s) para quem acompanha.
+    canal.on("broadcast", { event: "pos" }, (msg: { payload?: { pct?: number } }) => {
+      const p = msg?.payload;
+      if (p && typeof p.pct === "number") optsRef.current.aoReceberPosicao(p.pct);
     });
 
     canal.on("presence", { event: "sync" }, () => {
@@ -214,5 +222,10 @@ export function useControleTeleprompter(
     if (canal) void canal.send({ type: "broadcast", event: "modo", payload: { alvo: alvoId, modo } });
   }, []);
 
-  return { enviarControle, comandarModo, telas, ativo };
+  const enviarPosicao = useCallback((pct: number) => {
+    const canal = canalRef.current;
+    if (canal) void canal.send({ type: "broadcast", event: "pos", payload: { pct } });
+  }, []);
+
+  return { enviarControle, comandarModo, enviarPosicao, telas, ativo };
 }

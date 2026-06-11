@@ -6,8 +6,6 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Minus,
-  Plus,
   Rabbit,
   Turtle,
   FlipHorizontal,
@@ -18,6 +16,9 @@ import {
   Users,
   MonitorPlay,
   Sliders,
+  Maximize,
+  Minimize,
+  Link2,
 } from "lucide-react";
 import {
   useControleTeleprompter,
@@ -85,6 +86,25 @@ function lerPapel(): { nome: string; modo: ModoTela } {
   return { nome: "Controle", modo: "controle" };
 }
 
+/** Elemento atualmente em tela cheia (com prefixo webkit para Safari/iPad). */
+function elementoTelaCheia(): Element | null {
+  const d = document as Document & { webkitFullscreenElement?: Element | null };
+  return document.fullscreenElement ?? d.webkitFullscreenElement ?? null;
+}
+
+/** Pede tela cheia de verdade (esconde as barras do navegador no tablet/celular). */
+function pedirTelaCheia(el: HTMLElement): void {
+  const e = el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+  if (el.requestFullscreen) void el.requestFullscreen().catch(() => {});
+  else if (e.webkitRequestFullscreen) void e.webkitRequestFullscreen();
+}
+
+function sairTelaCheia(): void {
+  const d = document as Document & { webkitExitFullscreen?: () => Promise<void> | void };
+  if (document.exitFullscreen) void document.exitFullscreen().catch(() => {});
+  else if (d.webkitExitFullscreen) void d.webkitExitFullscreen();
+}
+
 /**
  * Teleprompter em tela cheia com controle remoto AO VIVO compartilhado por card.
  * Cada tela aberta escolhe um papel: "Teleprompter (tela limpa)" mostra so o
@@ -102,9 +122,21 @@ export default function Teleprompter({
   cardId?: string | null;
 }) {
   const areaRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const idRef = useRef<string>("");
   if (!idRef.current) idRef.current = gerarId();
   const meuId = idRef.current;
+
+  const [telaCheia, setTelaCheia] = useState(false);
+  // "Acompanhar a guia": esta tela desliza suavemente ate a posicao de quem rola.
+  const [seguir, setSeguir] = useState(false);
+  const alvoPctRef = useRef(0); // ultima posicao relativa recebida da guia
+  const ultimoPosRef = useRef(0); // quando chegou (para detectar guia ausente)
+  const [suportaTelaCheia] = useState(() => {
+    if (typeof document === "undefined") return false;
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: unknown };
+    return typeof el.requestFullscreen === "function" || typeof el.webkitRequestFullscreen === "function";
+  });
 
   const papelInicial = useRef(lerPapel());
   const [nome, setNome] = useState(papelInicial.current.nome);
@@ -153,13 +185,22 @@ export default function Teleprompter({
 
   const aoComandoModo = useCallback((m: ModoTela) => setModo(m), []);
 
-  const { enviarControle, comandarModo, telas, ativo } = useControleTeleprompter(cardId, {
-    meuId,
-    nome,
-    modo,
-    aoReceberControle,
-    aoComandoModo,
-  });
+  const aoReceberPosicao = useCallback((pct: number) => {
+    alvoPctRef.current = pct;
+    ultimoPosRef.current = Date.now();
+  }, []);
+
+  const { enviarControle, comandarModo, enviarPosicao, telas, ativo } = useControleTeleprompter(
+    cardId,
+    {
+      meuId,
+      nome,
+      modo,
+      aoReceberControle,
+      aoComandoModo,
+      aoReceberPosicao,
+    }
+  );
 
   // Salva o papel deste aparelho (para reabrir ja na funcao certa).
   useEffect(() => {
@@ -247,6 +288,22 @@ export default function Teleprompter({
     setModo(novoModo);
   }, []);
 
+  const alternarTelaCheia = useCallback(() => {
+    if (elementoTelaCheia()) sairTelaCheia();
+    else if (containerRef.current) pedirTelaCheia(containerRef.current);
+  }, []);
+
+  // Acompanha entrar/sair da tela cheia (inclusive quando o usuario usa o gesto/Esc).
+  useEffect(() => {
+    const aoMudar = () => setTelaCheia(Boolean(elementoTelaCheia()));
+    document.addEventListener("fullscreenchange", aoMudar);
+    document.addEventListener("webkitfullscreenchange", aoMudar);
+    return () => {
+      document.removeEventListener("fullscreenchange", aoMudar);
+      document.removeEventListener("webkitfullscreenchange", aoMudar);
+    };
+  }, []);
+
   // Fecha com Esc (em captura, para nao fechar tambem o modal por baixo).
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
@@ -254,6 +311,7 @@ export default function Teleprompter({
         e.stopImmediatePropagation();
         e.preventDefault();
         if (painelTelas) setPainelTelas(false);
+        else if (elementoTelaCheia()) sairTelaCheia(); // Esc so sai da tela cheia
         else onFechar();
       }
     }
@@ -269,167 +327,222 @@ export default function Teleprompter({
     };
   }, []);
 
-  // Loop de auto-scroll (cada tela rola sozinha; a velocidade e compartilhada).
+  // Loop unico:
+  // - "Acompanhar" ligado e recebendo a guia -> desliza suavemente ate a posicao
+  //   relativa dela (easing), sem rolar sozinho (sem tranco, tolera tamanhos diferentes).
+  // - Senao, se estiver tocando -> rola sozinho na velocidade compartilhada e, se NAO
+  //   estiver acompanhando, transmite a propria posicao (~4x/s) para quem acompanha.
+  // - Se a guia some (sem posicao ha >1.2s), quem acompanha volta a rolar sozinho.
   useEffect(() => {
-    if (!tocando) return;
+    if (!tocando && !seguir) return;
     let raf = 0;
+    let ultimoEnvio = 0;
     const passo = () => {
       const el = areaRef.current;
       if (el) {
-        el.scrollTop += velocidade;
-        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) {
-          tocandoRef.current = false;
-          setTocando(false);
-          return;
+        const agoraMs = Date.now();
+        const recebendoGuia = agoraMs - ultimoPosRef.current < 1200;
+        if (seguir && recebendoGuia) {
+          const max = Math.max(1, el.scrollHeight - el.clientHeight);
+          const alvo = alvoPctRef.current * max;
+          const delta = alvo - el.scrollTop;
+          el.scrollTop += Math.abs(delta) < 0.5 ? delta : delta * 0.18; // easing
+        } else if (tocando) {
+          el.scrollTop += velocidade;
+          if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) {
+            tocandoRef.current = false;
+            setTocando(false);
+            return;
+          }
+          if (!seguir && agoraMs - ultimoEnvio > 250) {
+            ultimoEnvio = agoraMs;
+            enviarPosicao(pctAtual());
+          }
         }
       }
       raf = requestAnimationFrame(passo);
     };
     raf = requestAnimationFrame(passo);
     return () => cancelAnimationFrame(raf);
-  }, [tocando, velocidade]);
+  }, [tocando, seguir, velocidade, enviarPosicao, pctAtual]);
 
   const limpa = modo === "exibir";
   const outras = telas.filter((t) => t.id !== meuId);
   const blocos = useMemo(() => dividirRoteiro(texto), [texto]);
   const tamMarca = Math.max(13, Math.round(tamanho * 0.4)); // etiqueta menor que a fala
   const btn = "rounded-marca bg-white/10 text-white transition hover:bg-white/20 active:bg-white/30";
+  // Botoes flutuantes redondos com leve animacao ao tocar.
+  const fab =
+    "flex items-center justify-center rounded-full bg-white/12 text-white transition-transform duration-100 hover:bg-white/20 active:scale-90";
+  const fabSec =
+    "flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-transform duration-100 hover:bg-white/20 active:scale-90";
+
+  // Preenchimento das barras liquidas (0..100%) conforme o valor atual.
+  const pctVel = ((velocidade - 0.4) / (6 - 0.4)) * 100;
+  const pctFonte = ((tamanho - 20) / (100 - 20)) * 100;
+  const fundoSlider = (p: number) =>
+    `linear-gradient(to right, #FA611E 0%, #FA611E ${p}%, rgba(255,255,255,0.18) ${p}%, rgba(255,255,255,0.18) 100%)`;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d12] text-white animate-fadeIn">
-      {/* Barra de controles: so no modo controle (no modo limpa fica oculta). */}
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d12] text-white animate-fadeIn"
+    >
+      {/* Controles flutuantes na parte de baixo (preferencia do usuario). */}
       {!limpa && (
-        <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2 sm:px-5 sm:py-3">
-          {/* Linha principal: botoes grandes para o ator/cinegrafista. */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => pular(-1)}
-              title="Voltar um trecho"
-              aria-label="Voltar um trecho"
-              className={`${btn} p-3`}
-            >
-              <SkipBack size={24} aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={alternarTocando}
-              className="flex flex-1 items-center justify-center gap-2 rounded-marca bg-marca-laranja px-5 py-3.5 text-lg font-bold text-white transition hover:brightness-95"
-            >
-              {tocando ? <Pause size={26} aria-hidden /> : <Play size={26} aria-hidden />}
-              {tocando ? "Pausar" : "Rolar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => pular(1)}
-              title="Avançar um trecho"
-              aria-label="Avançar um trecho"
-              className={`${btn} p-3`}
-            >
-              <SkipForward size={24} aria-hidden />
-            </button>
-          </div>
-
-          {/* Linha secundaria: velocidade, fonte e demais acoes. */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-3">
-              {/* Velocidade com valor visivel */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-3">
+          <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-white/10 bg-black/50 p-3 shadow-2xl backdrop-blur-md">
+            {/* Acoes secundarias */}
+            <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5">
-                <Turtle size={18} aria-hidden className="text-white/60" />
+                {cardId && (
+                  <button
+                    type="button"
+                    onClick={() => setPainelTelas(true)}
+                    title="Telas conectadas"
+                    className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition-transform duration-100 hover:bg-white/20 active:scale-90"
+                  >
+                    <Users size={16} aria-hidden />
+                    <span className="hidden sm:inline">Telas</span>
+                    {ativo && telas.length > 0 && (
+                      <span className="rounded-full bg-marca-verde px-1.5 text-xs font-bold text-white">
+                        {telas.length}
+                      </span>
+                    )}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => mudarVelocidade(velocidade - 0.4)}
-                  className={`${btn} p-2.5`}
-                  aria-label="Diminuir velocidade"
+                  onClick={reiniciar}
+                  title="Reiniciar do topo"
+                  aria-label="Reiniciar do topo"
+                  className={fabSec}
                 >
-                  <Minus size={18} aria-hidden />
-                </button>
-                <span className="w-8 text-center text-sm font-bold tabular-nums">
-                  {velocidade.toFixed(1)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => mudarVelocidade(velocidade + 0.4)}
-                  className={`${btn} p-2.5`}
-                  aria-label="Aumentar velocidade"
-                >
-                  <Plus size={18} aria-hidden />
-                </button>
-                <Rabbit size={18} aria-hidden className="text-white/60" />
-              </div>
-
-              {/* Fonte */}
-              <div className="flex items-center gap-1.5">
-                <Type size={16} aria-hidden className="text-white/60" />
-                <button
-                  type="button"
-                  onClick={() => mudarTamanho(tamanho - 4)}
-                  className={`${btn} p-2.5`}
-                  aria-label="Diminuir fonte"
-                >
-                  <Minus size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => mudarTamanho(tamanho + 4)}
-                  className={`${btn} p-2.5`}
-                  aria-label="Aumentar fonte"
-                >
-                  <Plus size={16} aria-hidden />
+                  <RotateCcw size={16} aria-hidden />
                 </button>
               </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEspelhoH((e) => !e)}
+                  aria-pressed={espelhoH}
+                  title="Espelho para o vidro do teleprompter"
+                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-100 active:scale-90 ${
+                    espelhoH ? "bg-marca-laranja text-white" : "bg-white/10 text-white hover:bg-white/20"
+                  }`}
+                >
+                  <FlipHorizontal size={16} aria-hidden />
+                </button>
+                {suportaTelaCheia && (
+                  <button
+                    type="button"
+                    onClick={alternarTelaCheia}
+                    title={telaCheia ? "Sair da tela cheia" : "Tela cheia (esconde as barras)"}
+                    aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+                    className={fabSec}
+                  >
+                    {telaCheia ? <Minimize size={16} aria-hidden /> : <Maximize size={16} aria-hidden />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => definirPapel("Teleprompter", "exibir")}
+                  title="Deixar esta tela limpa (so o texto)"
+                  aria-label="Deixar a tela limpa"
+                  className={fabSec}
+                >
+                  <MonitorPlay size={16} aria-hidden />
+                </button>
+                <button type="button" onClick={onFechar} title="Fechar" aria-label="Fechar" className={fabSec}>
+                  <X size={16} aria-hidden />
+                </button>
+              </div>
+            </div>
 
-              <button type="button" onClick={reiniciar} title="Reiniciar do topo" className={`${btn} p-2.5`}>
-                <RotateCcw size={18} aria-hidden />
+            {/* Transporte: voltar, rolar/pausar (grande), avancar, reiniciar */}
+            <div className="mb-3 flex items-center justify-center gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => pular(-1)}
+                title="Voltar um trecho"
+                aria-label="Voltar um trecho"
+                className={`${fab} h-12 w-12`}
+              >
+                <SkipBack size={22} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={alternarTocando}
+                aria-label={tocando ? "Pausar" : "Rolar"}
+                className="flex h-16 w-16 items-center justify-center rounded-full bg-marca-laranja text-white shadow-lg transition-transform duration-100 hover:brightness-110 active:scale-95"
+              >
+                {tocando ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden className="ml-0.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => pular(1)}
+                title="Avançar um trecho"
+                aria-label="Avançar um trecho"
+                className={`${fab} h-12 w-12`}
+              >
+                <SkipForward size={22} aria-hidden />
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              {cardId && (
+            {/* Acompanhar a guia: esta tela espelha a posicao de quem esta rolando. */}
+            {cardId && ativo && (
+              <div className="mb-3 flex justify-center">
                 <button
                   type="button"
-                  onClick={() => setPainelTelas(true)}
-                  title="Telas conectadas"
-                  className="flex items-center gap-1.5 rounded-marca bg-white/10 px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+                  onClick={() => setSeguir((s) => !s)}
+                  aria-pressed={seguir}
+                  title={
+                    seguir
+                      ? "Acompanhando a guia (rola junto, suave)"
+                      : "Acompanhar a tela que esta rolando"
+                  }
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-transform duration-100 active:scale-90 ${
+                    seguir ? "bg-marca-verde text-white" : "bg-white/10 text-white hover:bg-white/20"
+                  }`}
                 >
-                  <Users size={16} aria-hidden />
-                  <span className="hidden sm:inline">Telas</span>
-                  {ativo && telas.length > 0 && (
-                    <span className="rounded-full bg-marca-verde px-1.5 text-xs font-bold text-white">
-                      {telas.length}
-                    </span>
-                  )}
+                  <Link2 size={15} aria-hidden />
+                  {seguir ? "Acompanhando" : "Acompanhar a guia"}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setEspelhoH((e) => !e)}
-                aria-pressed={espelhoH}
-                title="Espelho para o vidro do teleprompter"
-                className={`flex items-center gap-1.5 rounded-marca px-2.5 py-2 text-sm font-semibold transition ${
-                  espelhoH ? "bg-marca-laranja text-white" : "bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                <FlipHorizontal size={16} aria-hidden />
-                <span className="hidden sm:inline">Espelho</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => definirPapel("Teleprompter", "exibir")}
-                title="Deixar esta tela limpa (so o texto)"
-                className="flex items-center gap-1.5 rounded-marca bg-white/10 px-2.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
-              >
-                <MonitorPlay size={16} aria-hidden />
-                <span className="hidden sm:inline">Tela limpa</span>
-              </button>
-              <button
-                type="button"
-                onClick={onFechar}
-                className="flex items-center gap-1.5 rounded-marca bg-white/10 px-3 py-2 text-sm font-semibold transition hover:bg-white/20"
-              >
-                <X size={16} aria-hidden />
-                <span className="hidden sm:inline">Fechar</span>
-              </button>
+              </div>
+            )}
+
+            {/* Barras liquidas: velocidade e tamanho da fonte (escala fluida) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Turtle size={18} aria-hidden className="shrink-0 text-white/55" />
+                <input
+                  type="range"
+                  min={0.4}
+                  max={6}
+                  step={0.1}
+                  value={velocidade}
+                  onChange={(e) => mudarVelocidade(parseFloat(e.target.value))}
+                  aria-label="Velocidade"
+                  className="tp-slider flex-1"
+                  style={{ background: fundoSlider(pctVel) }}
+                />
+                <Rabbit size={18} aria-hidden className="shrink-0 text-white/55" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Type size={14} aria-hidden className="shrink-0 text-white/55" />
+                <input
+                  type="range"
+                  min={20}
+                  max={100}
+                  step={2}
+                  value={tamanho}
+                  onChange={(e) => mudarTamanho(parseInt(e.target.value, 10))}
+                  aria-label="Tamanho da fonte"
+                  className="tp-slider flex-1"
+                  style={{ background: fundoSlider(pctFonte) }}
+                />
+                <Type size={22} aria-hidden className="shrink-0 text-white/55" />
+              </div>
             </div>
           </div>
         </div>
@@ -447,6 +560,17 @@ export default function Teleprompter({
               aria-label="Telas conectadas"
             >
               <Users size={18} aria-hidden />
+            </button>
+          )}
+          {suportaTelaCheia && (
+            <button
+              type="button"
+              onClick={alternarTelaCheia}
+              title={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+              className={`${btn} p-2`}
+              aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+            >
+              {telaCheia ? <Minimize size={18} aria-hidden /> : <Maximize size={18} aria-hidden />}
             </button>
           )}
           <button
@@ -475,8 +599,8 @@ export default function Teleprompter({
       <div
         ref={areaRef}
         onClick={limpa ? undefined : alternarTocando}
-        className={`flex-1 overflow-y-auto overscroll-contain px-5 py-12 sm:px-16 sm:py-16 ${
-          limpa ? "" : "cursor-pointer"
+        className={`flex-1 overflow-y-auto overscroll-contain px-5 sm:px-16 ${
+          limpa ? "py-12 sm:py-16" : "cursor-pointer pt-12 pb-[250px] sm:pt-16"
         }`}
       >
         <div className="mx-auto max-w-4xl" style={{ transform: `scaleX(${espelhoH ? -1 : 1})` }}>
@@ -512,9 +636,10 @@ export default function Teleprompter({
         </div>
       </div>
 
-      {/* Indicador discreto do controle ao vivo (so no modo controle). */}
+      {/* Indicador discreto do controle ao vivo (no topo, ja que os controles
+          agora ficam embaixo). So no modo controle. */}
       {!limpa && (
-        <div className="pointer-events-none absolute bottom-2 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
+        <div className="pointer-events-none absolute top-2 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
           {espelhoH && (
             <p className="rounded-marca bg-white/10 px-3 py-1 text-[11px] font-medium text-white/75">
               Espelho para o vidro: no vidro o texto lê normal, do começo ao fim.
