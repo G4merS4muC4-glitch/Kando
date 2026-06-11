@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, ClipboardPaste, Sparkles, Plus } from "lucide-react";
+import { X, ClipboardPaste, Sparkles, Plus, Copy, Check } from "lucide-react";
 import { CANAIS, COLUNAS, TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
-import { FORMATO_SUGERIDO, parseClaude, type ConteudoColado } from "@/lib/parseClaude";
+import { FORMATO_SUGERIDO, PROMPT_SUGERIDO, parseClaude, type ConteudoColado } from "@/lib/parseClaude";
 import { criarProjetoVazio } from "@/lib/projeto";
 import type { CardConteudo, Etapa } from "@/lib/types";
 import { agora, gerarId } from "@/lib/util";
@@ -26,7 +26,8 @@ export default function ColarDoClaude({
   const { adicionarCardCompleto } = useBoard();
   const [texto, setTexto] = useState("");
   const [etapa, setEtapa] = useState<Etapa>("ideias");
-  const [mostrarFormato, setMostrarFormato] = useState(false);
+  const [mostrarFormato, setMostrarFormato] = useState(true);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     const overflow = document.body.style.overflow;
@@ -50,6 +51,17 @@ export default function ColarDoClaude({
       if (t) setTexto(t);
     } catch {
       // Sem permissao de clipboard: o usuario pode colar manualmente (Ctrl+V).
+    }
+  }
+
+  /** Copia o prompt do formato pronto para colar no Claude. */
+  async function copiarFormato() {
+    try {
+      await navigator.clipboard.writeText(PROMPT_SUGERIDO);
+      setCopiado(true);
+      window.setTimeout(() => setCopiado(false), 1800);
+    } catch {
+      // Sem permissao de clipboard: o usuario pode copiar manualmente do bloco.
     }
   }
 
@@ -144,9 +156,28 @@ export default function ColarDoClaude({
           </div>
 
           {mostrarFormato && (
-            <pre className="mb-3 overflow-x-auto rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 text-xs leading-relaxed text-marca-preto">
-              {FORMATO_SUGERIDO}
-            </pre>
+            <div className="mb-3 overflow-hidden rounded-marca border border-marca-cinza/30 bg-marca-branco">
+              <div className="flex items-center justify-between gap-2 border-b border-marca-cinza/20 px-3 py-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
+                  Formato para pedir ao Claude
+                </span>
+                <button
+                  type="button"
+                  onClick={copiarFormato}
+                  className={`flex items-center gap-1.5 rounded-marca px-2.5 py-1.5 text-xs font-bold transition ${
+                    copiado
+                      ? "bg-marca-verde text-white"
+                      : "bg-marca-laranja text-white hover:brightness-95"
+                  }`}
+                >
+                  {copiado ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+                  {copiado ? "Copiado!" : "Copiar formato"}
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap break-words p-3 text-xs leading-relaxed text-marca-preto">
+                {FORMATO_SUGERIDO}
+              </pre>
+            </div>
           )}
 
           <textarea

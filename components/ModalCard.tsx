@@ -781,7 +781,10 @@ export default function ModalCard({
                 />
                 <p className="mt-1.5 text-xs text-marca-cinza">
                   Dica: deixe só a fala aqui para ler limpo no Teleprompter. Se ficar vazio, o
-                  Teleprompter mostra o roteiro completo.
+                  Teleprompter mostra o roteiro completo. Para marcar uma seção, comece uma linha
+                  com um traço (ex: <span className="font-semibold text-marca-vermelho">-hook</span>,{" "}
+                  <span className="font-semibold text-marca-vermelho">-problema</span>): ela aparece
+                  pequena, em vermelho, no Teleprompter.
                 </p>
               </div>
             </div>

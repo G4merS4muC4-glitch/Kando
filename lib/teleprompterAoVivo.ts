@@ -89,54 +89,130 @@ export interface ControleTeleprompter {
   saltar: boolean;
 }
 
+/** Modo de uma tela: "exibir" = limpa (so o prompt); "controle" = botoes grandes. */
+export type ModoTela = "controle" | "exibir";
+
+/** Uma tela conectada na sala do card (presenca em tempo real). */
+export interface PresencaTela {
+  id: string;
+  nome: string;
+  modo: ModoTela;
+}
+
+interface OpcoesControle {
+  meuId: string;
+  nome: string;
+  modo: ModoTela;
+  aoReceberControle: (c: ControleTeleprompter) => void;
+  aoComandoModo: (modo: ModoTela) => void;
+}
+
+/**
+ * Sala ao vivo do teleprompter (por card): controle compartilhado + presenca.
+ * - enviarControle: play/pause/velocidade/fonte/posicao para todas as telas.
+ * - telas: quais telas estao abertas agora (nome + modo), via Supabase Presence.
+ * - comandarModo(id): pede a uma tela especifica para virar "limpa" ou "controle".
+ */
 export function useControleTeleprompter(
   cardId: string | null,
-  aoReceber: (c: ControleTeleprompter) => void,
+  opts: OpcoesControle,
   habilitado = true
-): { enviarControle: (c: ControleTeleprompter) => void; ativo: boolean } {
-  const aoReceberRef = useRef(aoReceber);
-  aoReceberRef.current = aoReceber;
+): {
+  enviarControle: (c: ControleTeleprompter) => void;
+  comandarModo: (alvoId: string, modo: ModoTela) => void;
+  telas: PresencaTela[];
+  ativo: boolean;
+} {
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
   const canalRef = useRef<RealtimeChannel | null>(null);
   const [ativo, setAtivo] = useState(false);
+  const [telas, setTelas] = useState<PresencaTela[]>([]);
 
   useEffect(() => {
     if (!habilitado || !cardId || !supabaseConfigurado()) {
       setAtivo(false);
+      setTelas([]);
       return;
     }
     const sb = criarClienteNavegador();
+    const meuId = optsRef.current.meuId;
     const canal = sb.channel(`tp-ctrl:${cardId}`, {
-      config: { broadcast: { self: false } },
+      config: { broadcast: { self: false }, presence: { key: meuId } },
     });
-    canal.on(
-      "broadcast",
-      { event: "ctrl" },
-      (msg: { payload?: Partial<ControleTeleprompter> }) => {
-        const p = msg?.payload;
-        if (!p || typeof p.tocando !== "boolean") return;
-        aoReceberRef.current({
-          tocando: p.tocando,
-          velocidade: typeof p.velocidade === "number" ? p.velocidade : 1.4,
-          tamanho: typeof p.tamanho === "number" ? p.tamanho : 44,
-          posicaoPct: typeof p.posicaoPct === "number" ? p.posicaoPct : 0,
-          saltar: Boolean(p.saltar),
-        });
+
+    canal.on("broadcast", { event: "ctrl" }, (msg: { payload?: Partial<ControleTeleprompter> }) => {
+      const p = msg?.payload;
+      if (!p || typeof p.tocando !== "boolean") return;
+      optsRef.current.aoReceberControle({
+        tocando: p.tocando,
+        velocidade: typeof p.velocidade === "number" ? p.velocidade : 1.4,
+        tamanho: typeof p.tamanho === "number" ? p.tamanho : 44,
+        posicaoPct: typeof p.posicaoPct === "number" ? p.posicaoPct : 0,
+        saltar: Boolean(p.saltar),
+      });
+    });
+
+    canal.on("broadcast", { event: "modo" }, (msg: { payload?: { alvo?: string; modo?: ModoTela } }) => {
+      const p = msg?.payload;
+      if (p && p.alvo === meuId && (p.modo === "controle" || p.modo === "exibir")) {
+        optsRef.current.aoComandoModo(p.modo);
       }
-    );
-    canal.subscribe((status: string) => setAtivo(status === "SUBSCRIBED"));
+    });
+
+    canal.on("presence", { event: "sync" }, () => {
+      const estado = canal.presenceState() as Record<
+        string,
+        Array<{ id?: string; nome?: string; modo?: ModoTela }>
+      >;
+      const lista: PresencaTela[] = [];
+      const vistos = new Set<string>();
+      Object.values(estado).forEach((entradas) =>
+        entradas.forEach((e) => {
+          const id = e.id ?? "";
+          if (!id || vistos.has(id)) return;
+          vistos.add(id);
+          lista.push({ id, nome: e.nome ?? "Tela", modo: e.modo === "exibir" ? "exibir" : "controle" });
+        })
+      );
+      setTelas(lista);
+    });
+
+    canal.subscribe((status: string) => {
+      const ok = status === "SUBSCRIBED";
+      setAtivo(ok);
+      if (ok) {
+        const o = optsRef.current;
+        void canal.track({ id: o.meuId, nome: o.nome, modo: o.modo });
+      }
+    });
     canalRef.current = canal;
 
     return () => {
       canalRef.current = null;
       setAtivo(false);
+      setTelas([]);
       void sb.removeChannel(canal);
     };
   }, [cardId, habilitado]);
+
+  // Atualiza a presenca desta tela quando o nome ou o modo mudam.
+  useEffect(() => {
+    const canal = canalRef.current;
+    if (canal && ativo) {
+      void canal.track({ id: opts.meuId, nome: opts.nome, modo: opts.modo });
+    }
+  }, [opts.meuId, opts.nome, opts.modo, ativo]);
 
   const enviarControle = useCallback((c: ControleTeleprompter) => {
     const canal = canalRef.current;
     if (canal) void canal.send({ type: "broadcast", event: "ctrl", payload: c });
   }, []);
 
-  return { enviarControle, ativo };
+  const comandarModo = useCallback((alvoId: string, modo: ModoTela) => {
+    const canal = canalRef.current;
+    if (canal) void canal.send({ type: "broadcast", event: "modo", payload: { alvo: alvoId, modo } });
+  }, []);
+
+  return { enviarControle, comandarModo, telas, ativo };
 }

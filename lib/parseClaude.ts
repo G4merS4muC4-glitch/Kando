@@ -29,8 +29,13 @@ Tema: ...
 Data: dd/mm/aaaa
 Briefing: ...
 Roteiro: ...
-Teleprompter: (apenas as falas, sem indicações de cena)
+Teleprompter: apenas as falas, sem indicações de cena; separe as seções com uma linha começando por traço (ex: -hook, -problema, -solução, -cta)
 Legenda: ...`;
+
+/** Prompt pronto para copiar e colar no Claude: instrucao + formato exato. */
+export const PROMPT_SUGERIDO = `Crie o(s) conteúdo(s) no formato EXATO abaixo, em português do Brasil e sem travessão. Para vários conteúdos, repita o bloco separando cada um com uma linha só de traços (---). No Teleprompter, escreva apenas as falas (sem "Cena 1", sem indicações) e marque as seções com uma linha começando por traço, por exemplo: -hook, -problema, -solução, -cta.
+
+${FORMATO_SUGERIDO}`;
 
 type Campo =
   | "titulo"
