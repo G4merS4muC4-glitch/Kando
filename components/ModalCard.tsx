@@ -8,7 +8,6 @@ import {
   Save,
   Copy,
   MonitorPlay,
-  CircleCheck,
   Send,
   RotateCcw,
   Clock,
@@ -25,8 +24,6 @@ import {
 import {
   CANAIS,
   CANAIS_ORDEM,
-  COLUNAS,
-  ETAPA_TITULO,
   LIMITE_LEGENDA_PADRAO,
   TIPOS,
   TIPOS_ORDEM,
@@ -73,9 +70,11 @@ export default function ModalCard({
   const {
     campanhas,
     marcas,
+    etapas,
+    etapaPostado,
+    etapaPorId,
     atualizarCard,
     excluirCard,
-    concluirCard,
     marcarPostado,
     reabrirCard,
   } = useBoard();
@@ -168,7 +167,7 @@ export default function ModalCard({
     atualizarCard({
       ...card,
       etapa: nova,
-      postadoEm: nova === "publicado" ? (card.postadoEm ?? agora()) : undefined,
+      postadoEm: nova === etapaPostado.id ? (card.postadoEm ?? agora()) : undefined,
     });
   }
 
@@ -254,8 +253,7 @@ export default function ModalCard({
     });
   }
 
-  const postado = card.etapa === "publicado";
-  const aprovado = card.etapa === "aprovado";
+  const postado = card.etapa === etapaPostado.id;
 
   // Horas apontadas neste card e se o timer atual e dele.
   const totalCard = totalMsDoCard(card.id);
@@ -397,7 +395,7 @@ export default function ModalCard({
           </button>
         </div>
 
-        {/* Acao rapida de status: concluir, postar ou reabrir */}
+        {/* Acao rapida de status: marcar como postado ou reabrir */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2.5 baixo:py-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
             Etapa
@@ -406,7 +404,7 @@ export default function ModalCard({
                 postado ? "bg-marca-verde text-white" : "bg-marca-azulEscuro/10 text-marca-azulEscuro"
               }`}
             >
-              {ETAPA_TITULO[card.etapa]}
+              {etapaPorId(card.etapa).titulo}
             </span>
           </span>
 
@@ -419,7 +417,7 @@ export default function ModalCard({
               <RotateCcw size={15} aria-hidden />
               Reabrir
             </button>
-          ) : aprovado ? (
+          ) : (
             <button
               type="button"
               onClick={() => marcarPostado(card.id)}
@@ -427,15 +425,6 @@ export default function ModalCard({
             >
               <Send size={15} aria-hidden />
               Marcar como postado
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => concluirCard(card.id)}
-              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95"
-            >
-              <CircleCheck size={15} aria-hidden />
-              Concluir (mover para Aprovado)
             </button>
           )}
         </div>
@@ -546,7 +535,7 @@ export default function ModalCard({
                 <SeletorOpcao
                   value={card.etapa}
                   onChange={(v) => mudarEtapa(v as Etapa)}
-                  opcoes={COLUNAS.map((c) => ({ valor: c.id, rotulo: c.titulo }))}
+                  opcoes={etapas.map((c) => ({ valor: c.id, rotulo: c.titulo }))}
                 />
               </Campo>
 

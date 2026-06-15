@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, ChevronRight } from "lucide-react";
-import type { ColunaConfig } from "@/lib/config";
-import type { CardConteudo, Etapa } from "@/lib/types";
+import type { CardConteudo, Etapa, EtapaOrg } from "@/lib/types";
 import Card from "./Card";
 
 /**
@@ -25,7 +24,7 @@ export default function Coluna({
   onNovo,
   arrastando = false,
 }: {
-  coluna: ColunaConfig;
+  coluna: EtapaOrg;
   cards: CardConteudo[];
   onAbrir: (id: string) => void;
   onNovo: (etapa: Etapa) => void;

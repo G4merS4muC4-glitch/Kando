@@ -7,7 +7,6 @@ import {
   Calendar,
   Maximize2,
   AlertTriangle,
-  Circle,
   CheckCircle2,
   RotateCcw,
   ListChecks,
@@ -33,27 +32,23 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   { card, onAbrir, className = "", ...rest },
   ref
 ) {
-  const { concluirCard, marcarPostado, reabrirCard } = useBoard();
+  const { marcarPostado, reabrirCard, etapaPostado } = useBoard();
 
-  const vencido = prazoVencido(card.dataPublicacao, card.etapa);
-  const postado = card.etapa === "publicado";
-  const aprovado = card.etapa === "aprovado";
+  const postado = card.etapa === etapaPostado.id;
+  const vencido = prazoVencido(card.dataPublicacao, card.etapa, etapaPostado.id);
   // Progresso interno do projeto (independente da etapa do quadro).
   const prog = card.tipo === "projeto" ? contarProgresso(card.projeto) : null;
 
-  // Acao rapida do botao de check, conforme a etapa atual.
+  // Acao rapida do botao de check: postar ou reabrir.
   function acaoRapida(e: React.MouseEvent) {
     e.stopPropagation();
     if (postado) reabrirCard(card.id);
-    else if (aprovado) marcarPostado(card.id);
-    else concluirCard(card.id);
+    else marcarPostado(card.id);
   }
 
   const acaoConfig = postado
     ? { Icone: RotateCcw, titulo: "Reabrir (desfazer postado)", cor: "text-marca-verdeEscuro" }
-    : aprovado
-      ? { Icone: CheckCircle2, titulo: "Marcar como postado", cor: "text-marca-laranja" }
-      : { Icone: Circle, titulo: "Marcar como concluído", cor: "text-marca-cinza" };
+    : { Icone: CheckCircle2, titulo: "Marcar como postado", cor: "text-marca-laranja" };
   const IconeAcao = acaoConfig.Icone;
 
   // Tilt 3D leve seguindo o cursor (aplicado no miolo, sem brigar com o drag).

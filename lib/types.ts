@@ -15,13 +15,23 @@ export type TipoConteudo =
 // Canais de publicacao (Instagram e Facebook juntos, alem de LinkedIn e YouTube).
 export type Canal = "instagram" | "facebook" | "linkedin" | "youtube";
 
-export type Etapa =
-  | "ideias"
-  | "briefing"
-  | "producao"
-  | "revisao"
-  | "aprovado"
-  | "publicado";
+// Etapa = id de uma coluna do quadro, agora editavel por organizacao (ver
+// EtapaOrg e Board.etapas). Os ids padrao continuam "ideias".."publicado".
+export type Etapa = string;
+
+/**
+ * Coluna (etapa) do quadro, cadastrada pela organizacao. Os papeis marcam as
+ * colunas com comportamento especial: `inicial` = onde o card novo nasce;
+ * `postado` = coluna de Publicado (selo verde, progresso, prazo, robo). A logica
+ * segue esses papeis, nao o nome, entao da para renomear/reordenar a vontade.
+ */
+export interface EtapaOrg {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  inicial?: boolean;
+  postado?: boolean;
+}
 
 // Marca = id de uma marca cadastrada pela organizacao (ver MarcaOrg e
 // Board.marcas). Os dados antigos usam "brusoft"/"evotalks", que viram ids de
@@ -113,6 +123,7 @@ export interface ProjetoDados {
 /** Estado completo. Estrutura isolada para facilitar futura migracao para banco. */
 export interface Board {
   marcas?: MarcaOrg[]; // marcas da organizacao (ausente em dados antigos)
+  etapas?: EtapaOrg[]; // colunas do quadro (ausente = usa as 6 padrao)
   campanhas: Campanha[];
   cards: CardConteudo[];
 }

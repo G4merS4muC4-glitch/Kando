@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus, Sparkles, ListChecks } from "lucide-react";
-import type { ReactNode } from "react";
+import { ArrowLeft, Plus, Sparkles, ListChecks, Columns3 } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { TIPOS_CAMPANHA } from "@/lib/config";
 import type { Campanha } from "@/lib/types";
 import MarcaBadge from "./MarcaBadge";
+import GerenciarEtapas from "./GerenciarEtapas";
 
 /**
  * Barra de contexto da campanha (abaixo da navegacao global): voltar, nome da
@@ -25,8 +26,10 @@ export default function BarraCampanha({
   children: ReactNode; // busca e filtros
 }) {
   const tipoConf = TIPOS_CAMPANHA[campanha.tipo];
+  const [colunasAberto, setColunasAberto] = useState(false);
 
   return (
+    <>
     <div className="border-b border-marca-cinza/30 bg-white px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         {/* Voltar e identificacao da campanha */}
@@ -61,6 +64,16 @@ export default function BarraCampanha({
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
+            onClick={() => setColunasAberto(true)}
+            aria-label="Colunas do quadro"
+            title="Editar colunas do quadro"
+            className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/50 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-azulEscuro hover:bg-marca-branco focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
+          >
+            <Columns3 size={16} aria-hidden />
+            <span className="hidden espacoso:inline">Colunas</span>
+          </button>
+          <button
+            type="button"
             onClick={onColar}
             aria-label="Colar do Claude"
             title="Colar do Claude"
@@ -93,5 +106,7 @@ export default function BarraCampanha({
         </div>
       </div>
     </div>
+    {colunasAberto && <GerenciarEtapas onFechar={() => setColunasAberto(false)} />}
+    </>
   );
 }

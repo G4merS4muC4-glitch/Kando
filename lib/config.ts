@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type {
   Canal,
-  Etapa,
+  EtapaOrg,
   Marca,
   StatusCampanha,
   TipoCampanha,
@@ -31,16 +31,15 @@ import type {
  * para serem faceis de adicionar, remover ou renomear sem mexer na interface.
  */
 
-/** Definicao de cada coluna (etapa) do fluxo de producao. */
-export interface ColunaConfig {
-  id: Etapa;
-  titulo: string;
-  descricao: string;
-}
-
-/** As seis etapas, da esquerda para a direita, refletindo o fluxo real. */
-export const COLUNAS: ColunaConfig[] = [
-  { id: "ideias", titulo: "Ideias", descricao: "Backlog de pautas" },
+/**
+ * As 6 etapas padrao do quadro, da esquerda para a direita. Servem de fallback
+ * (quando a organizacao ainda nao editou as colunas) e de seed. Cada organizacao
+ * pode adicionar, renomear, reordenar e excluir as suas (ver Board.etapas).
+ * Os papeis "inicial" (onde o card novo nasce) e "postado" (coluna de Publicado)
+ * marcam o comportamento especial, em vez de depender do nome/id.
+ */
+export const ETAPAS_PADRAO: EtapaOrg[] = [
+  { id: "ideias", titulo: "Ideias", descricao: "Backlog de pautas", inicial: true },
   {
     id: "briefing",
     titulo: "Briefing e Roteiro",
@@ -57,17 +56,8 @@ export const COLUNAS: ColunaConfig[] = [
     titulo: "Aprovado e Agendado",
     descricao: "Pronto, com data de publicação",
   },
-  { id: "publicado", titulo: "Publicado", descricao: "Já no ar" },
+  { id: "publicado", titulo: "Publicado", descricao: "Já no ar", postado: true },
 ];
-
-/** Lista ordenada apenas das etapas (usada na logica de drag and drop). */
-export const ETAPAS: Etapa[] = COLUNAS.map((c) => c.id);
-
-/** Mapa rapido etapa -> titulo. */
-export const ETAPA_TITULO: Record<Etapa, string> = COLUNAS.reduce(
-  (acc, c) => ({ ...acc, [c.id]: c.titulo }),
-  {} as Record<Etapa, string>
-);
 
 /** Aparencia de cada tipo de conteudo (badge colorido com icone). */
 export interface TipoConfig {

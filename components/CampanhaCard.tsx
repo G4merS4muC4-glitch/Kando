@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Pencil, FileStack, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { STATUS_CAMPANHA, TIPOS_CAMPANHA, campanhaArquivada } from "@/lib/config";
+import { useBoard } from "@/lib/store";
 import type { Campanha, CardConteudo } from "@/lib/types";
 import { formatarData, prazoVencido } from "@/lib/util";
 import MarcaBadge from "./MarcaBadge";
@@ -20,9 +21,12 @@ export default function CampanhaCard({
   cards: CardConteudo[];
   onEditar: (id: string) => void;
 }) {
+  const { etapaPostado } = useBoard();
   const total = cards.length;
-  const postados = cards.filter((c) => c.etapa === "publicado").length;
-  const vencidos = cards.filter((c) => prazoVencido(c.dataPublicacao, c.etapa)).length;
+  const postados = cards.filter((c) => c.etapa === etapaPostado.id).length;
+  const vencidos = cards.filter((c) =>
+    prazoVencido(c.dataPublicacao, c.etapa, etapaPostado.id)
+  ).length;
   const progresso = total > 0 ? Math.round((postados / total) * 100) : 0;
   const tipoConf = TIPOS_CAMPANHA[campanha.tipo];
   const IconeTipo = tipoConf.icone;

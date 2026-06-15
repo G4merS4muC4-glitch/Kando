@@ -22,7 +22,7 @@ export default function CardRecomendacao({
   rec: Recomendacao;
   perfil: PerfilMetrica;
 }) {
-  const { campanhas, adicionarCardCompleto } = useBoard();
+  const { campanhas, adicionarCardCompleto, etapaInicial } = useBoard();
   const campanhasDaMarca = useMemo(
     () => campanhas.filter((c) => c.marca === perfil && !campanhaArquivada(c.status)),
     [campanhas, perfil]
@@ -42,7 +42,7 @@ export default function CardRecomendacao({
       titulo: rec.titulo || "Ideia de conteúdo",
       tipo: rec.tipo_sugerido ?? "post",
       canais: ["instagram"],
-      etapa: "ideias",
+      etapa: etapaInicial.id,
       tema: rec.tema_sugerido ?? "",
       briefing: rec.porque ?? "",
       roteiro: "",

@@ -17,7 +17,6 @@ import {
   type DropAnimation,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { COLUNAS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import type { CardConteudo, Etapa } from "@/lib/types";
 import Coluna from "./Coluna";
@@ -46,7 +45,7 @@ export default function Board({
   onAbrir: (id: string) => void;
   onNovo: (etapa: Etapa) => void;
 }) {
-  const { moverCard, pronto } = useBoard();
+  const { moverCard, pronto, etapas } = useBoard();
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [larguraArrasto, setLarguraArrasto] = useState<number | undefined>(undefined);
 
@@ -58,13 +57,15 @@ export default function Board({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // Agrupa os cards visiveis por etapa, preservando a ordem.
+  // Agrupa os cards visiveis por etapa, preservando a ordem. Card de uma etapa
+  // que nao existe mais (ex: coluna recem-excluida) cai na primeira coluna.
   const porEtapa = useMemo(() => {
     const mapa = new Map<Etapa, CardConteudo[]>();
-    COLUNAS.forEach((c) => mapa.set(c.id, []));
-    cards.forEach((card) => mapa.get(card.etapa)?.push(card));
+    etapas.forEach((c) => mapa.set(c.id, []));
+    const primeira = etapas[0]?.id;
+    cards.forEach((card) => (mapa.get(card.etapa) ?? mapa.get(primeira))?.push(card));
     return mapa;
-  }, [cards]);
+  }, [cards, etapas]);
 
   const cardArrastado = useMemo(
     () => cards.find((c) => c.id === arrastandoId) ?? null,
@@ -156,7 +157,7 @@ export default function Board({
           topo sem deixar card aparecer acima. Snap nas colunas em paisagem. */}
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-8 sm:overflow-auto sm:px-4 sm:pb-4 baixo:snap-x baixo:snap-mandatory">
         <div className="flex flex-col gap-2.5 pt-4 sm:flex-row sm:items-start sm:gap-4">
-          {COLUNAS.map((coluna) => (
+          {etapas.map((coluna) => (
             <Coluna
               key={coluna.id}
               coluna={coluna}

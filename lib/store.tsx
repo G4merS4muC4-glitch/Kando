@@ -17,13 +17,14 @@ import type {
   Campanha,
   CardConteudo,
   Etapa,
+  EtapaOrg,
   Marca,
   MarcaOrg,
   StatusCampanha,
   TipoCampanha,
   TipoConteudo,
 } from "./types";
-import { ETAPAS, MARCAS } from "./config";
+import { ETAPAS_PADRAO, MARCAS } from "./config";
 import { criarProjetoVazio } from "./projeto";
 import { assinarBoard, carregarBoard, salvarBoard } from "./storage";
 import { useOrg } from "./orgProvider";
@@ -37,11 +38,18 @@ import { agora, gerarId } from "./util";
  * persistencia por um banco no futuro, basta mudar storage.ts.
  */
 
+type PapelEtapa = "inicial" | "postado";
+
 type Acao =
   | { tipo: "INICIALIZAR"; board: Board }
   | { tipo: "ADD_MARCA"; marca: MarcaOrg }
   | { tipo: "UPD_MARCA"; marca: MarcaOrg }
   | { tipo: "DEL_MARCA"; id: string }
+  | { tipo: "ADD_ETAPA"; etapa: EtapaOrg }
+  | { tipo: "UPD_ETAPA"; etapa: EtapaOrg }
+  | { tipo: "DEL_ETAPA"; id: string }
+  | { tipo: "MOVER_ETAPA"; id: string; dir: -1 | 1 }
+  | { tipo: "PAPEL_ETAPA"; id: string; papel: PapelEtapa }
   | { tipo: "ADD_CAMPANHA"; campanha: Campanha }
   | { tipo: "UPD_CAMPANHA"; campanha: Campanha }
   | { tipo: "STATUS_CAMPANHA"; id: string; status: StatusCampanha }
@@ -69,6 +77,66 @@ function reducer(estado: Board, acao: Acao): Board {
 
     case "DEL_MARCA":
       return { ...estado, marcas: (estado.marcas ?? []).filter((m) => m.id !== acao.id) };
+
+    case "ADD_ETAPA": {
+      // Nova coluna entra antes da coluna de Publicado (ou no fim).
+      const atuais = etapasDe(estado);
+      const idxPost = atuais.findIndex((e) => e.postado);
+      const pos = idxPost >= 0 ? idxPost : atuais.length;
+      return { ...estado, etapas: [...atuais.slice(0, pos), acao.etapa, ...atuais.slice(pos)] };
+    }
+
+    case "UPD_ETAPA":
+      // So nome e descricao mudam aqui; os papeis sao geridos por PAPEL_ETAPA.
+      return {
+        ...estado,
+        etapas: etapasDe(estado).map((e) =>
+          e.id === acao.etapa.id
+            ? { ...e, titulo: acao.etapa.titulo, descricao: acao.etapa.descricao }
+            : e
+        ),
+      };
+
+    case "DEL_ETAPA": {
+      const atuais = etapasDe(estado);
+      if (atuais.length <= 1) return estado; // nunca remove a ultima coluna
+      const restantes = atuais.filter((e) => e.id !== acao.id);
+      if (restantes.length === atuais.length) return estado; // id inexistente
+      // Cards da coluna removida vao para a inicial (ou a primeira restante).
+      const destino = (restantes.find((e) => e.inicial) ?? restantes[0]).id;
+      const cards = estado.cards.map((c) =>
+        c.etapa === acao.id ? { ...c, etapa: destino, atualizadoEm: agora() } : c
+      );
+      // Garante que sempre exista uma coluna inicial e uma de postado.
+      let novas = restantes;
+      if (!novas.some((e) => e.inicial)) {
+        novas = novas.map((e, i) => (i === 0 ? { ...e, inicial: true } : e));
+      }
+      if (!novas.some((e) => e.postado)) {
+        novas = novas.map((e, i) => (i === novas.length - 1 ? { ...e, postado: true } : e));
+      }
+      return { ...estado, etapas: novas, cards };
+    }
+
+    case "MOVER_ETAPA": {
+      const atuais = etapasDe(estado);
+      const idx = atuais.findIndex((e) => e.id === acao.id);
+      const j = idx + acao.dir;
+      if (idx < 0 || j < 0 || j >= atuais.length) return estado;
+      const novas = [...atuais];
+      [novas[idx], novas[j]] = [novas[j], novas[idx]];
+      return { ...estado, etapas: novas };
+    }
+
+    case "PAPEL_ETAPA": {
+      const atuais = etapasDe(estado);
+      if (!atuais.some((e) => e.id === acao.id)) return estado;
+      // Marca o papel (inicial/postado) so na coluna escolhida, tirando das outras.
+      return {
+        ...estado,
+        etapas: atuais.map((e) => ({ ...e, [acao.papel]: e.id === acao.id })),
+      };
+    }
 
     case "ADD_CAMPANHA":
       return { ...estado, campanhas: [...estado.campanhas, acao.campanha] };
@@ -120,12 +188,21 @@ function reducer(estado: Board, acao: Acao): Board {
       return { ...estado, cards: estado.cards.filter((c) => c.id !== acao.id) };
 
     case "MOVER":
-      return { ...estado, cards: moverCardNoBoard(estado.cards, acao.activeId, acao.overId) };
+      return {
+        ...estado,
+        cards: moverCardNoBoard(
+          estado.cards,
+          acao.activeId,
+          acao.overId,
+          ordemDe(estado),
+          postadoIdDe(estado)
+        ),
+      };
 
     case "DEF_ETAPA":
       return {
         ...estado,
-        cards: definirEtapaNoBoard(estado.cards, acao.id, acao.etapa, acao.extra),
+        cards: definirEtapaNoBoard(estado.cards, acao.id, acao.etapa, ordemDe(estado), acao.extra),
       };
 
     case "AGENDAR":
@@ -141,6 +218,27 @@ function reducer(estado: Board, acao: Acao): Board {
   }
 }
 
+// ----- Resolvedores das etapas (as da organizacao, ou as 6 padrao) -----
+
+/** Etapas efetivas do quadro (board.etapas, ou as padrao como fallback). */
+function etapasDe(estado: Board): EtapaOrg[] {
+  return estado.etapas && estado.etapas.length > 0 ? estado.etapas : ETAPAS_PADRAO;
+}
+/** Ordem das colunas (ids), para agrupar e achatar os cards. */
+function ordemDe(estado: Board): string[] {
+  return etapasDe(estado).map((e) => e.id);
+}
+/** Id da coluna de Publicado (a marcada como `postado`, ou a ultima). */
+function postadoIdDe(estado: Board): string {
+  const e = etapasDe(estado);
+  return (e.find((x) => x.postado) ?? e[e.length - 1]).id;
+}
+/** Id da coluna inicial (a marcada como `inicial`, ou a primeira). */
+function inicialIdDe(estado: Board): string {
+  const e = etapasDe(estado);
+  return (e.find((x) => x.inicial) ?? e[0]).id;
+}
+
 /**
  * Reordena os cards apos um drag and drop.
  * overId pode ser o id de outro card ou o id de uma coluna (quando solto numa
@@ -149,7 +247,9 @@ function reducer(estado: Board, acao: Acao): Board {
 function moverCardNoBoard(
   cards: CardConteudo[],
   activeId: string,
-  overId: string
+  overId: string,
+  ordem: string[],
+  postadoId: string
 ): CardConteudo[] {
   if (activeId === overId) return cards;
 
@@ -157,17 +257,17 @@ function moverCardNoBoard(
   if (!ativo) return cards;
 
   const overCard = cards.find((c) => c.id === overId);
-  let etapaDestino: Etapa;
+  let etapaDestino: string;
   if (overCard) {
     etapaDestino = overCard.etapa;
-  } else if ((ETAPAS as string[]).includes(overId)) {
-    etapaDestino = overId as Etapa;
+  } else if (ordem.includes(overId)) {
+    etapaDestino = overId;
   } else {
     return cards;
   }
 
   // Agrupa os cards por etapa, preservando a ordem atual de cada coluna.
-  const grupos = agruparPorEtapa(cards);
+  const grupos = agruparPorEtapa(cards, ordem);
   const origem = ativo.etapa;
 
   // Caso 1: reordenar dentro da mesma coluna.
@@ -180,7 +280,7 @@ function moverCardNoBoard(
       c.id === activeId ? { ...c, atualizadoEm: agora() } : c
     );
     grupos.set(origem, reordenada);
-    return achatar(grupos);
+    return achatar(grupos, ordem);
   }
 
   // Caso 2: mover para outra coluna (atualiza a etapa).
@@ -190,8 +290,8 @@ function moverCardNoBoard(
   const ativoAtualizado: CardConteudo = {
     ...ativo,
     etapa: etapaDestino,
-    // Sair de "publicado" via arraste tira o carimbo de postado.
-    postadoEm: etapaDestino === "publicado" ? ativo.postadoEm ?? agora() : undefined,
+    // Entrar na coluna de Publicado carimba o postado; sair limpa.
+    postadoEm: etapaDestino === postadoId ? ativo.postadoEm ?? agora() : undefined,
     atualizadoEm: agora(),
   };
 
@@ -204,7 +304,7 @@ function moverCardNoBoard(
   listaDestino.splice(indice, 0, ativoAtualizado);
   grupos.set(etapaDestino, listaDestino);
 
-  return achatar(grupos);
+  return achatar(grupos, ordem);
 }
 
 /** Muda a etapa de um card colocando-o no topo da nova coluna. */
@@ -212,12 +312,13 @@ function definirEtapaNoBoard(
   cards: CardConteudo[],
   id: string,
   novaEtapa: Etapa,
+  ordem: string[],
   extra?: Partial<CardConteudo>
 ): CardConteudo[] {
   const alvo = cards.find((c) => c.id === id);
   if (!alvo) return cards;
 
-  const grupos = agruparPorEtapa(cards);
+  const grupos = agruparPorEtapa(cards, ordem);
   // Remove da etapa atual.
   grupos.set(alvo.etapa, (grupos.get(alvo.etapa) ?? []).filter((c) => c.id !== id));
   // Insere no topo da nova etapa.
@@ -228,20 +329,23 @@ function definirEtapaNoBoard(
     atualizadoEm: agora(),
   };
   grupos.set(novaEtapa, [atualizado, ...(grupos.get(novaEtapa) ?? [])]);
-  return achatar(grupos);
+  return achatar(grupos, ordem);
 }
 
-function agruparPorEtapa(cards: CardConteudo[]): Map<Etapa, CardConteudo[]> {
-  const grupos = new Map<Etapa, CardConteudo[]>();
-  ETAPAS.forEach((e) => grupos.set(e, []));
-  cards.forEach((c) => grupos.get(c.etapa)?.push(c));
+function agruparPorEtapa(cards: CardConteudo[], ordem: string[]): Map<string, CardConteudo[]> {
+  const grupos = new Map<string, CardConteudo[]>();
+  ordem.forEach((e) => grupos.set(e, []));
+  cards.forEach((c) => {
+    // Card de uma etapa que nao existe mais cai na primeira coluna (nao se perde).
+    (grupos.get(c.etapa) ?? grupos.get(ordem[0]))?.push(c);
+  });
   return grupos;
 }
 
 /** Junta os grupos por etapa de volta num unico array, na ordem das colunas. */
-function achatar(grupos: Map<Etapa, CardConteudo[]>): CardConteudo[] {
+function achatar(grupos: Map<string, CardConteudo[]>, ordem: string[]): CardConteudo[] {
   const resultado: CardConteudo[] = [];
-  ETAPAS.forEach((e) => {
+  ordem.forEach((e) => {
     const lista = grupos.get(e);
     if (lista) resultado.push(...lista);
   });
@@ -320,6 +424,16 @@ interface BoardStore {
   adicionarMarca: (parcial?: Partial<MarcaOrg>) => MarcaOrg;
   atualizarMarca: (marca: MarcaOrg) => void;
   excluirMarca: (id: string) => void;
+  // Etapas / colunas (da organizacao)
+  etapas: EtapaOrg[];
+  etapaInicial: EtapaOrg; // onde o card novo nasce
+  etapaPostado: EtapaOrg; // coluna de Publicado (selo, progresso, prazo, robo)
+  etapaPorId: (id: string) => EtapaOrg;
+  adicionarEtapa: () => void;
+  atualizarEtapa: (etapa: EtapaOrg) => void;
+  excluirEtapa: (id: string) => void;
+  moverEtapa: (id: string, dir: -1 | 1) => void;
+  definirPapelEtapa: (id: string, papel: "inicial" | "postado") => void;
   // Campanhas
   adicionarCampanha: (parcial?: Partial<Campanha>) => Campanha;
   atualizarCampanha: (campanha: Campanha) => void;
@@ -336,9 +450,8 @@ interface BoardStore {
   atualizarCard: (card: CardConteudo) => void;
   excluirCard: (id: string) => void;
   moverCard: (activeId: string, overId: string) => void;
-  concluirCard: (id: string) => void; // move para "aprovado"
-  marcarPostado: (id: string) => void; // move para "publicado"
-  reabrirCard: (id: string) => void; // volta de "publicado" para "aprovado"
+  marcarPostado: (id: string) => void; // move para a coluna de Publicado
+  reabrirCard: (id: string) => void; // tira de Publicado (volta a coluna anterior)
   agendarCard: (id: string, dataISO: string) => void;
 }
 
@@ -454,6 +567,27 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     dispatch({ tipo: "DEL_MARCA", id });
   }, []);
 
+  // ----- Etapas / colunas (da organizacao) -----
+  const adicionarEtapa = useCallback(() => {
+    dispatch({ tipo: "ADD_ETAPA", etapa: { id: gerarId(), titulo: "Nova coluna", descricao: "" } });
+  }, []);
+
+  const atualizarEtapa = useCallback((etapa: EtapaOrg) => {
+    dispatch({ tipo: "UPD_ETAPA", etapa });
+  }, []);
+
+  const excluirEtapa = useCallback((id: string) => {
+    dispatch({ tipo: "DEL_ETAPA", id });
+  }, []);
+
+  const moverEtapa = useCallback((id: string, dir: -1 | 1) => {
+    dispatch({ tipo: "MOVER_ETAPA", id, dir });
+  }, []);
+
+  const definirPapelEtapa = useCallback((id: string, papel: "inicial" | "postado") => {
+    dispatch({ tipo: "PAPEL_ETAPA", id, papel });
+  }, []);
+
   // ----- Campanhas -----
   const adicionarCampanha = useCallback((parcial?: Partial<Campanha>): Campanha => {
     // Marca padrao = a primeira da organizacao (vazia so se ainda nao houver marca).
@@ -505,16 +639,18 @@ export function BoardProvider({ children }: { children: ReactNode }) {
     dispatch({ tipo: "MOVER", activeId, overId });
   }, []);
 
-  const concluirCard = useCallback((id: string) => {
-    dispatch({ tipo: "DEF_ETAPA", id, etapa: "aprovado", extra: { postadoEm: undefined } });
-  }, []);
-
   const marcarPostado = useCallback((id: string) => {
-    dispatch({ tipo: "DEF_ETAPA", id, etapa: "publicado", extra: { postadoEm: agora() } });
+    const post = postadoIdDe(boardRef.current);
+    dispatch({ tipo: "DEF_ETAPA", id, etapa: post, extra: { postadoEm: agora() } });
   }, []);
 
   const reabrirCard = useCallback((id: string) => {
-    dispatch({ tipo: "DEF_ETAPA", id, etapa: "aprovado", extra: { postadoEm: undefined } });
+    // Volta para a coluna imediatamente antes da de Publicado (ou a inicial).
+    const ord = ordemDe(boardRef.current);
+    const post = postadoIdDe(boardRef.current);
+    const i = ord.indexOf(post);
+    const anterior = (i > 0 ? ord[i - 1] : undefined) ?? inicialIdDe(boardRef.current);
+    dispatch({ tipo: "DEF_ETAPA", id, etapa: anterior, extra: { postadoEm: undefined } });
   }, []);
 
   const agendarCard = useCallback((id: string, dataISO: string) => {
@@ -546,8 +682,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       });
       return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
     };
-    return { marcaPorId, campanhaPorId, cardPorId, cardsDaCampanha, temasDaCampanha };
-  }, [board.marcas, board.campanhas, board.cards]);
+    // Etapas efetivas (as da org, ou as padrao) + papeis e lookup por id.
+    const etapas = board.etapas && board.etapas.length > 0 ? board.etapas : ETAPAS_PADRAO;
+    const etapaPorId = (id: string): EtapaOrg => etapas.find((e) => e.id === id) ?? { id, titulo: id };
+    const etapaInicial = etapas.find((e) => e.inicial) ?? etapas[0];
+    const etapaPostado = etapas.find((e) => e.postado) ?? etapas[etapas.length - 1];
+    return {
+      marcaPorId,
+      etapas,
+      etapaPorId,
+      etapaInicial,
+      etapaPostado,
+      campanhaPorId,
+      cardPorId,
+      cardsDaCampanha,
+      temasDaCampanha,
+    };
+  }, [board.marcas, board.etapas, board.campanhas, board.cards]);
 
   const valor: BoardStore = useMemo(
     () => ({
@@ -559,6 +710,11 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       adicionarMarca,
       atualizarMarca,
       excluirMarca,
+      adicionarEtapa,
+      atualizarEtapa,
+      excluirEtapa,
+      moverEtapa,
+      definirPapelEtapa,
       adicionarCampanha,
       atualizarCampanha,
       arquivarCampanha,
@@ -569,7 +725,6 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       atualizarCard,
       excluirCard,
       moverCard,
-      concluirCard,
       marcarPostado,
       reabrirCard,
       agendarCard,
@@ -584,6 +739,11 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       adicionarMarca,
       atualizarMarca,
       excluirMarca,
+      adicionarEtapa,
+      atualizarEtapa,
+      excluirEtapa,
+      moverEtapa,
+      definirPapelEtapa,
       adicionarCampanha,
       atualizarCampanha,
       arquivarCampanha,
@@ -594,7 +754,6 @@ export function BoardProvider({ children }: { children: ReactNode }) {
       atualizarCard,
       excluirCard,
       moverCard,
-      concluirCard,
       marcarPostado,
       reabrirCard,
       agendarCard,

@@ -67,6 +67,7 @@ export default function Calendario() {
     campanhas,
     marcas,
     marcaPorId,
+    etapaInicial,
     agendarCard,
     atualizarCard,
     cardPorId,
@@ -175,7 +176,7 @@ export default function Calendario() {
       titulo: sug.titulo,
       tipo: sug.tipo,
       canais: sug.canais,
-      etapa: "ideias",
+      etapa: etapaInicial.id,
       tema: "",
       dataPublicacao: chave,
       briefing: sug.briefing,
@@ -649,10 +650,10 @@ function LinhaConteudo({
   marca: Marca | undefined;
   onAbrir: (id: string) => void;
 }) {
-  const { marcaPorId } = useBoard();
+  const { marcaPorId, etapaPostado } = useBoard();
   const Icone = TIPOS[card.tipo].icone;
   const cor = corDoCard(marcaPorId, marca);
-  const postado = card.etapa === "publicado";
+  const postado = card.etapa === etapaPostado.id;
   return (
     <button
       type="button"
@@ -964,10 +965,10 @@ function ChipCard({
   onAbrir: (id: string) => void;
   grande?: boolean;
 }) {
-  const { marcaPorId } = useBoard();
+  const { marcaPorId, etapaPostado } = useBoard();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
   const TipoIcone = TIPOS[card.tipo].icone;
-  const postado = card.etapa === "publicado";
+  const postado = card.etapa === etapaPostado.id;
 
   return (
     <button

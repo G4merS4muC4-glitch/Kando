@@ -50,9 +50,13 @@ export function dataDeISO(iso: string): Date {
  * Indica se um card esta com o prazo vencido: tem data de publicacao no passado
  * e ainda nao foi publicado.
  */
-export function prazoVencido(dataPublicacao: string | undefined, etapa: string): boolean {
+export function prazoVencido(
+  dataPublicacao: string | undefined,
+  etapa: string,
+  etapaPostadoId = "publicado"
+): boolean {
   if (!dataPublicacao) return false;
-  if (etapa === "publicado") return false;
+  if (etapa === etapaPostadoId) return false; // ja publicado nunca esta vencido
   return dataPublicacao < hojeISO();
 }
 

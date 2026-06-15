@@ -23,8 +23,15 @@ const FILTROS_INICIAIS: FiltrosState = {
 export default function PaginaCampanha() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
-  const { campanhaPorId, cardsDaCampanha, temasDaCampanha, adicionarCard, cardPorId, pronto } =
-    useBoard();
+  const {
+    campanhaPorId,
+    cardsDaCampanha,
+    temasDaCampanha,
+    adicionarCard,
+    cardPorId,
+    pronto,
+    etapaInicial,
+  } = useBoard();
 
   const [filtros, setFiltros] = useState<FiltrosState>(FILTROS_INICIAIS);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
@@ -60,7 +67,7 @@ export default function PaginaCampanha() {
   }
 
   function novoProjeto() {
-    const card = adicionarCard(id, "ideias", "projeto");
+    const card = adicionarCard(id, etapaInicial.id, "projeto");
     setSelecionadoId(card.id);
   }
 
@@ -87,7 +94,7 @@ export default function PaginaCampanha() {
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <BarraCampanha
         campanha={campanha}
-        onNovo={() => novoConteudo("ideias")}
+        onNovo={() => novoConteudo(etapaInicial.id)}
         onNovoProjeto={novoProjeto}
         onColar={() => setColarAberto(true)}
       >

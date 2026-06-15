@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { X, ClipboardPaste, Sparkles, Plus, Copy, Check } from "lucide-react";
-import { CANAIS, COLUNAS, TIPOS } from "@/lib/config";
+import { CANAIS, TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { FORMATO_SUGERIDO, PROMPT_SUGERIDO, parseClaude, type ConteudoColado } from "@/lib/parseClaude";
 import { criarProjetoVazio } from "@/lib/projeto";
@@ -23,9 +23,9 @@ export default function ColarDoClaude({
   onFechar: () => void;
   onCriado?: (primeiroId: string) => void;
 }) {
-  const { adicionarCardCompleto } = useBoard();
+  const { adicionarCardCompleto, etapas, etapaInicial } = useBoard();
   const [texto, setTexto] = useState("");
-  const [etapa, setEtapa] = useState<Etapa>("ideias");
+  const [etapa, setEtapa] = useState<Etapa>(etapaInicial.id);
   const [mostrarFormato, setMostrarFormato] = useState(true);
   const [copiado, setCopiado] = useState(false);
 
@@ -237,7 +237,7 @@ export default function ColarDoClaude({
               onChange={(e) => setEtapa(e.target.value as Etapa)}
               className="rounded-marca border border-marca-cinza/40 bg-white px-2.5 py-2 text-sm text-marca-preto outline-none focus:ring-2 focus:ring-marca-laranja"
             >
-              {COLUNAS.map((c) => (
+              {etapas.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.titulo}
                 </option>

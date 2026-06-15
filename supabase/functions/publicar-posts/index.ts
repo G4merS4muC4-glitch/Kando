@@ -46,7 +46,13 @@ interface Campanha {
   marca: Marca;
 }
 
+interface EtapaOrg {
+  id: string;
+  postado?: boolean;
+}
+
 interface Board {
+  etapas?: EtapaOrg[];
   campanhas: Campanha[];
   cards: Card[];
 }
@@ -231,6 +237,8 @@ async function processarQuadro(
   // RE-LE o quadro fresco e aplica so os patches (nao sobrescreve edicoes do time).
   const { data: data2 } = await sb.from("boards").select("dados").eq("id", boardId).maybeSingle();
   const atual = (data2?.dados ?? board) as Board;
+  // Coluna de Publicado: a marcada como postado nas etapas da org (fallback "publicado").
+  const postadoId = atual.etapas?.find((e) => e.postado)?.id ?? "publicado";
   const cardsAtualizados = atual.cards.map((c) => {
     const p = patches.get(c.id);
     if (!p) return c;
@@ -239,7 +247,7 @@ async function processarQuadro(
       statusPub: p.statusPub,
       erroPub: p.statusPub === "erro" ? p.erroPub : undefined,
       ...(p.publicar
-        ? { etapa: "publicado", postadoEm: p.postadoEm ?? new Date().toISOString() }
+        ? { etapa: postadoId, postadoEm: p.postadoEm ?? new Date().toISOString() }
         : {}),
     };
   });
