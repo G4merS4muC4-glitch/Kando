@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   RotateCcw,
   ListChecks,
+  Lightbulb,
+  Link2,
 } from "lucide-react";
 import { CANAIS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
@@ -35,6 +37,7 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   const { marcarPostado, reabrirCard, etapaPostado } = useBoard();
 
   const postado = card.etapa === etapaPostado.id;
+  const externo = Boolean(card.externo) && !postado; // sugestao de fora (cara diferente)
   const vencido = prazoVencido(card.dataPublicacao, card.etapa, etapaPostado.id);
   // Progresso interno do projeto (independente da etapa do quadro).
   const prog = card.tipo === "projeto" ? contarProgresso(card.projeto) : null;
@@ -77,7 +80,11 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
       <div
         ref={interiorRef}
         className={`relative overflow-hidden rounded-marca border p-3 text-marca-preto shadow-card transition-[transform,box-shadow] duration-200 ease-suave will-change-transform group-hover:-translate-y-1 group-hover:shadow-cardLift group-focus-visible:ring-2 group-focus-visible:ring-marca-laranja ${
-          postado ? "border-marca-verde bg-marca-verdeClaro" : "border-marca-cinza/30 bg-white"
+          postado
+            ? "border-marca-verde bg-marca-verdeClaro"
+            : externo
+              ? "border-[#6D4FC0] bg-[#F3EFFB]"
+              : "border-marca-cinza/30 bg-white"
         }`}
       >
         {/* Sobreposicao de postado: grande check verde semi-transparente */}
@@ -133,6 +140,17 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
         {postado && (
           <span className="mb-2 inline-flex items-center gap-1 rounded-marca bg-marca-verde px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
             <CheckCircle2 size={12} aria-hidden /> Postado
+          </span>
+        )}
+
+        {/* Selo de sugestao vinda de fora */}
+        {externo && (
+          <span
+            className="mb-2 inline-flex max-w-full items-center gap-1 truncate rounded-marca px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white"
+            style={{ backgroundColor: "#6D4FC0" }}
+          >
+            <Lightbulb size={12} aria-hidden className="shrink-0" />
+            <span className="truncate">Sugestão{card.sugeridoPor ? ` · ${card.sugeridoPor}` : ""}</span>
           </span>
         )}
 
@@ -204,6 +222,20 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
                 {vencido ? <AlertTriangle size={13} aria-hidden /> : <Calendar size={13} aria-hidden />}
                 {formatarData(card.dataPublicacao)}
               </span>
+            )}
+
+            {card.referenciaUrl && (
+              <a
+                href={card.referenciaUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                title="Abrir referência"
+                className="flex items-center gap-1 text-marca-azulClaro hover:underline"
+              >
+                <Link2 size={13} aria-hidden /> referência
+              </a>
             )}
           </div>
         )}

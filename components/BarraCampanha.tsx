@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Plus, Sparkles, ListChecks, Columns3 } from "lucide-react";
+import { ArrowLeft, Plus, Sparkles, ListChecks, Columns3, Lightbulb } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { TIPOS_CAMPANHA } from "@/lib/config";
 import type { Campanha } from "@/lib/types";
 import MarcaBadge from "./MarcaBadge";
 import GerenciarEtapas from "./GerenciarEtapas";
+import ModalSugestoes from "./ModalSugestoes";
 
 /**
  * Barra de contexto da campanha (abaixo da navegacao global): voltar, nome da
@@ -27,6 +28,7 @@ export default function BarraCampanha({
 }) {
   const tipoConf = TIPOS_CAMPANHA[campanha.tipo];
   const [colunasAberto, setColunasAberto] = useState(false);
+  const [sugestoesAberto, setSugestoesAberto] = useState(false);
 
   return (
     <>
@@ -62,6 +64,16 @@ export default function BarraCampanha({
         {/* Acoes. No mobile, os secundarios ficam so com o icone (menos poluicao)
             e o principal vira "Novo"; no desktop, todos com rotulo completo. */}
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSugestoesAberto(true)}
+            aria-label="Link de sugestões"
+            title="Gerar link para colegas mandarem ideias"
+            className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/50 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-azulEscuro hover:bg-marca-branco focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
+          >
+            <Lightbulb size={16} aria-hidden />
+            <span className="hidden espacoso:inline">Sugestões</span>
+          </button>
           <button
             type="button"
             onClick={() => setColunasAberto(true)}
@@ -107,6 +119,9 @@ export default function BarraCampanha({
       </div>
     </div>
     {colunasAberto && <GerenciarEtapas onFechar={() => setColunasAberto(false)} />}
+    {sugestoesAberto && (
+      <ModalSugestoes campanha={campanha} onFechar={() => setSugestoesAberto(false)} />
+    )}
     </>
   );
 }

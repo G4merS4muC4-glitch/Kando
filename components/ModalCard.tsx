@@ -19,6 +19,8 @@ import {
   ClipboardList,
   Clapperboard,
   MessageSquareText,
+  Lightbulb,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -428,6 +430,25 @@ export default function ModalCard({
             </button>
           )}
         </div>
+
+        {/* Sugestao vinda de fora: quem mandou e a referencia */}
+        {card.externo && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-marca-cinza/30 bg-[#F3EFFB] px-5 py-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: "#6D4FC0" }}>
+              <Lightbulb size={14} aria-hidden /> Sugestão de {card.sugeridoPor || "visitante"}
+            </span>
+            {card.referenciaUrl && (
+              <a
+                href={card.referenciaUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-marca-azulClaro hover:underline"
+              >
+                <Link2 size={13} aria-hidden /> ver referência
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Timer e total de horas apontadas neste card */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2 baixo:py-1">

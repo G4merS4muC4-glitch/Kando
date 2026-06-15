@@ -18,7 +18,7 @@ import AvisoErroCarregar from "./AvisoErroCarregar";
 export default function AppShell({ children }: { children: ReactNode }) {
   const caminho = usePathname();
 
-  if (caminho === "/login" || caminho.startsWith("/c/")) {
+  if (caminho === "/login" || caminho.startsWith("/c/") || caminho.startsWith("/sugerir/")) {
     return <>{children}</>;
   }
 

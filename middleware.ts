@@ -9,9 +9,15 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Rotas publicas: o painel do visitante (/c/...) e seus endpoints (/api/share).
-  // Nao exigem login (o controle de acesso e por token/PIN dentro do endpoint).
-  if (pathname.startsWith("/c/") || pathname.startsWith("/api/share")) {
+  // Rotas publicas (sem login; o controle e por token dentro do endpoint):
+  // - painel do visitante (/c/...) e seus endpoints (/api/share);
+  // - caixa de sugestoes (/sugerir/...) e seu endpoint (/api/sugestao).
+  if (
+    pathname.startsWith("/c/") ||
+    pathname.startsWith("/api/share") ||
+    pathname.startsWith("/sugerir/") ||
+    pathname.startsWith("/api/sugestao")
+  ) {
     return NextResponse.next();
   }
 

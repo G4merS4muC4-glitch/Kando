@@ -91,6 +91,10 @@ export interface CardConteudo {
   teleprompterAjustadoEm?: string; // ISO datetime de quando foi ajustado por um compartilhamento
   legenda: string; // legenda final do post
   responsavel?: string;
+  // Sugestao vinda de fora (link publico /sugerir): cara diferente no quadro.
+  externo?: boolean; // veio de uma sugestao externa
+  sugeridoPor?: string; // nome/e-mail de quem sugeriu
+  referenciaUrl?: string; // link da referencia onde a pessoa viu a ideia
   postadoEm?: string; // ISO datetime de quando foi marcado como postado
   projeto?: ProjetoDados; // fluxo de producao (apenas quando tipo === "projeto")
   criadoEm: string; // ISO datetime
