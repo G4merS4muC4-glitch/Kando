@@ -1,12 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { X, Save, Trash2, Plus } from "lucide-react";
+import { X, Save, Trash2, Plus, ListChecks } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
-import { deInputLocal, formatarDuracao, paraInputLocal } from "@/lib/apontamentos";
+import {
+  checkpointsComDuracao,
+  deInputLocal,
+  formatarDuracao,
+  horaLocal,
+  paraInputLocal,
+} from "@/lib/apontamentos";
 import { agora } from "@/lib/util";
-import type { RegistroTempo } from "@/lib/types";
+import type { Checkpoint, RegistroTempo } from "@/lib/types";
 
 const AVISO_LONGO_MS = 12 * 3_600_000;
 
@@ -32,6 +38,7 @@ export default function ModalEditarRegistro({
   const [inicio, setInicio] = useState(paraInputLocal(registro?.inicio ?? agora()));
   const [fim, setFim] = useState(paraInputLocal(registro?.fim ?? agora()));
   const [nota, setNota] = useState(registro?.nota ?? "");
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(registro?.checkpoints ?? []);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
 
@@ -40,14 +47,16 @@ export default function ModalEditarRegistro({
   const inicioMs = inicioISO ? new Date(inicioISO).getTime() : NaN;
   const fimMs = fimISO ? new Date(fimISO).getTime() : NaN;
   const valido = Number.isFinite(inicioMs) && Number.isFinite(fimMs) && fimMs > inicioMs;
-  const durMs = valido ? fimMs - inicioMs : 0;
+  const pausaMs = registro?.pausaMs ?? 0; // tempo pausado, descontado do trabalhado
+  const durMs = valido ? Math.max(0, fimMs - inicioMs - pausaMs) : 0;
   const durMin = valido ? Math.round(durMs / 60000) : 0;
   const muitoLongo = durMs > AVISO_LONGO_MS;
 
   function mudarDuracaoMin(valor: string) {
     const min = Number(valor);
     if (!inicioISO || !Number.isFinite(min) || min < 0) return;
-    const novoFim = new Date(new Date(inicioISO).getTime() + min * 60000);
+    // A duracao editada e a trabalhada; o termino acomoda a pausa ja registrada.
+    const novoFim = new Date(new Date(inicioISO).getTime() + min * 60000 + pausaMs);
     setFim(paraInputLocal(novoFim.toISOString()));
     setErro(null);
   }
@@ -61,12 +70,23 @@ export default function ModalEditarRegistro({
       setErro("O término precisa ser depois do início.");
       return;
     }
+    if (pausaMs > 0 && durMs <= 0) {
+      setErro("A pausa registrada é maior que o intervalo. Ajuste o início, o término ou a pausa.");
+      return;
+    }
     if (durMs > 24 * 3_600_000) {
       setErro("Esse intervalo passa de 24 horas. Confira o início e o fim.");
       return;
     }
     if (editando && registro) {
-      editarRegistro({ ...registro, cardId, inicio: inicioISO, fim: fimISO, nota });
+      editarRegistro({
+        ...registro,
+        cardId,
+        inicio: inicioISO,
+        fim: fimISO,
+        nota,
+        checkpoints: checkpoints.length > 0 ? checkpoints : undefined,
+      });
     } else {
       adicionarManual(cardId, inicioISO, fimISO, nota);
     }
@@ -182,6 +202,7 @@ export default function ModalEditarRegistro({
             />
             <span className="mt-1 block text-xs text-marca-cinza">
               {valido ? `Equivale a ${formatarDuracao(durMs)}.` : "Ajuste início e término."}
+              {pausaMs > 0 && ` Já descontados ${formatarDuracao(pausaMs)} de pausa.`}
               {muitoLongo && " Intervalo grande, confira os horários."}
             </span>
           </label>
@@ -199,6 +220,48 @@ export default function ModalEditarRegistro({
               className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
             />
           </label>
+
+          {/* Linha do tempo: checkpoints anotados durante o timer (so na edicao). */}
+          {checkpoints.length > 0 && (
+            <div>
+              <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                <ListChecks size={13} aria-hidden /> Linha do tempo
+              </span>
+              <ul className="space-y-0.5 rounded-marca border border-marca-cinza/30 bg-marca-branco p-2">
+                {checkpointsComDuracao(checkpoints, fimISO || agora()).map((cp) => (
+                  <li
+                    key={cp.id}
+                    className="group/cp flex items-start gap-2 rounded px-1 py-0.5 text-sm hover:bg-white"
+                  >
+                    <span className="mt-px shrink-0 font-mono text-[11px] font-semibold tabular-nums text-marca-laranja">
+                      {horaLocal(cp.em)}
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 break-words ${
+                        cp.ehPausa ? "italic text-marca-cinza" : "text-marca-preto"
+                      }`}
+                    >
+                      {cp.texto}
+                    </span>
+                    {!cp.ehPausa && cp.ateMs > 0 && (
+                      <span className="shrink-0 text-[11px] text-marca-cinza">
+                        {formatarDuracao(cp.ateMs)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setCheckpoints((lista) => lista.filter((c) => c.id !== cp.id))}
+                      aria-label="Remover checkpoint"
+                      title="Remover"
+                      className="shrink-0 rounded p-0.5 text-marca-cinza opacity-0 transition hover:text-marca-vermelho focus-visible:opacity-100 group-hover/cp:opacity-100"
+                    >
+                      <X size={13} aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {erro && <p className="text-sm font-semibold text-marca-vermelho">{erro}</p>}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, User } from "lucide-react";
+import { Clock, User, ListChecks } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import type { CardConteudo, Marca, RegistroTempo } from "@/lib/types";
 import { duracaoMs, formatarDuracao, diaDoRegistro, horaLocal } from "@/lib/apontamentos";
@@ -52,6 +52,12 @@ export default function CardRegistro({
           <span className="flex items-center gap-1">
             <User size={11} aria-hidden /> {nomeCurto(registro.autorNome)}
           </span>
+          {registro.checkpoints && registro.checkpoints.length > 0 && (
+            <span className="flex items-center gap-1 font-semibold text-marca-laranja">
+              <ListChecks size={11} aria-hidden /> {registro.checkpoints.length}{" "}
+              {registro.checkpoints.length === 1 ? "ponto" : "pontos"}
+            </span>
+          )}
         </span>
         {registro.nota && (
           <span className="mt-1 block truncate text-xs text-marca-cinza/90">{registro.nota}</span>

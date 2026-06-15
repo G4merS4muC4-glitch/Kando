@@ -10,9 +10,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { RegistroTempo, TimerAtivo } from "./types";
+import type { Checkpoint, RegistroTempo, TimerAtivo } from "./types";
 import { agora, gerarId } from "./util";
-import { duracaoMs } from "./apontamentos";
+import { duracaoMs, formatarDuracao } from "./apontamentos";
 import {
   assinarApontamentos,
   getApontamentos,
@@ -46,6 +46,9 @@ interface ApontamentosStore {
   pararTimer: () => void;
   ajustarEPararTimer: (fimISO: string) => void; // para com horario de termino corrigido
   descartarTimer: () => void; // descarta sem gravar
+  adicionarCheckpoint: (texto: string) => void; // marca um ponto na linha do tempo
+  removerCheckpoint: (indice: number) => void; // remove um marcador
+  alternarPausa: () => void; // pausa/retoma o timer, registrando a pausa no historico
   adicionarManual: (cardId: string, inicioISO: string, fimISO: string, nota?: string) => void;
   editarRegistro: (reg: RegistroTempo) => void;
   excluirRegistro: (id: string) => void;
@@ -131,12 +134,27 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       const t = timerRef.current;
       if (!t) return;
       const ts = agora();
+      // Fecha uma pausa em aberto (parou sem retomar): soma a duracao e registra.
+      let pausaTotal = t.pausaMs ?? 0;
+      const checkpointsFinais = [...(t.checkpoints ?? [])];
+      if (t.pausadoEm) {
+        const dur = Math.max(0, new Date(fimISO).getTime() - new Date(t.pausadoEm).getTime());
+        pausaTotal += dur;
+        checkpointsFinais.push({
+          id: gerarId(),
+          em: t.pausadoEm,
+          texto: `Pausa de ${formatarDuracao(dur)}`,
+          pausaMs: dur,
+        });
+      }
       const reg: RegistroTempo = {
         id: gerarId(),
         cardId: t.cardId,
         inicio: t.inicio,
         fim: fimISO,
         nota: t.nota,
+        checkpoints: checkpointsFinais.length > 0 ? checkpointsFinais : undefined,
+        pausaMs: pausaTotal > 0 ? pausaTotal : undefined,
         autorId: t.autorId,
         autorNome: t.autorNome,
         criadoEm: ts,
@@ -164,6 +182,60 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   const descartarTimer = useCallback(() => {
     if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
     setTimerAtivo(null);
+  }, []);
+
+  /** Anota um marcador na linha do tempo do timer em andamento. */
+  const adicionarCheckpoint = useCallback((texto: string) => {
+    const t = timerRef.current;
+    const txt = texto.trim();
+    if (!t || !txt) return;
+    const cp: Checkpoint = { id: gerarId(), em: agora(), texto: txt };
+    const novo: TimerAtivo = { ...t, checkpoints: [...(t.checkpoints ?? []), cp] };
+    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    setTimerAtivo(novo);
+  }, []);
+
+  /** Remove um marcador (corrige um Enter dado por engano). */
+  const removerCheckpoint = useCallback((indice: number) => {
+    const t = timerRef.current;
+    if (!t || !t.checkpoints) return;
+    const restantes = t.checkpoints.filter((_, i) => i !== indice);
+    const novo: TimerAtivo = {
+      ...t,
+      checkpoints: restantes.length > 0 ? restantes : undefined,
+    };
+    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    setTimerAtivo(novo);
+  }, []);
+
+  /**
+   * Pausa ou retoma o timer. Ao retomar, soma o tempo parado e deixa um marcador
+   * "Pausa de Xmin" na linha do tempo, para a pausa ficar registrada no historico.
+   */
+  const alternarPausa = useCallback(() => {
+    const t = timerRef.current;
+    if (!t) return;
+    let novo: TimerAtivo;
+    if (t.pausadoEm) {
+      const fimIso = agora();
+      const dur = Math.max(0, new Date(fimIso).getTime() - new Date(t.pausadoEm).getTime());
+      const cp: Checkpoint = {
+        id: gerarId(),
+        em: t.pausadoEm, // marca a pausa onde ela comecou, nao no retomo
+        texto: `Pausa de ${formatarDuracao(dur)}`,
+        pausaMs: dur,
+      };
+      novo = {
+        ...t,
+        pausadoEm: undefined,
+        pausaMs: (t.pausaMs ?? 0) + dur,
+        checkpoints: [...(t.checkpoints ?? []), cp],
+      };
+    } else {
+      novo = { ...t, pausadoEm: agora() };
+    }
+    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    setTimerAtivo(novo);
   }, []);
 
   const iniciarTimer = useCallback(
@@ -237,6 +309,9 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       pararTimer,
       ajustarEPararTimer,
       descartarTimer,
+      adicionarCheckpoint,
+      removerCheckpoint,
+      alternarPausa,
       adicionarManual,
       editarRegistro,
       excluirRegistro,
@@ -251,6 +326,9 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       pararTimer,
       ajustarEPararTimer,
       descartarTimer,
+      adicionarCheckpoint,
+      removerCheckpoint,
+      alternarPausa,
       adicionarManual,
       editarRegistro,
       excluirRegistro,

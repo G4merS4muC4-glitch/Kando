@@ -133,6 +133,19 @@ export interface Board {
 }
 
 /**
+ * Marcador na linha do tempo de um apontamento. Enquanto o timer roda, cada
+ * "Enter" no card de tempo flutuante cria um checkpoint com o horario e o que
+ * estava sendo feito naquele instante (ex.: "editando cor"). Ao parar, eles
+ * ficam salvos junto do registro, dando contexto e organizacao depois.
+ */
+export interface Checkpoint {
+  id: string; // identidade estavel (para remover/renderizar sem colisao)
+  em: string; // ISO datetime do marcador
+  texto: string; // o que estava sendo feito
+  pausaMs?: number; // se preenchido, e um marcador de pausa com esta duracao
+}
+
+/**
  * Apontamento de horas: um intervalo trabalhado, vinculado a um card
  * (projeto ou conteudo) e atribuido a quem fez (usuario logado). A duracao NAO
  * e guardada: e sempre calculada por diferenca entre fim e inicio (fonte unica).
@@ -143,6 +156,8 @@ export interface RegistroTempo {
   inicio: string; // ISO datetime
   fim: string; // ISO datetime
   nota?: string; // o que estava sendo feito
+  checkpoints?: Checkpoint[]; // linha do tempo do que foi feito durante o intervalo
+  pausaMs?: number; // tempo total pausado (descontado da duracao trabalhada)
   autorId: string; // id do usuario logado (ou "local" no modo sem login)
   autorNome: string; // e-mail/apelido para exibir
   criadoEm: string; // ISO datetime
@@ -159,6 +174,9 @@ export interface TimerAtivo {
   cardId: string;
   inicio: string; // ISO datetime
   nota?: string;
+  checkpoints?: Checkpoint[]; // marcadores anotados enquanto o timer roda
+  pausaMs?: number; // tempo ja acumulado em pausas concluidas
+  pausadoEm?: string; // ISO de quando a pausa atual comecou (ausente = rodando)
   autorId: string;
   autorNome: string;
 }

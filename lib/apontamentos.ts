@@ -6,14 +6,14 @@
  * dia de inicio; o caso raro de timer esquecido e mitigado pelo aviso ao parar).
  */
 
-import type { RegistroTempo } from "./types";
+import type { Checkpoint, RegistroTempo } from "./types";
 import { chaveData } from "./util";
 
 const UMA_HORA_MS = 3_600_000;
 
-/** Duracao do registro em milissegundos (nunca negativa). */
-export function duracaoMs(reg: { inicio: string; fim: string }): number {
-  const ms = new Date(reg.fim).getTime() - new Date(reg.inicio).getTime();
+/** Duracao trabalhada do registro em ms (intervalo menos as pausas, nunca negativa). */
+export function duracaoMs(reg: { inicio: string; fim: string; pausaMs?: number }): number {
+  const ms = new Date(reg.fim).getTime() - new Date(reg.inicio).getTime() - (reg.pausaMs ?? 0);
   return Number.isFinite(ms) && ms > 0 ? ms : 0;
 }
 
@@ -21,6 +21,19 @@ export function duracaoMs(reg: { inicio: string; fim: string }): number {
 export function corridoMs(inicioISO: string, agoraMs: number): number {
   const ms = agoraMs - new Date(inicioISO).getTime();
   return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+
+/**
+ * Tempo efetivamente trabalhado de um timer em andamento: o corrido menos as
+ * pausas ja concluidas e a pausa em aberto (quando pausado, o numero congela).
+ */
+export function tempoTrabalhadoMs(
+  timer: { inicio: string; pausaMs?: number; pausadoEm?: string },
+  agoraMs: number
+): number {
+  const emPausa = timer.pausadoEm ? Math.max(0, agoraMs - new Date(timer.pausadoEm).getTime()) : 0;
+  const liquido = corridoMs(timer.inicio, agoraMs) - (timer.pausaMs ?? 0) - emPausa;
+  return liquido > 0 ? liquido : 0;
 }
 
 /** Em horas (numero), util para somar e plotar nos graficos. */
@@ -66,6 +79,49 @@ export function horaLocal(iso: string): string {
   const d = new Date(iso);
   const dois = (n: number) => String(n).padStart(2, "0");
   return `${dois(d.getHours())}:${dois(d.getMinutes())}`;
+}
+
+/**
+ * Ordena os checkpoints e calcula quanto durou cada etapa (do marcador ate o
+ * proximo, ou ate o fim do intervalo para o ultimo). Usado na linha do tempo.
+ */
+export function checkpointsComDuracao(
+  checkpoints: Checkpoint[] | undefined,
+  fimISO: string
+): { id: string; em: string; texto: string; ateMs: number; ehPausa: boolean }[] {
+  if (!checkpoints || checkpoints.length === 0) return [];
+  const ordenados = [...checkpoints].sort(
+    (a, b) => new Date(a.em).getTime() - new Date(b.em).getTime()
+  );
+  const fimMs = new Date(fimISO).getTime();
+  // Janelas pausadas (inicio do marcador de pausa ate inicio + duracao), para
+  // descontar de cada trecho de trabalho e nao inflar o marcador que as contem.
+  const pausas = ordenados
+    .filter((c) => c.pausaMs && c.pausaMs > 0)
+    .map((c) => {
+      const s = new Date(c.em).getTime();
+      return [s, s + (c.pausaMs as number)] as const;
+    });
+  const sobreposicao = (ini: number, fim: number) => {
+    let t = 0;
+    for (const [pIni, pFim] of pausas) {
+      const lo = Math.max(ini, pIni);
+      const hi = Math.min(fim, pFim);
+      if (hi > lo) t += hi - lo;
+    }
+    return t;
+  };
+  return ordenados.map((cp, i) => {
+    const ini = new Date(cp.em).getTime();
+    const prox = i + 1 < ordenados.length ? new Date(ordenados[i + 1].em).getTime() : fimMs;
+    // Marcador de pausa: a duracao e a propria pausa (nao e trabalho).
+    if (cp.pausaMs && cp.pausaMs > 0) {
+      return { id: cp.id, em: cp.em, texto: cp.texto, ateMs: cp.pausaMs, ehPausa: true };
+    }
+    const bruto = Number.isFinite(prox) && prox > ini ? prox - ini : 0;
+    const ateMs = Math.max(0, bruto - sobreposicao(ini, prox));
+    return { id: cp.id, em: cp.em, texto: cp.texto, ateMs, ehPausa: false };
+  });
 }
 
 /** ISO -> valor de <input type="datetime-local"> (horario local). */
