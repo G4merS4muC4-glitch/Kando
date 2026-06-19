@@ -21,6 +21,8 @@ import {
   MessageSquareText,
   Lightbulb,
   Link2,
+  Maximize2,
+  Minimize2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -93,6 +95,27 @@ export default function ModalCard({
   const [copiadoTp, setCopiadoTp] = useState(false);
   const [copiadoLegenda, setCopiadoLegenda] = useState(false);
   const [compartilharAberto, setCompartilharAberto] = useState(false);
+  // Maximizar: o card ocupa a tela inteira (visao completa). A preferencia fica
+  // lembrada no aparelho, entao os proximos cards ja abrem do jeito escolhido.
+  const [maximizado, setMaximizado] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem("kando:card-maximizado") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function alternarMaximizado() {
+    setMaximizado((m) => {
+      const novo = !m;
+      try {
+        window.localStorage.setItem("kando:card-maximizado", novo ? "1" : "0");
+      } catch {
+        // sem localStorage: apenas nao lembra a preferencia
+      }
+      return novo;
+    });
+  }
   const tituloRef = useRef<HTMLInputElement>(null);
   // Botao "Salvar e fechar" flutuante no mobile: visivel enquanto rola; some
   // quando o rodape (com os outros dois botoes) aparece no fim do conteudo.
@@ -356,14 +379,20 @@ export default function ModalCard({
   return (
     <>
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-marca-preto/50 p-0 animate-fadeIn espacoso:items-center espacoso:p-4"
+      className={`fixed inset-0 z-50 flex items-stretch justify-center bg-marca-preto/50 animate-fadeIn ${
+        maximizado ? "p-0" : "p-0 espacoso:items-center espacoso:p-4"
+      }`}
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
       aria-label={`Detalhe do conteúdo: ${card.titulo || "sem título"}`}
     >
       <div
-        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal espacoso:h-[660px] espacoso:max-h-[90vh] espacoso:max-w-2xl espacoso:rounded-marca"
+        className={`flex h-full w-full flex-col overflow-hidden bg-white shadow-modal ${
+          maximizado
+            ? "max-w-none rounded-none"
+            : "espacoso:h-[660px] espacoso:max-h-[90vh] espacoso:max-w-2xl espacoso:rounded-marca"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabecalho do modal */}
@@ -387,14 +416,25 @@ export default function ModalCard({
               </h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onFechar}
-            aria-label="Fechar"
-            className="rounded-marca p-2 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-laranja"
-          >
-            <X size={20} aria-hidden />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={alternarMaximizado}
+              aria-label={maximizado ? "Restaurar tamanho" : "Maximizar (tela cheia)"}
+              title={maximizado ? "Restaurar" : "Maximizar (tela cheia)"}
+              className="hidden rounded-marca p-2 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-laranja espacoso:block"
+            >
+              {maximizado ? <Minimize2 size={18} aria-hidden /> : <Maximize2 size={18} aria-hidden />}
+            </button>
+            <button
+              type="button"
+              onClick={onFechar}
+              aria-label="Fechar"
+              className="rounded-marca p-2 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-laranja"
+            >
+              <X size={20} aria-hidden />
+            </button>
+          </div>
         </div>
 
         {/* Acao rapida de status: marcar como postado ou reabrir */}
