@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   ListChecks,
   CalendarDays,
+  Shuffle,
 } from "lucide-react";
 import { TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
@@ -47,6 +48,7 @@ import {
   type DataComemorativa,
 } from "@/lib/datasComemorativas";
 import ModalCard from "./ModalCard";
+import ModalRedistribuir from "./ModalRedistribuir";
 
 const COR_COMEMORATIVA = "#F59E0B"; // amarelo das datas comemorativas
 
@@ -82,8 +84,11 @@ export default function Calendario() {
   const [visao, setVisao] = useState<"mes" | "agenda">("mes");
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
+  // Tamanho exato do card arrastado, para o fantasma do arraste nao mudar de tamanho.
+  const [tamanhoArrasto, setTamanhoArrasto] = useState<{ w?: number; h?: number }>({});
   const [diaPulsando, setDiaPulsando] = useState<string | null>(null);
   const [diaAberto, setDiaAberto] = useState<string | null>(null);
+  const [redistribuirAberto, setRedistribuirAberto] = useState(false);
   // So renderiza a grade depois de montar no cliente (evita divergencia de data).
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
@@ -235,6 +240,8 @@ export default function Calendario() {
   }
 
   function aoIniciar(e: DragStartEvent) {
+    const r = e.active.rect.current.initial;
+    setTamanhoArrasto({ w: r?.width, h: r?.height });
     setArrastandoId(String(e.active.id));
   }
 
@@ -285,6 +292,16 @@ export default function Calendario() {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Redistribuir automaticamente */}
+              <button
+                type="button"
+                onClick={() => setRedistribuirAberto(true)}
+                title="Redistribuir os conteúdos pelos dias automaticamente"
+                className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 bg-white px-3 py-1.5 text-sm font-semibold text-marca-azulEscuro transition hover:border-marca-laranja hover:text-marca-laranja"
+              >
+                <Shuffle size={15} aria-hidden />
+                <span className="hidden sm:inline">Redistribuir</span>
+              </button>
               {/* Alternador Mes / Agenda */}
               <div className="flex rounded-marca border border-marca-cinza/30 bg-white p-0.5">
                 <BotaoVisao ativo={visao === "mes"} onClick={() => setVisao("mes")} icone={<LayoutGrid size={15} aria-hidden />}>
@@ -383,7 +400,9 @@ export default function Calendario() {
                         cards={porDia.get(dia.chave) ?? []}
                         comemorativa={comemorativasDoMes.get(dia.chave)}
                         marcaDoCard={marcaDoCard}
+                        arrastandoId={arrastandoId}
                         onAbrir={() => setDiaAberto(dia.chave)}
+                        onAbrirCard={setSelecionadoId}
                       />
                     ))}
                   </div>
@@ -424,7 +443,12 @@ export default function Calendario() {
 
         <DragOverlay>
           {cardArrastado ? (
-            <ChipPreview titulo={cardArrastado.titulo} cor={corDoCard(marcaPorId, marcaDoCard(cardArrastado))} />
+            <ChipPreview
+              titulo={cardArrastado.titulo}
+              cor={corDoCard(marcaPorId, marcaDoCard(cardArrastado))}
+              largura={tamanhoArrasto.w}
+              altura={tamanhoArrasto.h}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -456,14 +480,17 @@ export default function Calendario() {
           onFechar={() => setSelecionadoId(null)}
         />
       )}
+
+      {redistribuirAberto && <ModalRedistribuir onFechar={() => setRedistribuirAberto(false)} />}
     </div>
   );
 }
 
 /**
  * Celula quadrada de um dia: area de drop + abre o detalhe ao tocar. No desktop,
- * cada mini etiqueta e arrastavel, entao da para mover um conteudo para outro dia
- * (ou para a lista "Sem data") arrastando direto do calendario.
+ * os conteudos do dia ficam empilhados como uma "gaveta de arquivos" (2 visiveis
+ * e um sinal de que ha mais atras); ao passar o mouse a gaveta abre, mostrando o
+ * titulo de cada card para clicar/abrir ou arrastar para outro dia.
  */
 function DiaCelula({
   chave,
@@ -475,7 +502,9 @@ function DiaCelula({
   cards,
   comemorativa,
   marcaDoCard,
+  arrastandoId,
   onAbrir,
+  onAbrirCard,
 }: {
   chave: string;
   numero: number;
@@ -486,10 +515,30 @@ function DiaCelula({
   cards: CardConteudo[];
   comemorativa?: DataComemorativa;
   marcaDoCard: (c: CardConteudo) => Marca | undefined;
+  arrastandoId: string | null;
   onAbrir: () => void;
+  onAbrirCard: (id: string) => void;
 }) {
   const { marcaPorId } = useBoard();
   const { setNodeRef, isOver } = useDroppable({ id: chave });
+  const [hover, setHover] = useState(false);
+  // A gaveta fica aberta ao passar o mouse e continua aberta enquanto um card
+  // deste dia esta sendo arrastado (para nao desmontar a origem no meio do arraste).
+  const aberto = hover || cards.some((c) => c.id === arrastandoId);
+
+  // Mede a altura da area util da celula (abaixo do numero) para centralizar a
+  // pilha aberta, espalhando os cartoes para cima e para baixo.
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [areaH, setAreaH] = useState(0);
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const medir = () => setAreaH(el.clientHeight);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div
@@ -497,6 +546,8 @@ function DiaCelula({
       role="button"
       tabIndex={0}
       onClick={onAbrir}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -504,9 +555,9 @@ function DiaCelula({
         }
       }}
       aria-label={`${numero}, ${cards.length} conteúdo(s)`}
-      className={`group relative flex aspect-square cursor-pointer flex-col overflow-hidden rounded-marca border p-1 text-left outline-none transition will-change-transform focus-visible:ring-2 focus-visible:ring-marca-laranja sm:p-1.5 ${
+      className={`group relative flex aspect-square cursor-pointer flex-col rounded-marca border p-1 text-left outline-none transition will-change-transform focus-visible:ring-2 focus-visible:ring-marca-laranja sm:min-h-[116px] sm:p-1.5 ${
         noMes ? "bg-marca-branco/40" : "bg-white"
-      } ${
+      } ${aberto ? "z-20 overflow-visible" : "overflow-hidden"} ${
         isOver
           ? "border-marca-laranja ring-2 ring-marca-laranja/60"
           : selecionado
@@ -550,49 +601,171 @@ function DiaCelula({
         )}
       </div>
 
-      {/* Desktop: mini etiquetas arrastaveis (mover para outro dia) */}
-      <div className="mt-1.5 hidden flex-col gap-0.5 overflow-hidden sm:flex">
-        {cards.slice(0, 3).map((c) => (
-          <EtiquetaDia
-            key={c.id}
-            card={c}
-            cor={corDoCard(marcaPorId, marcaDoCard(c))}
-            onAbrir={onAbrir}
-          />
-        ))}
-        {cards.length > 3 && (
-          <span className="px-1 text-[11px] font-bold text-marca-cinza">+{cards.length - 3} mais</span>
-        )}
+      {/* Desktop: gaveta de cards empilhados (abre ao passar o mouse) */}
+      <div ref={areaRef} className="relative mt-1.5 hidden flex-1 sm:block">
+        <PilhaDia
+          cards={cards}
+          aberto={aberto}
+          areaH={areaH}
+          marcaPorId={marcaPorId}
+          marcaDoCard={marcaDoCard}
+          onAbrirCard={onAbrirCard}
+        />
       </div>
     </div>
   );
 }
 
-/** Mini etiqueta de um conteudo numa celula: arrastavel para reagendar em outro dia. */
-function EtiquetaDia({
+// Pilha (gaveta) do dia. Cartoes quadradinhos, flutuando (posicao absoluta, para
+// nao esticar o calendario). Fechada: so o da frente inteiro e a ponta de ate 2
+// de tras espiando PARA CIMA. Aberta (hover na celula): a pilha se abre CENTRADA
+// no dia, espalhando os cartoes para cima E para baixo (nao empilha tudo embaixo),
+// por cima dos vizinhos; o card sob o cursor fica isolado por um espaco e nao muda
+// de tamanho. Uma base transparente cobre toda a pilha aberta para o mouse poder
+// percorrer os cartoes (e os vaos entre eles) sem "vazar" para o dia de baixo e
+// fechar a gaveta.
+const PILHA_H = 46; // altura fixa de um cartao (quadradinho); NAO muda nunca
+const PILHA_PONTA = 11; // quanto cada card de tras espia (fechado, para cima)
+const PILHA_STEP = 22; // passo entre cartoes quando aberto (sobrepostos, so o titulo)
+const PILHA_SEP = 34; // empurrao que isola o card sob o cursor (abre espaco em volta)
+
+function PilhaDia({
+  cards,
+  aberto,
+  areaH,
+  marcaPorId,
+  marcaDoCard,
+  onAbrirCard,
+}: {
+  cards: CardConteudo[];
+  aberto: boolean;
+  areaH: number;
+  marcaPorId: (id: string) => MarcaOrg;
+  marcaDoCard: (c: CardConteudo) => Marca | undefined;
+  onAbrirCard: (id: string) => void;
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  // So zera o foco ao FECHAR (sair da celula). Enquanto aberto, passar por um vao
+  // vazio nao reseta nada (a base transparente segura o hover): o foco so muda ao
+  // entrar noutro card, evitando piscadas.
+  useEffect(() => {
+    if (!aberto) setHoverIdx(null);
+  }, [aberto]);
+  if (cards.length === 0) return null;
+  const cor = (c: CardConteudo) => corDoCard(marcaPorId, marcaDoCard(c));
+  const n = cards.length;
+  const pontas = Math.min(n - 1, 2); // quantos espiam por tras (fechado)
+
+  // Fechado: frente embaixo; os de tras espiam PARA CIMA. Do 4o em diante, somem.
+  const topoFechado = (i: number) => {
+    if (i === 0 || i > pontas) return pontas * PILHA_PONTA;
+    return (pontas - i) * PILHA_PONTA;
+  };
+
+  // Aberto: pilha centrada na celula, espalhada para cima E para baixo. O card sob
+  // o cursor (hoverIdx) fica parado; os de cima sobem e os de baixo descem PILHA_SEP,
+  // abrindo um espaco em volta dele. Ninguem muda de tamanho.
+  const centro = (areaH || 88) / 2;
+  const baseH = (n - 1) * PILHA_STEP + PILHA_H;
+  const topoAberto = (i: number) => {
+    let t = centro - baseH / 2 + i * PILHA_STEP;
+    if (hoverIdx !== null) {
+      if (i < hoverIdx) t -= PILHA_SEP;
+      else if (i > hoverIdx) t += PILHA_SEP;
+    }
+    return t;
+  };
+
+  // Extensao vertical real da pilha aberta, para a base transparente cobrir
+  // exatamente os cartoes e os vaos entre eles (nem mais, nem menos).
+  const toposAbertos = cards.map((_, i) => topoAberto(i));
+  const baseTopo = Math.min(...toposAbertos) - 3;
+  const baseFundo = Math.max(...toposAbertos) + PILHA_H + 3;
+
+  return (
+    <div className="absolute inset-x-0 top-0">
+      {/* Base transparente: cobre a pilha aberta (cartoes e os vaos entre eles)
+          para o mouse percorre-la sem vazar para o dia vizinho, que fecharia a
+          gaveta. Mais larga que o cartao (left/right negativos) para tapar tambem
+          as tiras de padding sobre o dia de baixo. So existe quando aberto e nao
+          rouba o clique da celula. */}
+      {aberto && (
+        <div
+          aria-hidden
+          onClick={(e) => e.stopPropagation()}
+          className="absolute"
+          style={{ top: baseTopo, height: baseFundo - baseTopo, left: -10, right: -10 }}
+        />
+      )}
+      {cards.map((c, i) => (
+        <ChipPilha
+          key={c.id}
+          card={c}
+          cor={cor(c)}
+          topo={aberto ? topoAberto(i) : topoFechado(i)}
+          z={aberto && hoverIdx === i ? 60 : n - i}
+          brilho={!aberto && i > 0 ? 1 - Math.min(i, 3) * 0.05 : 1}
+          destacado={aberto && hoverIdx === i}
+          onEntrar={() => setHoverIdx(i)}
+          onAbrir={onAbrirCard}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Cartao colorido de uma pilha do dia: flutua (absoluto), tamanho fixo. Sob o
+ *  mouse ele so vem para a frente e empurra os de baixo (nao muda de tamanho). */
+function ChipPilha({
   card,
   cor,
+  topo,
+  z,
+  brilho,
+  destacado,
+  onEntrar,
   onAbrir,
 }: {
   card: CardConteudo;
   cor: string;
-  onAbrir: () => void;
+  topo: number;
+  z: number;
+  brilho: number;
+  destacado: boolean;
+  onEntrar: () => void;
+  onAbrir: (id: string) => void;
 }) {
-  const { listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
   return (
     <button
       ref={setNodeRef}
+      {...attributes}
       {...listeners}
+      // Fora da ordem de tabulacao: sao um atalho de mouse; o teclado usa a
+      // celula do dia (Enter abre o detalhe com a lista acessivel de conteudos).
+      tabIndex={-1}
       type="button"
+      onMouseEnter={onEntrar}
       onClick={(e) => {
         e.stopPropagation();
-        onAbrir();
+        onAbrir(card.id);
       }}
-      style={{ backgroundColor: cor, opacity: isDragging ? 0.4 : 1 }}
-      className="block w-full cursor-grab truncate rounded px-1.5 py-0.5 text-left text-[11px] font-semibold text-white animate-pop active:cursor-grabbing"
+      style={{
+        height: PILHA_H,
+        // Anima por transform (composto na GPU, sem recalculo de layout a cada
+        // quadro) em vez de "top": abertura e empurrao ficam bem mais suaves.
+        transform: `translateY(${topo}px)`,
+        zIndex: z,
+        backgroundColor: cor,
+        filter: `brightness(${brilho})`,
+        opacity: isDragging ? 0.35 : 1,
+      }}
+      className={`absolute inset-x-0 top-0 block cursor-grab overflow-hidden rounded-marca px-2 py-2 text-left text-[11px] font-semibold leading-tight text-white ring-1 ring-black/5 transition-[transform,filter,box-shadow] duration-[280ms] ease-suave will-change-transform active:cursor-grabbing ${
+        destacado ? "shadow-cardHover" : "shadow-md"
+      }`}
       title={card.titulo}
     >
-      {card.titulo}
+      <span className="line-clamp-2">{card.titulo}</span>
     </button>
   );
 }
@@ -990,13 +1163,23 @@ function ChipCard({
   );
 }
 
-function ChipPreview({ titulo, cor }: { titulo: string; cor: string }) {
+function ChipPreview({
+  titulo,
+  cor,
+  largura,
+  altura,
+}: {
+  titulo: string;
+  cor: string;
+  largura?: number;
+  altura?: number;
+}) {
   return (
     <div
-      className="flex max-w-[220px] items-center gap-1.5 rounded-marca px-2 py-1.5 text-xs font-semibold text-white shadow-cardHover"
-      style={{ backgroundColor: cor }}
+      className="overflow-hidden rounded-marca px-2 py-2 text-[11px] font-semibold leading-tight text-white shadow-cardHover ring-1 ring-black/5"
+      style={{ backgroundColor: cor, width: largura, height: altura }}
     >
-      <span className="truncate">{titulo}</span>
+      <span className="line-clamp-2">{titulo}</span>
     </div>
   );
 }

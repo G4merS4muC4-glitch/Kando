@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useBoard } from "@/lib/store";
+import { gravarUltimaCampanha } from "@/lib/ultimaCampanha";
 import type { Etapa, FiltrosState } from "@/lib/types";
 import BarraCampanha from "@/components/BarraCampanha";
 import Filtros from "@/components/Filtros";
@@ -40,6 +41,11 @@ export default function PaginaCampanha() {
   const campanha = campanhaPorId(id);
   const cardsCampanha = cardsDaCampanha(id);
   const temas = temasDaCampanha(id);
+
+  // Lembra esta como a ultima campanha aberta (o menu "Campanhas" volta para ca).
+  useEffect(() => {
+    if (id && campanha) gravarUltimaCampanha(id);
+  }, [id, campanha?.id]);
 
   function aplicarFiltros(parcial: Partial<FiltrosState>) {
     setFiltros((atual) => ({ ...atual, ...parcial }));
@@ -80,7 +86,7 @@ export default function PaginaCampanha() {
       <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
         <p className="text-marca-cinza">Campanha não encontrada.</p>
         <Link
-          href="/"
+          href="/campanhas"
           className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white"
         >
           <ArrowLeft size={16} aria-hidden />

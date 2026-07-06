@@ -12,8 +12,9 @@ import {
   ListChecks,
   Lightbulb,
   Link2,
+  Flag,
 } from "lucide-react";
-import { CANAIS } from "@/lib/config";
+import { CANAIS, PRIORIDADES } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import type { CardConteudo } from "@/lib/types";
 import { formatarData, prazoVencido } from "@/lib/util";
@@ -41,6 +42,8 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   const vencido = prazoVencido(card.dataPublicacao, card.etapa, etapaPostado.id);
   // Progresso interno do projeto (independente da etapa do quadro).
   const prog = card.tipo === "projeto" ? contarProgresso(card.projeto) : null;
+  // Prioridade: faixa colorida na borda esquerda e chip (leitura rapida).
+  const prio = card.prioridade ? PRIORIDADES[card.prioridade] : null;
 
   // Acao rapida do botao de check: postar ou reabrir.
   function acaoRapida(e: React.MouseEvent) {
@@ -100,10 +103,21 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
         )}
 
         <div className="relative z-10">
-        {/* Cabecalho: tipo, acao rapida e abrir */}
+        {/* Cabecalho: tipo, prioridade, acao rapida e abrir */}
         <div className="mb-2 flex items-start justify-between gap-2">
-          <BadgeTipo tipo={card.tipo} />
-          <div className="flex items-center gap-0.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <BadgeTipo tipo={card.tipo} />
+            {prio && (
+              <span
+                className="inline-flex items-center gap-1 rounded-marca px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+                style={{ backgroundColor: prio.cor }}
+                title={`Prioridade ${prio.label}`}
+              >
+                <Flag size={10} aria-hidden /> {prio.label}
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-0.5">
             <button
               type="button"
               aria-label={acaoConfig.titulo}

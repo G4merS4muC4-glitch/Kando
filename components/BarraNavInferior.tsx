@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, CalendarDays, Timer } from "lucide-react";
+import { useBoard } from "@/lib/store";
+import { useUltimaCampanha } from "@/lib/ultimaCampanha";
 
 /**
  * Barra de navegacao inferior (somente mobile). Fica ao alcance do polegar, com
@@ -14,13 +16,17 @@ import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
  */
 export default function BarraNavInferior() {
   const caminho = usePathname() ?? "";
+  const { campanhaPorId } = useBoard();
+  const ultima = useUltimaCampanha();
 
-  // Dentro de uma campanha a barra inferior some (volta pelo botao de voltar da
-  // barra da campanha). Ela aparece nas telas principais (inicial, calendario,
-  // horas), nao no detalhe de uma campanha.
-  if (caminho.startsWith("/campanha")) return null;
+  // Dentro do DETALHE de uma campanha (/campanha/<id>) a barra some (volta pelo
+  // botao de voltar da barra da campanha). Ela aparece nas telas principais.
+  if (caminho.startsWith("/campanha/")) return null;
 
-  const noQuadro = caminho === "/";
+  // "Campanhas" volta para a ultima campanha aberta (se ainda existe); senao, lista.
+  const hrefCampanhas = ultima && campanhaPorId(ultima) ? `/campanha/${ultima}` : "/campanhas";
+  const noPainel = caminho === "/";
+  const noCampanhas = caminho.startsWith("/campanhas");
   const noCalendario = caminho.startsWith("/calendario");
   const noHoras = caminho.startsWith("/horas");
 
@@ -29,7 +35,10 @@ export default function BarraNavInferior() {
       aria-label="Navegação principal"
       className="flex border-t border-marca-cinza/20 bg-white pb-[env(safe-area-inset-bottom)] espacoso:hidden"
     >
-      <ItemNav href="/" ativo={noQuadro} icone={<LayoutGrid size={20} aria-hidden />}>
+      <ItemNav href="/" ativo={noPainel} icone={<LayoutDashboard size={20} aria-hidden />}>
+        Painel
+      </ItemNav>
+      <ItemNav href={hrefCampanhas} ativo={noCampanhas} icone={<LayoutGrid size={20} aria-hidden />}>
         Campanhas
       </ItemNav>
       <ItemNav href="/calendario" ativo={noCalendario} icone={<CalendarDays size={20} aria-hidden />}>

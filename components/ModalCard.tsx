@@ -23,12 +23,15 @@ import {
   Link2,
   Maximize2,
   Minimize2,
+  Flag,
   type LucideIcon,
 } from "lucide-react";
 import {
   CANAIS,
   CANAIS_ORDEM,
   LIMITE_LEGENDA_PADRAO,
+  PRIORIDADES,
+  PRIORIDADES_ORDEM,
   TIPOS,
   TIPOS_ORDEM,
 } from "@/lib/config";
@@ -36,7 +39,7 @@ import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { formatarDuracao } from "@/lib/apontamentos";
 import { useCanalTeleprompter } from "@/lib/teleprompterAoVivo";
-import type { Canal, CardConteudo, Etapa, TipoConteudo } from "@/lib/types";
+import type { Canal, CardConteudo, Etapa, Prioridade, TipoConteudo } from "@/lib/types";
 import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
@@ -162,6 +165,8 @@ export default function ModalCard({
   }, [aba]);
 
   const ehProjeto = card.tipo === "projeto";
+  // Roteiro e Teleprompter so fazem sentido em video: apenas Reels os mostra.
+  const ehReels = card.tipo === "reels";
 
   // A aba Projeto so existe para cards do tipo projeto. Se o tipo mudar enquanto
   // a aba Projeto esta aberta, volta para a Visao Geral.
@@ -169,10 +174,25 @@ export default function ModalCard({
     if (aba === "projeto" && !ehProjeto) setAba("visao");
   }, [aba, ehProjeto]);
 
-  // Lista de abas: insere "Projeto" logo apos "Visao Geral" quando for projeto.
-  const abas: { id: Aba; rotulo: string; icone: LucideIcon }[] = ehProjeto
-    ? [ABAS[0], { id: "projeto", rotulo: "Projeto", icone: ListChecks }, ...ABAS.slice(1)]
-    : ABAS;
+  // A aba Roteiro so existe em Reels. Se o tipo mudar com ela aberta, volta.
+  useEffect(() => {
+    if (aba === "roteiro" && !ehReels) setAba("visao");
+  }, [aba, ehReels]);
+
+  // Projeto nao precisa de Legenda (site, produto etc.). Se estiver nela, volta.
+  useEffect(() => {
+    if (aba === "legenda" && ehProjeto) setAba("visao");
+  }, [aba, ehProjeto]);
+
+  // Lista de abas: Projeto logo apos Visao Geral (so em projeto); Roteiro so em
+  // Reels; Legenda em tudo menos projeto (que nao precisa de legenda).
+  const abas: { id: Aba; rotulo: string; icone: LucideIcon }[] = [
+    ABAS[0], // Visao Geral
+    ...(ehProjeto ? [{ id: "projeto" as Aba, rotulo: "Projeto", icone: ListChecks }] : []),
+    ABAS[1], // Briefing
+    ...(ehReels ? [ABAS[2]] : []), // Roteiro (so Reels)
+    ...(ehProjeto ? [] : [ABAS[3]]), // Legenda (projeto nao precisa)
+  ];
 
   /**
    * Atualiza um campo e persiste imediatamente (auto-save).
@@ -598,6 +618,46 @@ export default function ModalCard({
                   onChange={(v) => mudarEtapa(v as Etapa)}
                   opcoes={etapas.map((c) => ({ valor: c.id, rotulo: c.titulo }))}
                 />
+              </Campo>
+
+              <Campo rotulo="Prioridade" className="sm:col-span-2">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => atualizarCampo("prioridade", undefined)}
+                    aria-pressed={!card.prioridade}
+                    className={`rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
+                      !card.prioridade
+                        ? "border-marca-azulEscuro bg-marca-azulEscuro text-white"
+                        : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
+                    }`}
+                  >
+                    Nenhuma
+                  </button>
+                  {PRIORIDADES_ORDEM.map((p) => {
+                    const cfg = PRIORIDADES[p];
+                    const ativo = card.prioridade === p;
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => atualizarCampo("prioridade", p as Prioridade)}
+                        aria-pressed={ativo}
+                        style={
+                          ativo
+                            ? { backgroundColor: cfg.cor, borderColor: cfg.cor }
+                            : { color: cfg.cor, borderColor: cfg.cor }
+                        }
+                        className={`flex items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
+                          ativo ? "text-white" : "bg-white hover:brightness-95"
+                        }`}
+                      >
+                        <Flag size={14} aria-hidden />
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </Campo>
 
               <Campo rotulo="Canais" className="sm:col-span-2">

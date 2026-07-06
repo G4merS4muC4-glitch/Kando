@@ -373,10 +373,9 @@ export default function CartaoTimerFlutuante() {
         <button
           type="button"
           onClick={enviarCheckpoint}
-          disabled={rascunho.trim() === ""}
           aria-label="Marcar checkpoint"
           title="Marcar checkpoint (Enter)"
-          className="flex shrink-0 items-center justify-center rounded-full bg-marca-laranja p-2 text-white transition hover:brightness-95 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex shrink-0 items-center justify-center rounded-full bg-marca-laranja p-2 text-white transition hover:brightness-95 active:scale-90"
         >
           <CornerDownLeft size={16} aria-hidden />
         </button>
@@ -400,7 +399,7 @@ export default function CartaoTimerFlutuante() {
           {aberto && Painel}
 
           <div
-            className={`tp-glass tp-glass-laranja ${pausado ? "tp-glass-pausado" : ""} ${
+            className={`tp-solido-azul ${pausado ? "tp-glass-pausado" : ""} ${
               arrastando ? "tp-glass-elevado" : ""
             }`}
           >

@@ -9,6 +9,7 @@ import Topo from "./Topo";
 import BarraNavInferior from "./BarraNavInferior";
 import CartaoTimerFlutuante from "./CartaoTimerFlutuante";
 import AvisoErroCarregar from "./AvisoErroCarregar";
+import GuardaSenha from "./GuardaSenha";
 
 /**
  * Casca da aplicacao. Resolve primeiro a organizacao ativa (OrgProvider) e so
@@ -50,19 +51,21 @@ function ShellComOrg({ children }: { children: ReactNode }) {
   }
 
   return (
-    <BoardProvider>
-      <ApontamentosProvider>
-        <AvisoErroCarregar />
-        <div className="flex h-dvh flex-col bg-marca-branco">
-          <Topo />
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          {/* Barra de navegacao do mobile (no desktop some e a navegacao fica no
-              topo). O timer ativo aparece no card flutuante, sobre qualquer pagina. */}
-          <BarraNavInferior />
-          <CartaoTimerFlutuante />
-        </div>
-      </ApontamentosProvider>
-    </BoardProvider>
+    <GuardaSenha>
+      <BoardProvider>
+        <ApontamentosProvider>
+          <AvisoErroCarregar />
+          <div className="flex h-dvh flex-col bg-marca-branco">
+            <Topo />
+            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            {/* Barra de navegacao do mobile (no desktop some e a navegacao fica no
+                topo). O timer ativo aparece no card flutuante, sobre qualquer pagina. */}
+            <BarraNavInferior />
+            <CartaoTimerFlutuante />
+          </div>
+        </ApontamentosProvider>
+      </BoardProvider>
+    </GuardaSenha>
   );
 }
 

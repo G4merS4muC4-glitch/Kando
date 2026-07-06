@@ -37,7 +37,7 @@ export default function BarraCampanha({
         {/* Voltar e identificacao da campanha */}
         <div className="flex shrink-0 items-center gap-3">
           <Link
-            href="/"
+            href="/campanhas"
             aria-label="Voltar para campanhas"
             title="Voltar para campanhas"
             className="rounded-marca p-2 text-marca-cinza transition hover:bg-marca-branco hover:text-marca-azulEscuro"

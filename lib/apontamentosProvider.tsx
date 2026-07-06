@@ -22,6 +22,7 @@ import {
   salvarTimerLocal,
 } from "./apontamentosStorage";
 import { useOrg } from "./orgProvider";
+import { lerConfigAutoParada, limiteAutoParada } from "./autoParada";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
 
 /**
@@ -291,6 +292,31 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     },
     [aplicar]
   );
+
+  // Parada automatica: encerra o timer sozinho no limite configurado (horario do
+  // dia e/ou maximo de horas). Confere no load (pega o timer esquecido de um dia
+  // para o outro, gravando o fim no limite), a cada 30s e quando a config muda.
+  // So roda depois de "pronto": senao os registros ainda nao chegaram (carga
+  // assincrona) e gravar o registro do timer sobrescreveria o historico com um so.
+  const inicioTimer = timerAtivo?.inicio;
+  useEffect(() => {
+    if (!inicioTimer || !pronto) return;
+    const checar = () => {
+      const t = timerRef.current;
+      if (!t) return;
+      const limite = limiteAutoParada(t.inicio, lerConfigAutoParada());
+      if (limite !== null && Date.now() >= limite) {
+        ajustarEPararTimer(new Date(limite).toISOString());
+      }
+    };
+    checar();
+    const id = window.setInterval(checar, 30_000);
+    window.addEventListener("kando:auto-parada", checar);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("kando:auto-parada", checar);
+    };
+  }, [inicioTimer, pronto, ajustarEPararTimer]);
 
   const seletores = useMemo(() => {
     const registrosDoCard = (cardId: string) => registros.filter((r) => r.cardId === cardId);

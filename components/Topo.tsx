@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CalendarDays, Timer } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, CalendarDays, Timer, Users } from "lucide-react";
+import { useBoard } from "@/lib/store";
+import { useOrg } from "@/lib/orgProvider";
+import { supabaseConfigurado } from "@/lib/supabase/client";
+import { useUltimaCampanha } from "@/lib/ultimaCampanha";
 import BotaoSair from "./BotaoSair";
 import IndicadorTimerTopo from "./apontamentos/IndicadorTimerTopo";
 import SeletorOrg from "./org/SeletorOrg";
@@ -13,10 +17,21 @@ import SeletorOrg from "./org/SeletorOrg";
  */
 export default function Topo() {
   const caminho = usePathname();
+  const { campanhaPorId } = useBoard();
+  const { orgAtiva } = useOrg();
+  const ultima = useUltimaCampanha();
   const naInicial = caminho === "/";
+  const noCampanhas = caminho?.startsWith("/campanhas");
   const noCalendario = caminho?.startsWith("/calendario");
   const noHoras = caminho?.startsWith("/horas");
-  const noCampanha = caminho?.startsWith("/campanha");
+  const noEquipe = caminho?.startsWith("/equipe");
+  // So o dono, e so no modo online (com login), gerencia a equipe.
+  const mostrarEquipe = orgAtiva?.papel === "dono" && supabaseConfigurado();
+  // Detalhe de uma campanha (/campanha/<id>), nao a lista (/campanhas).
+  const noCampanhaDetalhe = caminho?.startsWith("/campanha/");
+  const naSecaoCampanhas = !!noCampanhas || !!noCampanhaDetalhe;
+  // "Campanhas" volta para a ultima campanha aberta (se ainda existe); senao, lista.
+  const hrefCampanhas = ultima && campanhaPorId(ultima) ? `/campanha/${ultima}` : "/campanhas";
 
   return (
     // No mobile, dentro de uma campanha a barra do topo some (a barra da campanha
@@ -24,7 +39,7 @@ export default function Topo() {
     // espaco. No desktop continua sempre visivel.
     <header
       className={`sticky top-0 z-30 bg-marca-azulEscuro text-white shadow-md ${
-        noCampanha ? "hidden espacoso:block" : ""
+        noCampanhaDetalhe ? "hidden espacoso:block" : ""
       }`}
     >
       <div className="flex items-center justify-between gap-3 px-4 py-3">
@@ -64,7 +79,10 @@ export default function Topo() {
             <IndicadorTimerTopo />
           </div>
           <nav className="hidden items-center gap-1 espacoso:flex">
-            <LinkNav href="/" ativo={!!naInicial} icone={<LayoutGrid size={16} aria-hidden />}>
+            <LinkNav href="/" ativo={!!naInicial} icone={<LayoutDashboard size={16} aria-hidden />}>
+              Painel
+            </LinkNav>
+            <LinkNav href={hrefCampanhas} ativo={naSecaoCampanhas} icone={<LayoutGrid size={16} aria-hidden />}>
               Campanhas
             </LinkNav>
             <LinkNav
@@ -80,6 +98,11 @@ export default function Topo() {
             <LinkNav href="/horas" ativo={!!noHoras} icone={<Timer size={16} aria-hidden />}>
               Horas
             </LinkNav>
+            {mostrarEquipe && (
+              <LinkNav href="/equipe" ativo={!!noEquipe} icone={<Users size={16} aria-hidden />}>
+                Equipe
+              </LinkNav>
+            )}
           </nav>
           <BotaoSair />
         </div>

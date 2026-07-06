@@ -71,6 +71,9 @@ export interface Campanha {
   atualizadoEm: string; // ISO datetime
 }
 
+/** Nivel de prioridade de um card (ausente = sem prioridade definida). */
+export type Prioridade = "urgente" | "alta" | "media" | "baixa";
+
 export interface CardConteudo {
   id: string;
   campanhaId: string; // campanha a que o conteudo pertence
@@ -91,6 +94,7 @@ export interface CardConteudo {
   teleprompterAjustadoEm?: string; // ISO datetime de quando foi ajustado por um compartilhamento
   legenda: string; // legenda final do post
   responsavel?: string;
+  prioridade?: Prioridade; // nivel de prioridade (ausente = sem prioridade)
   // Sugestao vinda de fora (link publico /sugerir): cara diferente no quadro.
   externo?: boolean; // veio de uma sugestao externa
   sugeridoPor?: string; // nome/e-mail de quem sugeriu

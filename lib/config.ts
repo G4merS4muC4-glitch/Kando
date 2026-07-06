@@ -20,6 +20,7 @@ import type {
   Canal,
   EtapaOrg,
   Marca,
+  Prioridade,
   StatusCampanha,
   TipoCampanha,
   TipoConteudo,
@@ -86,6 +87,31 @@ export const TIPOS_ORDEM: TipoConteudo[] = [
   "ebook",
   "projeto",
 ];
+
+/**
+ * Niveis de prioridade do card. O "peso" ordena do mais urgente para o menos
+ * (usado no Painel e no quadro Geral). Cores para leitura rapida no card.
+ */
+export interface PrioridadeConfig {
+  label: string;
+  cor: string;
+  peso: number; // maior = mais prioritario (sem prioridade = 0)
+}
+
+export const PRIORIDADES: Record<Prioridade, PrioridadeConfig> = {
+  urgente: { label: "Urgente", cor: "#EC1313", peso: 4 },
+  alta: { label: "Alta", cor: "#FA611E", peso: 3 },
+  media: { label: "Média", cor: "#E0A400", peso: 2 },
+  baixa: { label: "Baixa", cor: "#8790AB", peso: 1 },
+};
+
+/** Ordem para o seletor (do mais para o menos prioritario). */
+export const PRIORIDADES_ORDEM: Prioridade[] = ["urgente", "alta", "media", "baixa"];
+
+/** Peso de uma prioridade (para ordenar); sem prioridade = 0. */
+export function pesoPrioridade(p?: Prioridade): number {
+  return p ? PRIORIDADES[p].peso : 0;
+}
 
 /** Aparencia de cada canal. As cores seguem as plataformas para leitura rapida. */
 export interface CanalConfig {
