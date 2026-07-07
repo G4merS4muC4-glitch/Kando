@@ -51,6 +51,7 @@ import ModalCard from "./ModalCard";
 import ModalRedistribuir from "./ModalRedistribuir";
 
 const COR_COMEMORATIVA = "#F59E0B"; // amarelo das datas comemorativas
+const COR_POSTADO = "#8790AB"; // cinza dos conteudos ja publicados (concluidos)
 
 /** Cor do ponto/etiqueta de um card pela marca da organizacao (cinza se sem marca). */
 function corDoCard(marcaPorId: (id: string) => MarcaOrg, marca: Marca | undefined): string {
@@ -70,6 +71,7 @@ export default function Calendario() {
     marcas,
     marcaPorId,
     etapaInicial,
+    etapaPostado,
     agendarCard,
     atualizarCard,
     cardPorId,
@@ -445,7 +447,12 @@ export default function Calendario() {
           {cardArrastado ? (
             <ChipPreview
               titulo={cardArrastado.titulo}
-              cor={corDoCard(marcaPorId, marcaDoCard(cardArrastado))}
+              cor={
+                cardArrastado.etapa === etapaPostado.id
+                  ? COR_POSTADO
+                  : corDoCard(marcaPorId, marcaDoCard(cardArrastado))
+              }
+              postado={cardArrastado.etapa === etapaPostado.id}
               largura={tamanhoArrasto.w}
               altura={tamanhoArrasto.h}
             />
@@ -519,7 +526,7 @@ function DiaCelula({
   onAbrir: () => void;
   onAbrirCard: (id: string) => void;
 }) {
-  const { marcaPorId } = useBoard();
+  const { marcaPorId, etapaPostado } = useBoard();
   const { setNodeRef, isOver } = useDroppable({ id: chave });
   const [hover, setHover] = useState(false);
   // A gaveta fica aberta ao passar o mouse e continua aberta enquanto um card
@@ -593,7 +600,10 @@ function DiaCelula({
           <span
             key={c.id}
             className="h-1.5 w-1.5 rounded-full animate-pop"
-            style={{ backgroundColor: corDoCard(marcaPorId, marcaDoCard(c)) }}
+            style={{
+              backgroundColor:
+                c.etapa === etapaPostado.id ? COR_POSTADO : corDoCard(marcaPorId, marcaDoCard(c)),
+            }}
           />
         ))}
         {cards.length > 4 && (
@@ -607,6 +617,7 @@ function DiaCelula({
           cards={cards}
           aberto={aberto}
           areaH={areaH}
+          etapaPostadoId={etapaPostado.id}
           marcaPorId={marcaPorId}
           marcaDoCard={marcaDoCard}
           onAbrirCard={onAbrirCard}
@@ -633,6 +644,7 @@ function PilhaDia({
   cards,
   aberto,
   areaH,
+  etapaPostadoId,
   marcaPorId,
   marcaDoCard,
   onAbrirCard,
@@ -640,6 +652,7 @@ function PilhaDia({
   cards: CardConteudo[];
   aberto: boolean;
   areaH: number;
+  etapaPostadoId: string;
   marcaPorId: (id: string) => MarcaOrg;
   marcaDoCard: (c: CardConteudo) => Marca | undefined;
   onAbrirCard: (id: string) => void;
@@ -697,19 +710,24 @@ function PilhaDia({
           style={{ top: baseTopo, height: baseFundo - baseTopo, left: -10, right: -10 }}
         />
       )}
-      {cards.map((c, i) => (
-        <ChipPilha
-          key={c.id}
-          card={c}
-          cor={cor(c)}
-          topo={aberto ? topoAberto(i) : topoFechado(i)}
-          z={aberto && hoverIdx === i ? 60 : n - i}
-          brilho={!aberto && i > 0 ? 1 - Math.min(i, 3) * 0.05 : 1}
-          destacado={aberto && hoverIdx === i}
-          onEntrar={() => setHoverIdx(i)}
-          onAbrir={onAbrirCard}
-        />
-      ))}
+      {cards.map((c, i) => {
+        // Ja publicado: card cinza com risco de "concluido" (em vez da cor da marca).
+        const postado = c.etapa === etapaPostadoId;
+        return (
+          <ChipPilha
+            key={c.id}
+            card={c}
+            cor={postado ? COR_POSTADO : cor(c)}
+            postado={postado}
+            topo={aberto ? topoAberto(i) : topoFechado(i)}
+            z={aberto && hoverIdx === i ? 60 : n - i}
+            brilho={!aberto && i > 0 ? 1 - Math.min(i, 3) * 0.05 : 1}
+            destacado={aberto && hoverIdx === i}
+            onEntrar={() => setHoverIdx(i)}
+            onAbrir={onAbrirCard}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -719,6 +737,7 @@ function PilhaDia({
 function ChipPilha({
   card,
   cor,
+  postado,
   topo,
   z,
   brilho,
@@ -728,6 +747,7 @@ function ChipPilha({
 }: {
   card: CardConteudo;
   cor: string;
+  postado: boolean;
   topo: number;
   z: number;
   brilho: number;
@@ -765,7 +785,9 @@ function ChipPilha({
       }`}
       title={card.titulo}
     >
-      <span className="line-clamp-2">{card.titulo}</span>
+      <span className={`line-clamp-2 ${postado ? "line-through decoration-2" : ""}`}>
+        {card.titulo}
+      </span>
     </button>
   );
 }
@@ -1166,11 +1188,13 @@ function ChipCard({
 function ChipPreview({
   titulo,
   cor,
+  postado,
   largura,
   altura,
 }: {
   titulo: string;
   cor: string;
+  postado?: boolean;
   largura?: number;
   altura?: number;
 }) {
@@ -1179,7 +1203,7 @@ function ChipPreview({
       className="overflow-hidden rounded-marca px-2 py-2 text-[11px] font-semibold leading-tight text-white shadow-cardHover ring-1 ring-black/5"
       style={{ backgroundColor: cor, width: largura, height: altura }}
     >
-      <span className="line-clamp-2">{titulo}</span>
+      <span className={`line-clamp-2 ${postado ? "line-through decoration-2" : ""}`}>{titulo}</span>
     </div>
   );
 }
