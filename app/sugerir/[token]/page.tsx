@@ -7,6 +7,13 @@ import { criarClienteNavegador, supabaseConfigurado } from "@/lib/supabase/clien
 
 type Estado = "carregando" | "ok" | "inexistente" | "revogado" | "indisponivel" | "erro" | "enviado";
 
+type Destino = {
+  campanhaId: string;
+  nome: string;
+  marcaNome: string | null;
+  marcaCor: string | null;
+};
+
 const COR_KANDO = "#FA611E";
 const inputClasse =
   "w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2.5 text-sm text-marca-preto outline-none transition focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40";
@@ -14,17 +21,17 @@ const inputClasse =
 /**
  * Pagina publica de sugestao de ideias (sem login obrigatorio). Um colega manda
  * uma ideia de video com link de referencia; ela cai como card (sugestao externa)
- * na coluna inicial da campanha do link. Quem esta logado no Kando aparece
- * identificado; quem nao, escreve o nome.
+ * na coluna inicial da campanha escolhida. Quando o link tem mais de um destino,
+ * a pessoa escolhe para qual empresa/campanha (pelos nomes definidos por quem
+ * compartilhou). Quem esta logado no Kando aparece identificado.
  */
 export default function PaginaSugerir() {
   const params = useParams<{ token: string }>();
   const token = params?.token ?? "";
 
   const [estado, setEstado] = useState<Estado>("carregando");
-  const [marcaNome, setMarcaNome] = useState<string | null>(null);
-  const [marcaCor, setMarcaCor] = useState<string | null>(null);
-  const [campanhaNome, setCampanhaNome] = useState<string>("");
+  const [destinos, setDestinos] = useState<Destino[]>([]);
+  const [destinoSel, setDestinoSel] = useState<string>(""); // campanhaId escolhido
 
   const [titulo, setTitulo] = useState("");
   const [referencia, setReferencia] = useState("");
@@ -34,7 +41,7 @@ export default function PaginaSugerir() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  // Resolve o link (marca/campanha) e descobre se ha alguem logado no Kando.
+  // Resolve o link (destinos) e descobre se ha alguem logado no Kando.
   useEffect(() => {
     let ativo = true;
     fetch(`/api/sugestao/${token}`, { cache: "no-store" })
@@ -43,9 +50,9 @@ export default function PaginaSugerir() {
         if (!ativo) return;
         setEstado(j.estado as Estado);
         if (j.estado === "ok") {
-          setMarcaNome((j.marcaNome as string | null) ?? null);
-          setMarcaCor((j.marcaCor as string | null) ?? null);
-          setCampanhaNome((j.campanhaNome as string) ?? "");
+          const ds = (j.destinos as Destino[]) ?? [];
+          setDestinos(ds);
+          setDestinoSel(ds[0]?.campanhaId ?? "");
         }
       })
       .catch(() => ativo && setEstado("erro"));
@@ -70,6 +77,8 @@ export default function PaginaSugerir() {
     };
   }, [token]);
 
+  const sel = destinos.find((d) => d.campanhaId === destinoSel) ?? destinos[0] ?? null;
+
   const enviar = useCallback(async () => {
     setErro(null);
     if (!titulo.trim()) {
@@ -81,7 +90,7 @@ export default function PaginaSugerir() {
       const r = await fetch(`/api/sugestao/${token}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ titulo, descricao, referenciaUrl: referencia, nome }),
+        body: JSON.stringify({ titulo, descricao, referenciaUrl: referencia, nome, campanhaId: destinoSel }),
       });
       const j = await r.json();
       if (j.ok) {
@@ -94,9 +103,9 @@ export default function PaginaSugerir() {
     } finally {
       setEnviando(false);
     }
-  }, [token, titulo, descricao, referencia, nome]);
+  }, [token, titulo, descricao, referencia, nome, destinoSel]);
 
-  const cor = marcaCor ?? COR_KANDO;
+  const cor = sel?.marcaCor ?? COR_KANDO;
 
   if (estado === "carregando") {
     return <Centro><Loader2 size={28} className="animate-spin text-marca-cinza" aria-hidden /></Centro>;
@@ -123,7 +132,7 @@ export default function PaginaSugerir() {
         </span>
         <h1 className="text-lg font-bold text-marca-azulEscuro">Ideia enviada!</h1>
         <p className="max-w-xs text-sm text-marca-cinza">
-          Obrigado. Sua sugestão chegou ao time{marcaNome ? ` da ${marcaNome}` : ""}.
+          Obrigado. Sua sugestão chegou ao time{sel?.nome ? ` · ${sel.nome}` : ""}.
         </p>
         <button
           type="button"
@@ -141,11 +150,13 @@ export default function PaginaSugerir() {
     );
   }
 
+  const varios = destinos.length > 1;
+
   return (
     <div className="min-h-dvh bg-marca-branco">
       <div className="h-1.5 w-full" style={{ backgroundColor: cor }} />
       <div className="mx-auto max-w-lg px-4 py-6 sm:px-6">
-        {/* Cabecalho Kando + contexto da marca/campanha */}
+        {/* Cabecalho Kando */}
         <div className="mb-5 flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/kando-logo.svg" alt="" aria-hidden className="h-8 w-8 shrink-0 object-contain" />
@@ -163,11 +174,44 @@ export default function PaginaSugerir() {
             Sugira uma ideia
           </h1>
           <p className="mt-1 text-sm text-marca-cinza">
-            {(marcaNome ? `Para ${marcaNome}` : "Conteúdo") + (campanhaNome ? ` · ${campanhaNome}` : "")}.
-            Mande sua ideia de vídeo e, se tiver, o link da referência onde você viu.
+            {varios
+              ? "Escolha para quem é a ideia e mande sua sugestão de vídeo, com o link da referência se tiver."
+              : `${sel ? `Para ${sel.nome}. ` : ""}Mande sua ideia de vídeo e, se tiver, o link da referência onde você viu.`}
           </p>
 
           <div className="mt-4 space-y-3.5">
+            {varios && (
+              <Campo rotulo="Para qual?">
+                <div className="flex flex-wrap gap-2">
+                  {destinos.map((d) => {
+                    const ativo = d.campanhaId === destinoSel;
+                    return (
+                      <button
+                        key={d.campanhaId}
+                        type="button"
+                        onClick={() => setDestinoSel(d.campanhaId)}
+                        className={`flex items-center gap-1.5 rounded-marca border px-3 py-2 text-sm font-semibold transition ${
+                          ativo
+                            ? "border-transparent text-white"
+                            : "border-marca-cinza/40 bg-white text-marca-preto hover:border-marca-cinza"
+                        }`}
+                        style={ativo ? { backgroundColor: d.marcaCor ?? COR_KANDO } : undefined}
+                      >
+                        {d.marcaCor && (
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: ativo ? "rgba(255,255,255,0.9)" : d.marcaCor }}
+                            aria-hidden
+                          />
+                        )}
+                        {d.nome}
+                      </button>
+                    );
+                  })}
+                </div>
+              </Campo>
+            )}
+
             <Campo rotulo="Sua ideia">
               <input
                 type="text"

@@ -10,9 +10,14 @@ const MAX_NOME = 80;
 const MAX_URL = 600;
 const INTERVALO_MS = 4000; // limite simples: 1 envio a cada 4s por link
 
+interface DestinoLink {
+  campanhaId: string;
+  nome: string;
+}
 interface LinkSugestao {
   org_id: string | null;
   campanha_id: string;
+  destinos: DestinoLink[] | null;
   revogado: boolean;
   ultima_em: string | null;
 }
@@ -23,18 +28,29 @@ function limpar(t: string, max: number): string {
   return t.replace(CONTROLE, "").trim().slice(0, max);
 }
 
-/** Resolve o link para a pagina publica saber a marca/campanha (e marcar o form). */
+/**
+ * Destinos "efetivos" do link: os cadastrados em `destinos`; se estiver vazio
+ * (link antigo, de uma campanha so), cai no `campanha_id`.
+ */
+function destinosEfetivos(link: Pick<LinkSugestao, "campanha_id" | "destinos">): DestinoLink[] {
+  const ds = Array.isArray(link.destinos) ? link.destinos : [];
+  const validos = ds.filter((d) => d && typeof d.campanhaId === "string" && d.campanhaId);
+  if (validos.length > 0) return validos;
+  return link.campanha_id ? [{ campanhaId: link.campanha_id, nome: "" }] : [];
+}
+
+/** Resolve o link: devolve os destinos (nome + marca) para a pagina publica. */
 export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
   const admin = criarClienteAdmin();
   if (!admin) return NextResponse.json({ estado: "indisponivel" }, { status: 503 });
 
   const { data } = await admin
     .from("sugestao_links")
-    .select("org_id, campanha_id, revogado")
+    .select("org_id, campanha_id, destinos, revogado")
     .eq("token", params.token)
     .maybeSingle();
   if (!data) return NextResponse.json({ estado: "inexistente" });
-  const link = data as Pick<LinkSugestao, "org_id" | "campanha_id" | "revogado">;
+  const link = data as Pick<LinkSugestao, "org_id" | "campanha_id" | "destinos" | "revogado">;
   if (link.revogado) return NextResponse.json({ estado: "revogado" });
   if (!link.org_id) return NextResponse.json({ estado: "inexistente" });
 
@@ -44,19 +60,27 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
     .eq("id", `principal:${link.org_id}`)
     .maybeSingle();
   const board = (row?.dados ?? null) as Board | null;
-  const campanha = board?.campanhas.find((c) => c.id === link.campanha_id);
-  if (!campanha) return NextResponse.json({ estado: "indisponivel" });
-  const marcaOrg = (board?.marcas ?? []).find((m) => m.id === campanha.marca);
+  if (!board) return NextResponse.json({ estado: "indisponivel" });
 
-  return NextResponse.json({
-    estado: "ok",
-    campanhaNome: campanha.nome,
-    marcaNome: marcaOrg?.nome ?? null,
-    marcaCor: marcaOrg?.cor ?? null,
-  });
+  const destinos = destinosEfetivos(link)
+    .map((d) => {
+      const camp = board.campanhas.find((c) => c.id === d.campanhaId);
+      if (!camp) return null;
+      const marca = (board.marcas ?? []).find((m) => m.id === camp.marca);
+      return {
+        campanhaId: d.campanhaId,
+        nome: (d.nome && d.nome.trim()) || marca?.nome || camp.nome,
+        marcaNome: marca?.nome ?? null,
+        marcaCor: marca?.cor ?? null,
+      };
+    })
+    .filter((d): d is NonNullable<typeof d> => d !== null);
+
+  if (destinos.length === 0) return NextResponse.json({ estado: "indisponivel" });
+  return NextResponse.json({ estado: "ok", destinos });
 }
 
-/** Recebe a sugestao e cria um card (externo) na coluna inicial da campanha. */
+/** Recebe a sugestao e cria um card (externo) na coluna inicial da campanha escolhida. */
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   const admin = criarClienteAdmin();
   if (!admin) return NextResponse.json({ ok: false, erro: "indisponivel" }, { status: 503 });
@@ -65,7 +89,13 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   if (bruto.length > MAX_DESC + 2000) {
     return NextResponse.json({ ok: false, erro: "Conteudo muito grande." }, { status: 413 });
   }
-  let corpo: { titulo?: unknown; descricao?: unknown; nome?: unknown; referenciaUrl?: unknown };
+  let corpo: {
+    titulo?: unknown;
+    descricao?: unknown;
+    nome?: unknown;
+    referenciaUrl?: unknown;
+    campanhaId?: unknown;
+  };
   try {
     corpo = bruto ? JSON.parse(bruto) : {};
   } catch {
@@ -83,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   // Resolve o link e aplica o limite anti-spam.
   const { data } = await admin
     .from("sugestao_links")
-    .select("org_id, campanha_id, revogado, ultima_em")
+    .select("org_id, campanha_id, destinos, revogado, ultima_em")
     .eq("token", params.token)
     .maybeSingle();
   if (!data) return NextResponse.json({ ok: false, erro: "Link inexistente." }, { status: 404 });
@@ -95,6 +125,15 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     return NextResponse.json({ ok: false, erro: "Aguarde um instante e envie de novo." }, { status: 429 });
   }
 
+  // A campanha escolhida precisa ser um dos destinos do link (nao aceita destino
+  // arbitrario vindo do cliente).
+  const ids = destinosEfetivos(link).map((d) => d.campanhaId);
+  const escolhida = typeof corpo.campanhaId === "string" ? corpo.campanhaId : "";
+  const alvo = ids.includes(escolhida) ? escolhida : ids.length === 1 ? ids[0] : "";
+  if (!alvo) {
+    return NextResponse.json({ ok: false, erro: "Escolha para onde enviar a ideia." }, { status: 400 });
+  }
+
   // Confere a campanha e descobre a coluna inicial do quadro da organizacao.
   const { data: row } = await admin
     .from("boards")
@@ -102,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
     .eq("id", `principal:${link.org_id}`)
     .maybeSingle();
   const board = (row?.dados ?? null) as Board | null;
-  const campanha = board?.campanhas.find((c) => c.id === link.campanha_id);
+  const campanha = board?.campanhas.find((c) => c.id === alvo);
   if (!campanha) return NextResponse.json({ ok: false, erro: "Campanha indisponivel." }, { status: 410 });
   const etapas = board?.etapas;
   const etapaInicial = etapas?.find((e) => e.inicial)?.id ?? etapas?.[0]?.id ?? "ideias";
@@ -110,7 +149,7 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   const ts = new Date().toISOString();
   const card: CardConteudo = {
     id: crypto.randomUUID(),
-    campanhaId: link.campanha_id,
+    campanhaId: alvo,
     titulo,
     tipo: "reels",
     canais: ["instagram"],

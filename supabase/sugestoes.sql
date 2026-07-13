@@ -12,13 +12,21 @@
 create table if not exists public.sugestao_links (
   token text primary key,
   org_id text references public.organizations(id) on delete cascade,
-  campanha_id text not null, -- campanha de destino (a ideia cai na coluna inicial dela)
+  campanha_id text not null, -- campanha de origem do link (para listar sob ela)
+  -- Destinos do link: um ou varios, cada um com o nome que aparece para quem
+  -- recebe o link. Formato: [{ "campanhaId": "...", "nome": "..." }, ...].
+  destinos jsonb not null default '[]'::jsonb,
   revogado boolean not null default false,
   criado_em timestamptz not null default now(),
   ultima_em timestamptz -- ultimo envio, para um limite simples anti-spam
 );
 create index if not exists idx_sugestao_links_campanha on public.sugestao_links (campanha_id);
 create index if not exists idx_sugestao_links_org on public.sugestao_links (org_id);
+
+-- Para quem ja tinha a tabela: adiciona a coluna de destinos (links antigos
+-- ficam com destinos = [] e continuam caindo no campanha_id acima).
+alter table public.sugestao_links
+  add column if not exists destinos jsonb not null default '[]'::jsonb;
 
 alter table public.sugestao_links enable row level security;
 
