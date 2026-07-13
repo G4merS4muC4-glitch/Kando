@@ -27,13 +27,16 @@ import GraficoHorasPorDia from "./GraficoHorasPorDia";
 import ListaRegistrosRecentes from "./ListaRegistrosRecentes";
 import ResumoPorProjeto from "./ResumoPorProjeto";
 import CardRegistro from "./CardRegistro";
+import CartaoTimerColega from "./CartaoTimerColega";
 import ModalEditarRegistro from "./ModalEditarRegistro";
 
 type ModoGrafico = "total" | "projeto";
 
 /** Painel de horas: KPIs, calendario, grafico, recentes e resumo por projeto. */
 export default function PaginaHoras() {
-  const { registros, timerAtivo, pronto } = useApontamentos();
+  const { registros, timerAtivo, timersEquipe, autor, pronto } = useApontamentos();
+  // Exclui o meu proprio timer (ele ja aparece em "Registros recentes").
+  const equipeAoVivo = timersEquipe.filter((t) => t.userId !== autor.id);
   const { cards, campanhas, marcas, cardPorId, campanhaPorId } = useBoard();
 
   const [montado, setMontado] = useState(false);
@@ -166,6 +169,24 @@ export default function PaginaHoras() {
           <Kpi indice={2} rotulo="Este mês" ms={kpis.mesMs} variacao={kpis.variacaoMesPct} />
           <Kpi indice={3} rotulo="Projeto líder (mês)" ms={lider?.ms} sub={lider?.titulo} />
         </div>
+
+        {/* Trabalhando agora: timers da equipe ao vivo (some quando ninguem timra) */}
+        {equipeAoVivo.length > 0 && (
+          <div className="mb-4 rounded-marca border border-marca-laranja/40 bg-marca-laranja/5 p-4">
+            <p className="mb-3 flex items-center gap-2 text-sm font-bold text-marca-azulEscuro">
+              <span className="relative flex h-2.5 w-2.5" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-marca-laranja/60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-marca-laranja" />
+              </span>
+              Trabalhando agora ({equipeAoVivo.length})
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {equipeAoVivo.map((t) => (
+                <CartaoTimerColega key={t.userId} timer={t.timer} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="mb-4 flex flex-wrap items-center gap-2">

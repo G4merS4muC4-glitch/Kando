@@ -15,11 +15,16 @@ import { agora, gerarId } from "./util";
 import { duracaoMs, formatarDuracao } from "./apontamentos";
 import {
   assinarApontamentos,
+  assinarTimersAtivos,
+  deleteTimerAtivo,
   getApontamentos,
   lerTimerLocal,
+  lerTimersAtivos,
   limparTimerLocal,
   salvarApontamentos,
   salvarTimerLocal,
+  upsertTimerAtivo,
+  type TimerEquipe,
 } from "./apontamentosStorage";
 import { useOrg } from "./orgProvider";
 import { lerConfigAutoParada, limiteAutoParada } from "./autoParada";
@@ -41,13 +46,14 @@ interface Autor {
 interface ApontamentosStore {
   registros: RegistroTempo[];
   timerAtivo: TimerAtivo | null;
+  timersEquipe: TimerEquipe[]; // timers em andamento da equipe (ao vivo), inclui o meu
   autor: Autor;
   pronto: boolean;
   iniciarTimer: (cardId: string, nota?: string) => void;
   pararTimer: () => void;
   ajustarEPararTimer: (fimISO: string) => void; // para com horario de termino corrigido
   descartarTimer: () => void; // descarta sem gravar
-  adicionarCheckpoint: (texto: string) => void; // marca um ponto na linha do tempo
+  adicionarCheckpoint: (texto: string, tipo?: Checkpoint["tipo"]) => void; // ponto na linha do tempo
   removerCheckpoint: (indice: number) => void; // remove um marcador
   alternarPausa: () => void; // pausa/retoma o timer, registrando a pausa no historico
   adicionarManual: (cardId: string, inicioISO: string, fimISO: string, nota?: string) => void;
@@ -66,6 +72,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   const { orgId } = useOrg();
   const [registros, setRegistros] = useState<RegistroTempo[]>([]);
   const [timerAtivo, setTimerAtivo] = useState<TimerAtivo | null>(null);
+  const [timersEquipe, setTimersEquipe] = useState<TimerEquipe[]>([]);
   const [autor, setAutor] = useState<Autor>(AUTOR_LOCAL);
   const [pronto, setPronto] = useState(false);
 
@@ -105,7 +112,17 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
           .getUser()
           .then((res: { data: { user: { id: string; email?: string | null } | null } }) => {
             const u = res.data.user;
-            if (ativo && u) setAutor({ id: u.id, nome: u.email ?? "Sem nome" });
+            if (!ativo || !u) return;
+            setAutor({ id: u.id, nome: u.email ?? "Sem nome" });
+            // Se um timer comecou antes do login resolver (autor "local"), corrige o
+            // autor: atribui o registro a pessoa certa e passa a compartilhar o timer.
+            const t = timerRef.current;
+            if (t && t.autorId === "local") {
+              const corrigido: TimerAtivo = { ...t, autorId: u.id, autorNome: u.email ?? t.autorNome };
+              if (orgId) salvarTimerLocal(orgId, corrigido);
+              timerRef.current = corrigido;
+              setTimerAtivo(corrigido);
+            }
           });
       } catch {
         // sem login: mantem autor local
@@ -116,9 +133,19 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       if (ativo) setRegistros(r);
     });
 
+    // Timers em andamento da equipe (ao vivo): carga inicial + realtime.
+    setTimersEquipe([]);
+    void lerTimersAtivos(orgId).then((t) => {
+      if (ativo) setTimersEquipe(t);
+    });
+    const cancelarTimers = assinarTimersAtivos(orgId, (t) => {
+      if (ativo) setTimersEquipe(t);
+    });
+
     return () => {
       ativo = false;
       if (cancelar) cancelar();
+      if (cancelarTimers) cancelarTimers();
     };
   }, [orgId]);
 
@@ -164,7 +191,8 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       // Descarta intervalos sem duracao (play/stop acidental).
       if (duracaoMs(reg) > 0) aplicar([reg, ...registrosRef.current]);
       if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
-      setTimerAtivo(null);
+      timerRef.current = null; // sincroniza o ref no mesmo tick
+      setTimerAtivo(null); // o efeito de sincronizacao apaga a linha compartilhada
     },
     [aplicar]
   );
@@ -182,17 +210,25 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
 
   const descartarTimer = useCallback(() => {
     if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
+    timerRef.current = null;
     setTimerAtivo(null);
   }, []);
 
-  /** Anota um marcador na linha do tempo do timer em andamento. */
-  const adicionarCheckpoint = useCallback((texto: string) => {
+  /**
+   * Anota um marcador na linha do tempo do timer em andamento. `tipo` distingue
+   * nota manual, pausa, troca de etapa ou conclusao de tarefa (para exibir e
+   * dar a visao completa do que foi feito em cada sessao).
+   */
+  const adicionarCheckpoint = useCallback((texto: string, tipo?: Checkpoint["tipo"]) => {
     const t = timerRef.current;
     const txt = texto.trim();
     if (!t || !txt) return;
-    const cp: Checkpoint = { id: gerarId(), em: agora(), texto: txt };
+    const cp: Checkpoint = { id: gerarId(), em: agora(), texto: txt, tipo };
     const novo: TimerAtivo = { ...t, checkpoints: [...(t.checkpoints ?? []), cp] };
     if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    // Atualiza o ref no mesmo tick: varios checkpoints disparados juntos (ex.: 2
+    // tarefas concluidas) acumulam em vez de o ultimo sobrescrever os anteriores.
+    timerRef.current = novo;
     setTimerAtivo(novo);
   }, []);
 
@@ -206,6 +242,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       checkpoints: restantes.length > 0 ? restantes : undefined,
     };
     if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    timerRef.current = novo;
     setTimerAtivo(novo);
   }, []);
 
@@ -236,6 +273,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       novo = { ...t, pausadoEm: agora() };
     }
     if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    timerRef.current = novo;
     setTimerAtivo(novo);
   }, []);
 
@@ -252,6 +290,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         autorNome: a.nome,
       };
       if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+      timerRef.current = novo;
       setTimerAtivo(novo);
     },
     [pararInterno]
@@ -318,6 +357,68 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     };
   }, [inicioTimer, pronto, ajustarEPararTimer]);
 
+  // Checkpoints automaticos: quando o card do timer em andamento muda de etapa,
+  // volta de etapa ou tem uma tarefa/mini-etapa concluida, marca na linha do tempo
+  // (so no MEU timer, e so se nao estiver pausado). Os eventos vem do store.
+  useEffect(() => {
+    function aoEvento(e: Event) {
+      const d = (e as CustomEvent).detail as {
+        cardId?: string;
+        deTitulo?: string;
+        paraTitulo?: string;
+        voltou?: boolean;
+        tarefa?: { texto?: string };
+      } | null;
+      const t = timerRef.current;
+      if (!d || !t || t.pausadoEm || t.cardId !== d.cardId) return;
+      if (e.type === "kando:card-tarefa") {
+        adicionarCheckpoint(`Concluiu: ${d.tarefa?.texto?.trim() || "tarefa"}`, "tarefa");
+      } else {
+        const alvo = d.paraTitulo?.trim() || "outra etapa";
+        adicionarCheckpoint(d.voltou ? `Voltou para ${alvo}` : `Avançou para ${alvo}`, "etapa");
+      }
+    }
+    window.addEventListener("kando:card-etapa", aoEvento);
+    window.addEventListener("kando:card-tarefa", aoEvento);
+    return () => {
+      window.removeEventListener("kando:card-etapa", aoEvento);
+      window.removeEventListener("kando:card-tarefa", aoEvento);
+    };
+  }, [adicionarCheckpoint]);
+
+  // Sincroniza o MEU timer com o servidor (compartilhado): fonte unica de verdade.
+  // Publica quando ha timer (com o autor ja resolvido) e apaga quando para; assim
+  // nao ha corrida de "delete apos upsert" e o timer e republicado no load (o
+  // estado vem do localStorage). Guarda org+user para apagar a linha certa.
+  const publicadoRef = useRef<{ org: string; userId: string } | null>(null);
+  useEffect(() => {
+    if (!supabaseConfigurado()) return;
+    const org = orgId;
+    if (org && timerAtivo && timerAtivo.autorId !== "local") {
+      publicadoRef.current = { org, userId: timerAtivo.autorId };
+      void upsertTimerAtivo(org, timerAtivo.autorId, timerAtivo);
+    } else if (!timerAtivo && publicadoRef.current) {
+      const { org: o, userId } = publicadoRef.current;
+      publicadoRef.current = null;
+      void deleteTimerAtivo(o, userId);
+    }
+  }, [timerAtivo, orgId]);
+
+  // Batimento (60s): enquanto meu timer existe, reescreve a linha para ela nao
+  // virar "fantasma"; e re-le os timers da equipe para sumir com linhas orfas de
+  // quem fechou o app sem parar.
+  useEffect(() => {
+    if (!supabaseConfigurado() || !orgId) return;
+    const org = orgId;
+    const bater = () => {
+      const t = timerRef.current;
+      if (t && t.autorId !== "local") void upsertTimerAtivo(org, t.autorId, t);
+      void lerTimersAtivos(org).then((x) => setTimersEquipe(x));
+    };
+    const id = window.setInterval(bater, 60_000);
+    return () => window.clearInterval(id);
+  }, [orgId]);
+
   const seletores = useMemo(() => {
     const registrosDoCard = (cardId: string) => registros.filter((r) => r.cardId === cardId);
     const totalMsDoCard = (cardId: string) =>
@@ -329,6 +430,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     () => ({
       registros,
       timerAtivo,
+      timersEquipe,
       autor,
       pronto,
       iniciarTimer,
@@ -346,6 +448,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     [
       registros,
       timerAtivo,
+      timersEquipe,
       autor,
       pronto,
       iniciarTimer,

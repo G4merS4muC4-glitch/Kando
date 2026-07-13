@@ -4,15 +4,11 @@ import { useState } from "react";
 import { X, Save, Trash2, Plus, ListChecks } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
-import {
-  checkpointsComDuracao,
-  deInputLocal,
-  formatarDuracao,
-  horaLocal,
-  paraInputLocal,
-} from "@/lib/apontamentos";
+import { deInputLocal, formatarDuracao, paraInputLocal } from "@/lib/apontamentos";
 import { agora } from "@/lib/util";
 import type { Checkpoint, RegistroTempo } from "@/lib/types";
+import ListaCheckpoints from "./ListaCheckpoints";
+import LinhaDoTempoProjeto from "./LinhaDoTempoProjeto";
 
 const AVISO_LONGO_MS = 12 * 3_600_000;
 
@@ -31,7 +27,8 @@ export default function ModalEditarRegistro({
   onFechar: () => void;
 }) {
   const { cards, campanhas, marcas } = useBoard();
-  const { editarRegistro, adicionarManual, excluirRegistro } = useApontamentos();
+  const { editarRegistro, adicionarManual, excluirRegistro, registrosDoCard, timerAtivo } =
+    useApontamentos();
 
   const editando = Boolean(registro);
   const [cardId, setCardId] = useState(registro?.cardId ?? cardIdPadrao ?? "");
@@ -107,7 +104,7 @@ export default function ModalEditarRegistro({
       aria-label={editando ? "Editar registro de horas" : "Lançar horas manualmente"}
     >
       <div
-        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-marca"
+        className="flex h-full w-full flex-col overflow-hidden bg-white shadow-modal sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:rounded-marca"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 bg-marca-azulEscuro px-5 py-4 text-white">
@@ -122,7 +119,9 @@ export default function ModalEditarRegistro({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="space-y-4">
           {/* Projeto/card */}
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
@@ -221,49 +220,34 @@ export default function ModalEditarRegistro({
             />
           </label>
 
-          {/* Linha do tempo: checkpoints anotados durante o timer (so na edicao). */}
+          {/* Linha do tempo desta sessao (checkpoints anotados durante o timer). */}
           {checkpoints.length > 0 && (
             <div>
               <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-                <ListChecks size={13} aria-hidden /> Linha do tempo
+                <ListChecks size={13} aria-hidden /> Linha do tempo desta sessão
               </span>
-              <ul className="space-y-0.5 rounded-marca border border-marca-cinza/30 bg-marca-branco p-2">
-                {checkpointsComDuracao(checkpoints, fimISO || agora()).map((cp) => (
-                  <li
-                    key={cp.id}
-                    className="group/cp flex items-start gap-2 rounded px-1 py-0.5 text-sm hover:bg-white"
-                  >
-                    <span className="mt-px shrink-0 font-mono text-[11px] font-semibold tabular-nums text-marca-laranja">
-                      {horaLocal(cp.em)}
-                    </span>
-                    <span
-                      className={`min-w-0 flex-1 break-words ${
-                        cp.ehPausa ? "italic text-marca-cinza" : "text-marca-preto"
-                      }`}
-                    >
-                      {cp.texto}
-                    </span>
-                    {!cp.ehPausa && cp.ateMs > 0 && (
-                      <span className="shrink-0 text-[11px] text-marca-cinza">
-                        {formatarDuracao(cp.ateMs)}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setCheckpoints((lista) => lista.filter((c) => c.id !== cp.id))}
-                      aria-label="Remover checkpoint"
-                      title="Remover"
-                      className="shrink-0 rounded p-0.5 text-marca-cinza opacity-0 transition hover:text-marca-vermelho focus-visible:opacity-100 group-hover/cp:opacity-100"
-                    >
-                      <X size={13} aria-hidden />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <ListaCheckpoints
+                checkpoints={checkpoints}
+                fim={fimISO || agora()}
+                onRemover={(id) => setCheckpoints((lista) => lista.filter((c) => c.id !== id))}
+              />
             </div>
           )}
 
           {erro && <p className="text-sm font-semibold text-marca-vermelho">{erro}</p>}
+            </div>
+
+            {/* Linha do tempo COMPLETA do projeto: todas as sessoes, datas e pontos. */}
+            <div className="min-w-0">
+              <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                <ListChecks size={13} aria-hidden /> Linha do tempo do projeto
+              </span>
+              <LinhaDoTempoProjeto
+                registros={cardId ? registrosDoCard(cardId) : []}
+                timerAtivo={timerAtivo && timerAtivo.cardId === cardId ? timerAtivo : undefined}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Rodape */}

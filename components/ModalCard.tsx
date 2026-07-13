@@ -44,12 +44,13 @@ import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
 import AbaProjeto from "./projeto/AbaProjeto";
+import LinhaDoTempoProjeto from "./apontamentos/LinhaDoTempoProjeto";
 import ModalCompartilhar from "./ModalCompartilhar";
 import SeletorData from "./SeletorData";
 import SeletorHora from "./SeletorHora";
 import SeletorOpcao from "./SeletorOpcao";
 
-type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda";
+type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda" | "linha";
 
 // Cada aba leva um icone para a troca ficar visual e intuitiva (pilulas no topo).
 const ABAS: { id: Aba; rotulo: string; icone: LucideIcon }[] = [
@@ -85,7 +86,7 @@ export default function ModalCard({
     marcarPostado,
     reabrirCard,
   } = useBoard();
-  const { iniciarTimer, totalMsDoCard, timerAtivo } = useApontamentos();
+  const { iniciarTimer, totalMsDoCard, timerAtivo, registrosDoCard } = useApontamentos();
   // Canal ao vivo do teleprompter: recebe na hora o que o visitante digita no
   // link publico (e envia o que o time digita), nos dois sentidos.
   const { enviar: enviarTp } = useCanalTeleprompter(card.id, (texto) =>
@@ -192,6 +193,7 @@ export default function ModalCard({
     ABAS[1], // Briefing
     ...(ehReels ? [ABAS[2]] : []), // Roteiro (so Reels)
     ...(ehProjeto ? [] : [ABAS[3]]), // Legenda (projeto nao precisa)
+    { id: "linha" as Aba, rotulo: "Linha do tempo", icone: Clock }, // vale para todo card
   ];
 
   /**
@@ -934,6 +936,13 @@ export default function ModalCard({
                 </span>
               </div>
             </div>
+          )}
+
+          {aba === "linha" && (
+            <LinhaDoTempoProjeto
+              registros={registrosDoCard(card.id)}
+              timerAtivo={timerAtivo && timerAtivo.cardId === card.id ? timerAtivo : undefined}
+            />
           )}
 
           {/* Acoes no mobile: rolam junto com o conteudo, no fim do card (nao

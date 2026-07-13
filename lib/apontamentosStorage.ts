@@ -149,3 +149,99 @@ export function limparTimerLocal(orgId: string): void {
     // ignora
   }
 }
+
+// ----- Timers ativos COMPARTILHADOS (equipe, em tempo real) -----
+// Espelham o timer em andamento numa tabela por organizacao (supabase/timers.sql),
+// para os colegas acompanharem quem esta trabalhando em que, ao vivo. So no modo
+// Supabase; no modo local nao ha equipe e estas funcoes viram no-op.
+
+const TABELA_TIMERS = "timers_ativos";
+// Sem batimento por este tempo, o timer e considerado "fantasma" (aparelho do dono
+// fechou/caiu sem parar) e some da visao da equipe. O provider bate a cada 60s.
+const TIMER_FANTASMA_MS = 3 * 60_000;
+
+/** Um timer em andamento de alguem da equipe (para exibir ao vivo). */
+export interface TimerEquipe {
+  userId: string;
+  nome: string;
+  timer: TimerAtivo;
+}
+
+/** Publica/atualiza o meu timer em andamento na organizacao (compartilhado). */
+export async function upsertTimerAtivo(orgId: string, userId: string, timer: TimerAtivo): Promise<void> {
+  if (!supabaseConfigurado()) return;
+  try {
+    const sb = criarClienteNavegador();
+    await sb.from(TABELA_TIMERS).upsert({
+      org_id: orgId,
+      user_id: userId,
+      dados: timer,
+      atualizado_em: new Date().toISOString(),
+    });
+  } catch {
+    // sem servidor: o timer segue apenas local
+  }
+}
+
+/** Remove o meu timer compartilhado (ao parar/descartar). */
+export async function deleteTimerAtivo(orgId: string, userId: string): Promise<void> {
+  if (!supabaseConfigurado()) return;
+  try {
+    const sb = criarClienteNavegador();
+    await sb.from(TABELA_TIMERS).delete().eq("org_id", orgId).eq("user_id", userId);
+  } catch {
+    // ignora
+  }
+}
+
+/** Le todos os timers em andamento da organizacao (a equipe inteira). */
+export async function lerTimersAtivos(orgId: string): Promise<TimerEquipe[]> {
+  if (!supabaseConfigurado()) return [];
+  try {
+    const sb = criarClienteNavegador();
+    const { data, error } = await sb
+      .from(TABELA_TIMERS)
+      .select("user_id, dados, atualizado_em")
+      .eq("org_id", orgId);
+    if (error) throw error;
+    const linhas = (data ?? []) as { user_id: string; dados: TimerAtivo; atualizado_em: string }[];
+    const agora = Date.now();
+    return linhas
+      .map((r) => {
+        const t = r.dados;
+        if (!t || typeof t.cardId !== "string" || typeof t.inicio !== "string") return null;
+        // Ignora timers "fantasma" (sem batimento recente: aparelho do dono saiu).
+        const at = new Date(r.atualizado_em).getTime();
+        if (Number.isFinite(at) && agora - at > TIMER_FANTASMA_MS) return null;
+        return { userId: r.user_id, nome: t.autorNome || "Alguém", timer: t };
+      })
+      .filter((x): x is TimerEquipe => x !== null);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Assina em tempo real os timers ativos da organizacao. No evento, RE-LE a lista
+ * (nao confia no payload) e entrega ao assinante. Devolve uma funcao para cancelar.
+ */
+export function assinarTimersAtivos(
+  orgId: string,
+  aoMudar: (timers: TimerEquipe[]) => void
+): (() => void) | undefined {
+  if (!supabaseConfigurado()) return undefined;
+  const sb = criarClienteNavegador();
+  const canal = sb
+    .channel(`timers-${orgId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: TABELA_TIMERS, filter: `org_id=eq.${orgId}` },
+      () => {
+        void lerTimersAtivos(orgId).then(aoMudar);
+      }
+    )
+    .subscribe();
+  return () => {
+    void sb.removeChannel(canal);
+  };
+}

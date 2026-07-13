@@ -88,7 +88,7 @@ export function horaLocal(iso: string): string {
 export function checkpointsComDuracao(
   checkpoints: Checkpoint[] | undefined,
   fimISO: string
-): { id: string; em: string; texto: string; ateMs: number; ehPausa: boolean }[] {
+): { id: string; em: string; texto: string; ateMs: number; ehPausa: boolean; tipo: Checkpoint["tipo"] }[] {
   if (!checkpoints || checkpoints.length === 0) return [];
   const ordenados = [...checkpoints].sort(
     (a, b) => new Date(a.em).getTime() - new Date(b.em).getTime()
@@ -116,11 +116,11 @@ export function checkpointsComDuracao(
     const prox = i + 1 < ordenados.length ? new Date(ordenados[i + 1].em).getTime() : fimMs;
     // Marcador de pausa: a duracao e a propria pausa (nao e trabalho).
     if (cp.pausaMs && cp.pausaMs > 0) {
-      return { id: cp.id, em: cp.em, texto: cp.texto, ateMs: cp.pausaMs, ehPausa: true };
+      return { id: cp.id, em: cp.em, texto: cp.texto, ateMs: cp.pausaMs, ehPausa: true, tipo: cp.tipo ?? "pausa" };
     }
     const bruto = Number.isFinite(prox) && prox > ini ? prox - ini : 0;
     const ateMs = Math.max(0, bruto - sobreposicao(ini, prox));
-    return { id: cp.id, em: cp.em, texto: cp.texto, ateMs, ehPausa: false };
+    return { id: cp.id, em: cp.em, texto: cp.texto, ateMs, ehPausa: false, tipo: cp.tipo };
   });
 }
 

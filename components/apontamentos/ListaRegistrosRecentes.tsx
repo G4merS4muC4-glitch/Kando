@@ -40,7 +40,9 @@ export default function ListaRegistrosRecentes({
 
       {timerAtivo && <TimerCorrendo timer={timerAtivo} titulo={cardPorId(timerAtivo.cardId)?.titulo} />}
 
-      <div className="mt-2 space-y-2">
+      {/* Caixa com rolagem: mostra ~5 por vez (mais novo primeiro) em vez de uma
+          fila infinita empilhada. */}
+      <div className="mt-2 max-h-[22rem] space-y-2 overflow-y-auto pr-1">
         {recentes.length === 0 && !timerAtivo ? (
           <p className="rounded-marca bg-marca-branco px-3 py-6 text-center text-xs text-marca-cinza">
             Nenhuma hora apontada ainda. Use o timer no topo.

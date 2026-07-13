@@ -240,6 +240,28 @@ function inicialIdDe(estado: Board): string {
 }
 
 /**
+ * Avisa (evento) que um card mudou de etapa, para o timer em andamento daquele
+ * card marcar isso na linha do tempo. So dispara em acao local do usuario (nos
+ * action-creators, nunca no reducer) e quando a etapa realmente mudou.
+ */
+function emitirMudancaEtapa(
+  estado: Board,
+  cardId: string,
+  origem: string | undefined,
+  destino: string,
+  voltou: boolean
+): void {
+  if (typeof window === "undefined" || !origem || origem === destino) return;
+  const et = etapasDe(estado);
+  const tit = (id: string) => et.find((e) => e.id === id)?.titulo ?? id;
+  window.dispatchEvent(
+    new CustomEvent("kando:card-etapa", {
+      detail: { cardId, deTitulo: tit(origem), paraTitulo: tit(destino), voltou },
+    })
+  );
+}
+
+/**
  * Reordena os cards apos um drag and drop.
  * overId pode ser o id de outro card ou o id de uma coluna (quando solto numa
  * coluna vazia ou no espaco abaixo dos cards).
@@ -628,7 +650,23 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const atualizarCard = useCallback((card: CardConteudo) => {
+    const antigo = boardRef.current.cards.find((c) => c.id === card.id);
     dispatch({ tipo: "UPD_CARD", card });
+    // Tarefa/mini-etapa de projeto recem-concluida: avisa o timer em andamento.
+    if (typeof window !== "undefined" && antigo?.projeto && card.projeto) {
+      const feitasAntes = new Set(
+        antigo.projeto.fases.flatMap((f) => f.tarefas.filter((t) => t.feita).map((t) => t.id))
+      );
+      for (const f of card.projeto.fases) {
+        for (const t of f.tarefas) {
+          if (t.feita && !feitasAntes.has(t.id)) {
+            window.dispatchEvent(
+              new CustomEvent("kando:card-tarefa", { detail: { cardId: card.id, tarefa: t } })
+            );
+          }
+        }
+      }
+    }
   }, []);
 
   const excluirCard = useCallback((id: string) => {
@@ -636,21 +674,36 @@ export function BoardProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const moverCard = useCallback((activeId: string, overId: string) => {
+    const b = boardRef.current;
+    const ativo = b.cards.find((c) => c.id === activeId);
+    const overCard = b.cards.find((c) => c.id === overId);
+    const ordem = ordemDe(b);
+    const destino = overCard ? overCard.etapa : ordem.includes(overId) ? overId : undefined;
     dispatch({ tipo: "MOVER", activeId, overId });
+    if (ativo && destino && destino !== ativo.etapa) {
+      const voltou = ordem.indexOf(destino) < ordem.indexOf(ativo.etapa);
+      emitirMudancaEtapa(b, activeId, ativo.etapa, destino, voltou);
+    }
   }, []);
 
   const marcarPostado = useCallback((id: string) => {
-    const post = postadoIdDe(boardRef.current);
+    const b = boardRef.current;
+    const post = postadoIdDe(b);
+    const ant = b.cards.find((c) => c.id === id)?.etapa;
     dispatch({ tipo: "DEF_ETAPA", id, etapa: post, extra: { postadoEm: agora() } });
+    emitirMudancaEtapa(b, id, ant, post, false);
   }, []);
 
   const reabrirCard = useCallback((id: string) => {
     // Volta para a coluna imediatamente antes da de Publicado (ou a inicial).
-    const ord = ordemDe(boardRef.current);
-    const post = postadoIdDe(boardRef.current);
+    const b = boardRef.current;
+    const ord = ordemDe(b);
+    const post = postadoIdDe(b);
     const i = ord.indexOf(post);
-    const anterior = (i > 0 ? ord[i - 1] : undefined) ?? inicialIdDe(boardRef.current);
+    const anterior = (i > 0 ? ord[i - 1] : undefined) ?? inicialIdDe(b);
+    const ant = b.cards.find((c) => c.id === id)?.etapa;
     dispatch({ tipo: "DEF_ETAPA", id, etapa: anterior, extra: { postadoEm: undefined } });
+    emitirMudancaEtapa(b, id, ant, anterior, true);
   }, []);
 
   const agendarCard = useCallback((id: string, dataISO: string) => {

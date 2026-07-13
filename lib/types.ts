@@ -147,6 +147,9 @@ export interface Checkpoint {
   em: string; // ISO datetime do marcador
   texto: string; // o que estava sendo feito
   pausaMs?: number; // se preenchido, e um marcador de pausa com esta duracao
+  // Categoria do marcador (para exibir/estilizar na linha do tempo). Ausente = nota
+  // manual. "pausa" tambem e inferivel por pausaMs; os automaticos marcam o tipo.
+  tipo?: "nota" | "pausa" | "etapa" | "tarefa";
 }
 
 /**

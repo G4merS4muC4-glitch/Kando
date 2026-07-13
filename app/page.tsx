@@ -22,6 +22,7 @@ import BadgeTipo from "@/components/BadgeTipo";
 import ModalCard from "@/components/ModalCard";
 import QuadroGeral from "@/components/QuadroGeral";
 import CartaoProjetoAtual from "@/components/apontamentos/CartaoProjetoAtual";
+import CartaoTimerColega from "@/components/apontamentos/CartaoTimerColega";
 import ModalConfigTempo from "@/components/apontamentos/ModalConfigTempo";
 
 /** Remove acentos e caixa, para casar o nome da etapa de produção. */
@@ -39,7 +40,7 @@ function semAcento(s: string): string {
 export default function Painel() {
   const { cards, campanhas, marcaPorId, campanhaPorId, etapas, etapaPorId, etapaPostado, pronto } =
     useBoard();
-  const { timerAtivo } = useApontamentos();
+  const { timerAtivo, timersEquipe, autor } = useApontamentos();
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [vista, setVista] = useState<"painel" | "geral">("painel");
   const [configAberto, setConfigAberto] = useState(false);
@@ -107,6 +108,9 @@ export default function Painel() {
   const restoProducao = destaque
     ? dados.producao.filter((c) => c.id !== destaque.id).slice(0, 8)
     : [];
+  // Colegas com timer rodando agora (exclui o meu proprio), para o "Projeto atual"
+  // mostrar quem mais esta trabalhando, ao vivo.
+  const colegasTrabalhando = timersEquipe.filter((t) => t.userId !== autor.id);
 
   function linhaDeCard(card: CardConteudo, lado: "direita" | "esquerda" = "direita") {
     const camp = campanhaPorId(card.campanhaId);
@@ -291,11 +295,25 @@ export default function Painel() {
                         <span className="hidden sm:inline">Tempo</span>
                       </button>
                     }
-                    vazio={!destaque ? "Nada em produção agora." : undefined}
+                    vazio={
+                      !destaque && colegasTrabalhando.length === 0 ? "Nada em produção agora." : undefined
+                    }
                   >
                     {destaque && <CartaoProjetoAtual card={destaque} onAbrir={setAbertoId} />}
                     {restoProducao.length > 0 && (
                       <div className="space-y-2">{restoProducao.map((c) => linhaDeCard(c, "direita"))}</div>
+                    )}
+                    {colegasTrabalhando.length > 0 && (
+                      <div>
+                        <p className="mb-2 mt-1 text-[11px] font-bold uppercase tracking-wide text-marca-cinza">
+                          Equipe trabalhando agora
+                        </p>
+                        <div className="space-y-2">
+                          {colegasTrabalhando.map((t) => (
+                            <CartaoTimerColega key={t.userId} timer={t.timer} />
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </Secao>
 
