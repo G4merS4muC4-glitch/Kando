@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Play } from "lucide-react";
+import { Clock, Play, Wrench } from "lucide-react";
 import {
   duracaoMs,
   tempoTrabalhadoMs,
@@ -23,6 +23,14 @@ interface Sessao {
   autorNome: string;
   checkpoints: Checkpoint[];
   emAndamento: boolean;
+  servico?: string; // se veio de um card de "servico" que cobre este projeto (nome do servico)
+}
+
+/** Um servico (ex.: gravacao) que cobre este projeto: entra na linha do tempo. */
+export interface ServicoNaLinha {
+  titulo: string;
+  registros: RegistroTempo[];
+  timer?: TimerAtivo; // se o timer estiver rodando neste servico agora
 }
 
 /**
@@ -34,17 +42,23 @@ interface Sessao {
 export default function LinhaDoTempoProjeto({
   registros,
   timerAtivo,
+  servicos,
 }: {
   registros: RegistroTempo[];
   timerAtivo?: TimerAtivo;
+  servicos?: ServicoNaLinha[];
 }) {
+  // Tica de 1s enquanto QUALQUER timer relevante (o proprio ou um servico) roda.
+  const rodando =
+    (!!timerAtivo && !timerAtivo.pausadoEm) ||
+    (servicos ?? []).some((s) => s.timer && !s.timer.pausadoEm);
   const [agoraMs, setAgoraMs] = useState(() => (typeof window !== "undefined" ? Date.now() : 0));
   useEffect(() => {
-    if (!timerAtivo || timerAtivo.pausadoEm) return;
+    if (!rodando) return;
     setAgoraMs(Date.now());
     const id = window.setInterval(() => setAgoraMs(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [timerAtivo]);
+  }, [rodando]);
 
   const sessoes: Sessao[] = [];
   if (timerAtivo) {
@@ -72,6 +86,38 @@ export default function LinhaDoTempoProjeto({
       checkpoints: r.checkpoints ?? [],
       emAndamento: false,
     });
+  }
+  // Sessoes de servicos que cobrem este projeto (ex.: gravacao de varios videos):
+  // aparecem aqui como compartilhadas, sem duplicar as horas em outro card.
+  for (const s of servicos ?? []) {
+    if (s.timer) {
+      sessoes.push({
+        id: `serv-and-${s.timer.cardId}`,
+        dia: diaDoRegistro({ inicio: s.timer.inicio }),
+        inicio: s.timer.inicio,
+        fim: new Date(agoraMs || Date.now()).toISOString(),
+        ms: tempoTrabalhadoMs(s.timer, agoraMs || Date.now()),
+        nota: s.timer.nota,
+        autorNome: s.timer.autorNome,
+        checkpoints: s.timer.checkpoints ?? [],
+        emAndamento: true,
+        servico: s.titulo,
+      });
+    }
+    for (const r of s.registros) {
+      sessoes.push({
+        id: `serv-${r.id}`,
+        dia: diaDoRegistro(r),
+        inicio: r.inicio,
+        fim: r.fim,
+        ms: duracaoMs(r),
+        nota: r.nota,
+        autorNome: r.autorNome,
+        checkpoints: r.checkpoints ?? [],
+        emAndamento: false,
+        servico: s.titulo,
+      });
+    }
   }
   sessoes.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime()); // mais novo primeiro
   const totalMs = sessoes.reduce((s, x) => s + x.ms, 0);
@@ -111,9 +157,11 @@ export default function LinhaDoTempoProjeto({
               <div
                 key={s.id}
                 className={`rounded-marca border p-2.5 ${
-                  s.emAndamento
-                    ? "border-marca-laranja/60 bg-marca-laranja/5"
-                    : "border-marca-cinza/25 bg-white"
+                  s.servico
+                    ? "border-[#0F766E]/40 bg-[#0F766E]/5"
+                    : s.emAndamento
+                      ? "border-marca-laranja/60 bg-marca-laranja/5"
+                      : "border-marca-cinza/25 bg-white"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 text-xs">
@@ -128,6 +176,13 @@ export default function LinhaDoTempoProjeto({
                     {formatarDuracao(s.ms)}
                   </span>
                 </div>
+                {s.servico && (
+                  <p className="mt-1">
+                    <span className="inline-flex items-center gap-1 rounded-marca bg-[#0F766E]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0F766E]">
+                      <Wrench size={10} aria-hidden /> Serviço · {s.servico}
+                    </span>
+                  </p>
+                )}
                 <p className="mt-0.5 truncate text-[11px] text-marca-cinza">
                   {s.autorNome}
                   {s.nota ? ` · ${s.nota}` : ""}

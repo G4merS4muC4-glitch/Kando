@@ -10,7 +10,11 @@ export type TipoConteudo =
   | "stories"
   | "materialRico"
   | "ebook"
-  | "projeto";
+  | "projeto"
+  // "servico": um trabalho que atende varios conteudos de uma vez (ex.: gravacao
+  // de 3 videos numa sessao so). Tem uma descricao e a lista de projetos que cobre
+  // (cardsVinculados); o timer dele conta na linha do tempo de cada projeto coberto.
+  | "servico";
 
 // Canais de publicacao (Instagram e Facebook juntos, alem de LinkedIn e YouTube).
 export type Canal = "instagram" | "facebook" | "linkedin" | "youtube";
@@ -101,6 +105,7 @@ export interface CardConteudo {
   referenciaUrl?: string; // link da referencia onde a pessoa viu a ideia
   postadoEm?: string; // ISO datetime de quando foi marcado como postado
   projeto?: ProjetoDados; // fluxo de producao (apenas quando tipo === "projeto")
+  cardsVinculados?: string[]; // ids dos conteudos cobertos (apenas quando tipo === "servico")
   criadoEm: string; // ISO datetime
   atualizadoEm: string; // ISO datetime
 }

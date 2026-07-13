@@ -34,6 +34,7 @@ import {
   PRIORIDADES_ORDEM,
   TIPOS,
   TIPOS_ORDEM,
+  campanhaArquivada,
 } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
@@ -44,7 +45,7 @@ import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
 import Teleprompter from "./Teleprompter";
 import AbaProjeto from "./projeto/AbaProjeto";
-import LinhaDoTempoProjeto from "./apontamentos/LinhaDoTempoProjeto";
+import LinhaDoTempoProjeto, { type ServicoNaLinha } from "./apontamentos/LinhaDoTempoProjeto";
 import ModalCompartilhar from "./ModalCompartilhar";
 import SeletorData from "./SeletorData";
 import SeletorHora from "./SeletorHora";
@@ -76,11 +77,13 @@ export default function ModalCard({
   onFechar: () => void;
 }) {
   const {
+    cards,
     campanhas,
     marcas,
     etapas,
     etapaPostado,
     etapaPorId,
+    campanhaPorId,
     atualizarCard,
     excluirCard,
     marcarPostado,
@@ -168,6 +171,9 @@ export default function ModalCard({
   const ehProjeto = card.tipo === "projeto";
   // Roteiro e Teleprompter so fazem sentido em video: apenas Reels os mostra.
   const ehReels = card.tipo === "reels";
+  // Servico e enxuto: sem briefing/roteiro/legenda; so a descricao, os projetos
+  // cobertos e a linha do tempo (o timer dele conta em cada projeto coberto).
+  const ehServico = card.tipo === "servico";
 
   // A aba Projeto so existe para cards do tipo projeto. Se o tipo mudar enquanto
   // a aba Projeto esta aberta, volta para a Visao Geral.
@@ -185,16 +191,25 @@ export default function ModalCard({
     if (aba === "legenda" && ehProjeto) setAba("visao");
   }, [aba, ehProjeto]);
 
+  // Servico so tem Visao Geral e Linha do tempo. Se estiver noutra aba, volta.
+  useEffect(() => {
+    if (ehServico && (aba === "briefing" || aba === "roteiro" || aba === "legenda" || aba === "projeto")) {
+      setAba("visao");
+    }
+  }, [ehServico, aba]);
+
   // Lista de abas: Projeto logo apos Visao Geral (so em projeto); Roteiro so em
   // Reels; Legenda em tudo menos projeto (que nao precisa de legenda).
-  const abas: { id: Aba; rotulo: string; icone: LucideIcon }[] = [
-    ABAS[0], // Visao Geral
-    ...(ehProjeto ? [{ id: "projeto" as Aba, rotulo: "Projeto", icone: ListChecks }] : []),
-    ABAS[1], // Briefing
-    ...(ehReels ? [ABAS[2]] : []), // Roteiro (so Reels)
-    ...(ehProjeto ? [] : [ABAS[3]]), // Legenda (projeto nao precisa)
-    { id: "linha" as Aba, rotulo: "Linha do tempo", icone: Clock }, // vale para todo card
-  ];
+  const abas: { id: Aba; rotulo: string; icone: LucideIcon }[] = ehServico
+    ? [ABAS[0], { id: "linha" as Aba, rotulo: "Linha do tempo", icone: Clock }]
+    : [
+        ABAS[0], // Visao Geral
+        ...(ehProjeto ? [{ id: "projeto" as Aba, rotulo: "Projeto", icone: ListChecks }] : []),
+        ABAS[1], // Briefing
+        ...(ehReels ? [ABAS[2]] : []), // Roteiro (so Reels)
+        ...(ehProjeto ? [] : [ABAS[3]]), // Legenda (projeto nao precisa)
+        { id: "linha" as Aba, rotulo: "Linha do tempo", icone: Clock }, // vale para todo card
+      ];
 
   /**
    * Atualiza um campo e persiste imediatamente (auto-save).
@@ -305,6 +320,32 @@ export default function ModalCard({
   // Horas apontadas neste card e se o timer atual e dele.
   const totalCard = totalMsDoCard(card.id);
   const timerNesteCard = timerAtivo?.cardId === card.id;
+
+  // Servico: candidatos a vincular (conteudos ativos, menos ele mesmo e outros
+  // servicos) e a acao de marcar/desmarcar.
+  const candidatosVinculo = ehServico
+    ? cards.filter(
+        (c) =>
+          c.id !== card.id &&
+          c.tipo !== "servico" &&
+          !campanhaArquivada(campanhaPorId(c.campanhaId)?.status)
+      )
+    : [];
+  function alternarVinculo(id: string) {
+    const atual = card.cardsVinculados ?? [];
+    const novo = atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id];
+    atualizarCard({ ...card, cardsVinculados: novo });
+  }
+  // Para um card comum: servicos que o cobrem (entram na linha do tempo dele).
+  const servicosDoCard: ServicoNaLinha[] = ehServico
+    ? []
+    : cards
+        .filter((c) => c.tipo === "servico" && (c.cardsVinculados ?? []).includes(card.id))
+        .map((s) => ({
+          titulo: s.titulo || "Serviço",
+          registros: registrosDoCard(s.id),
+          timer: timerAtivo && timerAtivo.cardId === s.id ? timerAtivo : undefined,
+        }));
 
   // Limite de caracteres da legenda conforme os canais marcados.
   const limiteLegenda = card.canais.length
@@ -662,6 +703,57 @@ export default function ModalCard({
                 </div>
               </Campo>
 
+              {ehServico && (
+                <Campo rotulo="Descrição do serviço" className="sm:col-span-2">
+                  <input
+                    type="text"
+                    value={card.briefing}
+                    onChange={(e) => atualizarCampo("briefing", e.target.value)}
+                    className={inputClasse}
+                    placeholder="Ex: Gravação dos vídeos da semana"
+                  />
+                </Campo>
+              )}
+
+              {ehServico && (
+                <Campo rotulo="Projetos que este serviço cobre" className="sm:col-span-2">
+                  <div className="max-h-56 space-y-1 overflow-y-auto rounded-marca border border-marca-cinza/30 p-2">
+                    {candidatosVinculo.length === 0 ? (
+                      <p className="px-1 py-2 text-xs text-marca-cinza">
+                        Nenhum outro conteúdo para vincular.
+                      </p>
+                    ) : (
+                      candidatosVinculo.map((c) => {
+                        const marcado = (card.cardsVinculados ?? []).includes(c.id);
+                        return (
+                          <label
+                            key={c.id}
+                            className="flex items-center gap-2 rounded px-1 py-1 hover:bg-marca-branco"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={marcado}
+                              onChange={() => alternarVinculo(c.id)}
+                              className="h-4 w-4 accent-marca-laranja"
+                            />
+                            <span className="min-w-0 flex-1 truncate text-sm text-marca-preto">
+                              {c.titulo || "Sem título"}
+                            </span>
+                            <span className="shrink-0 text-[11px] text-marca-cinza">
+                              {campanhaPorId(c.campanhaId)?.nome}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  <span className="mt-1 block text-xs text-marca-cinza">
+                    O tempo do timer deste serviço aparece na linha do tempo de cada conteúdo marcado.
+                  </span>
+                </Campo>
+              )}
+
+              {!ehServico && (
               <Campo rotulo="Canais" className="sm:col-span-2">
                 <div className="flex flex-wrap gap-2">
                   {CANAIS_ORDEM.map((canal) => {
@@ -686,6 +778,7 @@ export default function ModalCard({
                   })}
                 </div>
               </Campo>
+              )}
 
               <Campo rotulo="Tema ou campanha">
                 <input
@@ -722,7 +815,7 @@ export default function ModalCard({
               </Campo>
 
               {/* Publicacao automatica (FB/IG): o robo publica no horario agendado. */}
-              {card.tipo !== "projeto" && (
+              {card.tipo !== "projeto" && !ehServico && (
                 <div className="rounded-marca border border-marca-cinza/30 bg-marca-branco p-3 sm:col-span-2">
                   <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-azulEscuro">
                     Publicação automática (Facebook e Instagram)
@@ -942,6 +1035,7 @@ export default function ModalCard({
             <LinhaDoTempoProjeto
               registros={registrosDoCard(card.id)}
               timerAtivo={timerAtivo && timerAtivo.cardId === card.id ? timerAtivo : undefined}
+              servicos={servicosDoCard}
             />
           )}
 

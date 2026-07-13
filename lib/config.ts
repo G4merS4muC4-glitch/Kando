@@ -6,6 +6,7 @@ import {
   FileText,
   BookOpen,
   ListChecks,
+  Wrench,
   Instagram,
   Facebook,
   Linkedin,
@@ -75,6 +76,7 @@ export const TIPOS: Record<TipoConteudo, TipoConfig> = {
   materialRico: { label: "Material Rico", cor: "#6D4FC0", icone: FileText },
   ebook: { label: "E-book", cor: "#0E7490", icone: BookOpen },
   projeto: { label: "Projeto", cor: "#475569", icone: ListChecks },
+  servico: { label: "Serviço", cor: "#0F766E", icone: Wrench },
 };
 
 /** Ordem dos tipos para uso em selects e filtros. */
@@ -86,6 +88,7 @@ export const TIPOS_ORDEM: TipoConteudo[] = [
   "materialRico",
   "ebook",
   "projeto",
+  "servico",
 ];
 
 /**

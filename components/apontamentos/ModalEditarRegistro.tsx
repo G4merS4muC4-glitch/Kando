@@ -8,7 +8,7 @@ import { deInputLocal, formatarDuracao, paraInputLocal } from "@/lib/apontamento
 import { agora } from "@/lib/util";
 import type { Checkpoint, RegistroTempo } from "@/lib/types";
 import ListaCheckpoints from "./ListaCheckpoints";
-import LinhaDoTempoProjeto from "./LinhaDoTempoProjeto";
+import LinhaDoTempoProjeto, { type ServicoNaLinha } from "./LinhaDoTempoProjeto";
 
 const AVISO_LONGO_MS = 12 * 3_600_000;
 
@@ -245,6 +245,17 @@ export default function ModalEditarRegistro({
               <LinhaDoTempoProjeto
                 registros={cardId ? registrosDoCard(cardId) : []}
                 timerAtivo={timerAtivo && timerAtivo.cardId === cardId ? timerAtivo : undefined}
+                servicos={
+                  cardId
+                    ? cards
+                        .filter((c) => c.tipo === "servico" && (c.cardsVinculados ?? []).includes(cardId))
+                        .map<ServicoNaLinha>((s) => ({
+                          titulo: s.titulo || "Serviço",
+                          registros: registrosDoCard(s.id),
+                          timer: timerAtivo && timerAtivo.cardId === s.id ? timerAtivo : undefined,
+                        }))
+                    : []
+                }
               />
             </div>
           </div>
