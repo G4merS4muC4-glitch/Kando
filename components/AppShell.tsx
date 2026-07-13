@@ -8,6 +8,7 @@ import { OrgProvider, useOrg } from "@/lib/orgProvider";
 import Topo from "./Topo";
 import BarraNavInferior from "./BarraNavInferior";
 import CartaoTimerFlutuante from "./CartaoTimerFlutuante";
+import CentralNotificacoes from "./CentralNotificacoes";
 import AvisoErroCarregar from "./AvisoErroCarregar";
 import GuardaSenha from "./GuardaSenha";
 
@@ -62,6 +63,7 @@ function ShellComOrg({ children }: { children: ReactNode }) {
                 topo). O timer ativo aparece no card flutuante, sobre qualquer pagina. */}
             <BarraNavInferior />
             <CartaoTimerFlutuante />
+            <CentralNotificacoes />
           </div>
         </ApontamentosProvider>
       </BoardProvider>

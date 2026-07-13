@@ -35,8 +35,9 @@ type ModoGrafico = "total" | "projeto";
 /** Painel de horas: KPIs, calendario, grafico, recentes e resumo por projeto. */
 export default function PaginaHoras() {
   const { registros, timerAtivo, timersEquipe, autor, pronto } = useApontamentos();
-  // Exclui o meu proprio timer (ele ja aparece em "Registros recentes").
-  const equipeAoVivo = timersEquipe.filter((t) => t.userId !== autor.id);
+  // Exclui o meu proprio timer so quando este aparelho ja o mostra em "Registros
+  // recentes" (tem timer local). Se iniciei em outro dispositivo, ele aparece aqui.
+  const equipeAoVivo = timersEquipe.filter((t) => t.userId !== autor.id || !timerAtivo);
   const { cards, campanhas, marcas, cardPorId, campanhaPorId } = useBoard();
 
   const [montado, setMontado] = useState(false);

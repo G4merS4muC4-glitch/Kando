@@ -108,9 +108,10 @@ export default function Painel() {
   const restoProducao = destaque
     ? dados.producao.filter((c) => c.id !== destaque.id).slice(0, 8)
     : [];
-  // Colegas com timer rodando agora (exclui o meu proprio), para o "Projeto atual"
-  // mostrar quem mais esta trabalhando, ao vivo.
-  const colegasTrabalhando = timersEquipe.filter((t) => t.userId !== autor.id);
+  // Timers da equipe rodando agora. Exclui o MEU timer so quando este aparelho ja
+  // o mostra (tem timer local); se iniciei em outro dispositivo, ele aparece aqui
+  // tambem, para eu ver "onde quer que eu abra".
+  const colegasTrabalhando = timersEquipe.filter((t) => t.userId !== autor.id || !timerAtivo);
 
   function linhaDeCard(card: CardConteudo, lado: "direita" | "esquerda" = "direita") {
     const camp = campanhaPorId(card.campanhaId);
