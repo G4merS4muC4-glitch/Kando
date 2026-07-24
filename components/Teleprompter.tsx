@@ -21,9 +21,11 @@ import {
   Link2,
   Gamepad2,
   MonitorSmartphone,
+  MonitorUp,
 } from "lucide-react";
 import {
   useControleTeleprompter,
+  usePresencaGlobalTeleprompter,
   type ControleTeleprompter,
   type ModoTela,
   type PresencaTela,
@@ -31,6 +33,7 @@ import {
 import { gerarId } from "@/lib/util";
 
 const CHAVE_PAPEL = "kando:tp-papel";
+const CHAVE_CONFIG = "kando:tp-config"; // ultima velocidade/tamanho/espelho do aparelho
 
 // Escala de velocidade bem ampla (px por quadro): de bem devagar (0.01) a bem rapido.
 const VEL_MIN = 0.01;
@@ -108,6 +111,36 @@ function nomePadrao(modo: ModoTela): string {
   return modo === "exibir" ? "Teleprompter" : modo === "remoto" ? "Controle remoto" : "Controle";
 }
 
+/** Le a ultima config salva neste aparelho (velocidade, fonte e espelho). */
+function lerConfig(): { velocidade: number; tamanho: number; espelhoH: boolean } {
+  const padrao = {
+    velocidade: 1.4,
+    tamanho: typeof window !== "undefined" && window.innerWidth < 640 ? 30 : 44,
+    espelhoH: false,
+  };
+  if (typeof window === "undefined") return padrao;
+  try {
+    const bruto = window.localStorage.getItem(CHAVE_CONFIG);
+    if (bruto) {
+      const p = JSON.parse(bruto) as { velocidade?: unknown; tamanho?: unknown; espelhoH?: unknown };
+      return {
+        velocidade:
+          typeof p.velocidade === "number"
+            ? Math.min(VEL_MAX, Math.max(VEL_MIN, p.velocidade))
+            : padrao.velocidade,
+        tamanho:
+          typeof p.tamanho === "number"
+            ? Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round(p.tamanho)))
+            : padrao.tamanho,
+        espelhoH: Boolean(p.espelhoH),
+      };
+    }
+  } catch {
+    // ignora
+  }
+  return padrao;
+}
+
 /** Elemento atualmente em tela cheia (com prefixo webkit para Safari/iPad). */
 function elementoTelaCheia(): Element | null {
   const d = document as Document & { webkitFullscreenElement?: Element | null };
@@ -139,6 +172,8 @@ export default function Teleprompter({
   onFechar,
   cardId = null,
   modoInicial,
+  titulo = "",
+  escopoGlobal = null,
 }: {
   texto: string;
   onFechar: () => void;
@@ -146,6 +181,11 @@ export default function Teleprompter({
   // Quando informado, abre ja neste modo (ex: "remoto" pelo botao de controle
   // remoto), ignorando o papel salvo neste aparelho.
   modoInicial?: ModoTela;
+  // Nome curto do conteudo (para identificar o projeto nas outras telas).
+  titulo?: string;
+  // Escopo da presenca global (id da organizacao). Quando presente, habilita
+  // "trocar o roteiro em todas as telas abertas" entre projetos diferentes.
+  escopoGlobal?: string | null;
 }) {
   const areaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -175,12 +215,12 @@ export default function Teleprompter({
   const [modo, setModo] = useState<ModoTela>(papelInicial.current.modo);
   const [painelTelas, setPainelTelas] = useState(false);
 
+  // Ultima config salva neste aparelho (persiste entre teleprompters do dia).
+  const configInicial = useRef(lerConfig());
   const [tocando, setTocando] = useState(false);
-  const [tamanho, setTamanho] = useState(() =>
-    typeof window !== "undefined" && window.innerWidth < 640 ? 30 : 44
-  );
-  const [velocidade, setVelocidade] = useState(1.4); // px por quadro
-  const [espelhoH, setEspelhoH] = useState(false);
+  const [tamanho, setTamanho] = useState(configInicial.current.tamanho);
+  const [velocidade, setVelocidade] = useState(configInicial.current.velocidade); // px por quadro
+  const [espelhoH, setEspelhoH] = useState(configInicial.current.espelhoH);
   const [saltoToken, setSaltoToken] = useState(0);
   // Texto em edicao dos campos numericos (velocidade/tamanho). Enquanto o usuario
   // digita, o campo mostra o texto cru (deixa digitar ponto e valores parciais);
@@ -216,7 +256,19 @@ export default function Teleprompter({
   const pendFbRef = useRef<number | null>(null);
   const [saltoFbToken, setSaltoFbToken] = useState(0);
 
-  const blocos = useMemo(() => dividirRoteiro(texto), [texto]);
+  // Troca de projeto AO VIVO: quando outra tela manda (ou esta manda para as
+  // outras) "rodar este roteiro", passamos a usar este card/texto no lugar do
+  // que veio por prop, sem desmontar nada. null = usa o conteudo original.
+  const [troca, setTroca] = useState<{ cardId: string; texto: string; titulo: string } | null>(null);
+  const cardAtivo = troca ? troca.cardId : cardId;
+  const textoAtivo = troca ? troca.texto : texto;
+  const tituloAtivo = troca ? troca.titulo : titulo;
+  const cardAtivoRef = useRef(cardAtivo);
+  cardAtivoRef.current = cardAtivo;
+  const [msgTroca, setMsgTroca] = useState<string | null>(null);
+  const msgTrocaTimer = useRef<number | null>(null);
+
+  const blocos = useMemo(() => dividirRoteiro(textoAtivo), [textoAtivo]);
   const totalFrases = blocos.length;
 
   // Peso (em caracteres) de cada bloco, para o avanco por frase do remoto
@@ -359,8 +411,26 @@ export default function Teleprompter({
     }
   }, []);
 
+  // Troca de projeto recebida (de outra tela): recarrega este teleprompter no
+  // novo card/texto e volta ao comeco, sem desmontar.
+  const aoTrocar = useCallback((novoCard: string, novoTexto: string, novoTitulo: string) => {
+    if (!novoCard || novoCard === cardAtivoRef.current) return; // ja estou neste projeto
+    setTroca({ cardId: novoCard, texto: novoTexto, titulo: novoTitulo });
+    tocandoRef.current = false;
+    setTocando(false);
+    guiaRemotoRef.current = false;
+    fbRef.current = 0;
+    setFb(0);
+    cpRef.current = 0;
+    const el = areaRef.current;
+    if (el) el.scrollTop = 0;
+    setMsgTroca(novoTitulo?.trim() ? novoTitulo : "Novo roteiro");
+    if (msgTrocaTimer.current) window.clearTimeout(msgTrocaTimer.current);
+    msgTrocaTimer.current = window.setTimeout(() => setMsgTroca(null), 2600);
+  }, []);
+
   const { enviarControle, comandarModo, enviarPosicao, enviarPosicaoRemota, telas, ativo } =
-    useControleTeleprompter(cardId, {
+    useControleTeleprompter(cardAtivo, {
       meuId,
       nome,
       modo,
@@ -370,6 +440,49 @@ export default function Teleprompter({
       aoReceberPosicaoRemota,
     });
 
+  // Presenca GLOBAL (entre projetos): permite "rodar este roteiro em todas as
+  // telas abertas" sem ir em cada aparelho.
+  const { telasGlobais, enviarTroca } = usePresencaGlobalTeleprompter(escopoGlobal, {
+    meuId,
+    cardId: cardAtivo,
+    titulo: tituloAtivo,
+    modo,
+    aoTrocar,
+  });
+
+  // Outras telas de teleprompter abertas em OUTRO projeto (candidatas a trocar).
+  const telasOutroProjeto = useMemo(
+    () => telasGlobais.filter((t) => t.id !== meuId && t.cardId && t.cardId !== (cardAtivo ?? "")),
+    [telasGlobais, meuId, cardAtivo]
+  );
+
+  // Pergunta uma vez, ao abrir, se quer levar este roteiro para as telas que
+  // ja estao abertas em outro projeto. So no aparelho que controla (nao na tela
+  // limpa) e enquanto nao trocou nesta sessao.
+  const [popupTroca, setPopupTroca] = useState(false);
+  const jaPerguntouTroca = useRef(false);
+  useEffect(() => {
+    if (modo === "exibir" || troca) return;
+    if (jaPerguntouTroca.current) return;
+    if (telasOutroProjeto.length > 0) {
+      jaPerguntouTroca.current = true;
+      setPopupTroca(true);
+    }
+  }, [telasOutroProjeto.length, modo, troca]);
+
+  const trocarEmTodas = useCallback(() => {
+    if (cardAtivoRef.current) enviarTroca(cardAtivoRef.current, textoAtivo, tituloAtivo);
+    setPopupTroca(false);
+  }, [enviarTroca, textoAtivo, tituloAtivo]);
+
+  // Limpa o timer do aviso de troca ao desmontar.
+  useEffect(
+    () => () => {
+      if (msgTrocaTimer.current) window.clearTimeout(msgTrocaTimer.current);
+    },
+    []
+  );
+
   // Salva o papel deste aparelho (para reabrir ja na funcao certa).
   useEffect(() => {
     try {
@@ -378,6 +491,19 @@ export default function Teleprompter({
       // ignora
     }
   }, [nome, modo]);
+
+  // Persiste a ultima config (velocidade, fonte, espelho): o proximo roteiro do
+  // dia ja abre com os mesmos ajustes, sem precisar refazer.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CHAVE_CONFIG,
+        JSON.stringify({ velocidade, tamanho, espelhoH })
+      );
+    } catch {
+      // ignora
+    }
+  }, [velocidade, tamanho, espelhoH]);
 
   const transmitir = useCallback(
     (extra: Partial<ControleTeleprompter>) => {
@@ -531,14 +657,15 @@ export default function Teleprompter({
       if (e.key === "Escape") {
         e.stopImmediatePropagation();
         e.preventDefault();
-        if (painelTelas) setPainelTelas(false);
+        if (popupTroca) setPopupTroca(false);
+        else if (painelTelas) setPainelTelas(false);
         else if (elementoTelaCheia()) sairTelaCheia(); // Esc so sai da tela cheia
         else onFechar();
       }
     }
     window.addEventListener("keydown", aoTeclar, true);
     return () => window.removeEventListener("keydown", aoTeclar, true);
-  }, [onFechar, painelTelas]);
+  }, [onFechar, painelTelas, popupTroca]);
 
   useEffect(() => {
     const overflow = document.body.style.overflow;
@@ -719,6 +846,20 @@ export default function Teleprompter({
                 >
                   <RotateCcw size={16} aria-hidden />
                 </button>
+                {telasOutroProjeto.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPopupTroca(true)}
+                    title="Rodar este roteiro em todas as telas abertas"
+                    aria-label="Rodar em todas as telas"
+                    className={`relative ${fabSec}`}
+                  >
+                    <MonitorUp size={16} aria-hidden />
+                    <span className="absolute -right-1 -top-1 rounded-full bg-marca-laranja px-1 text-[10px] font-bold text-white">
+                      {telasOutroProjeto.length}
+                    </span>
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 <button
@@ -1032,6 +1173,20 @@ export default function Teleprompter({
               )}
             </div>
             <div className="flex items-center gap-1.5">
+              {telasOutroProjeto.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPopupTroca(true)}
+                  title="Rodar este roteiro em todas as telas abertas"
+                  aria-label="Rodar em todas as telas"
+                  className={`relative ${fabSec}`}
+                >
+                  <MonitorUp size={16} aria-hidden />
+                  <span className="absolute -right-1 -top-1 rounded-full bg-marca-laranja px-1 text-[10px] font-bold text-white">
+                    {telasOutroProjeto.length}
+                  </span>
+                </button>
+              )}
               {cardId && (
                 <button
                   type="button"
@@ -1264,6 +1419,62 @@ export default function Teleprompter({
                     Abra o teleprompter em outra tela (no card) para comandá-la daqui.
                   </p>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso breve: esta tela acabou de ser trocada para outro projeto. */}
+      {msgTroca && (
+        <div className="pointer-events-none absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-marca-laranja px-4 py-2 text-sm font-semibold text-white shadow-lg animate-slideUp">
+          <MonitorUp size={15} aria-hidden /> Trocado para {msgTroca}
+        </div>
+      )}
+
+      {/* Popup: rodar este roteiro em todas as telas abertas em outro projeto. */}
+      {popupTroca && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 p-4 animate-fadeIn"
+          onClick={() => setPopupTroca(false)}
+        >
+          <div
+            className="w-full max-w-sm overflow-hidden rounded-marca bg-white text-marca-preto shadow-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 bg-marca-azulEscuro px-4 py-3 text-white">
+              <MonitorUp size={16} aria-hidden />
+              <h2 className="text-sm font-bold">Rodar em todas as telas?</h2>
+            </div>
+            <div className="space-y-3 px-4 py-4">
+              <p className="text-sm text-marca-preto">
+                {telasOutroProjeto.length === 1
+                  ? "Há 1 tela de teleprompter aberta"
+                  : `Há ${telasOutroProjeto.length} telas de teleprompter abertas`}{" "}
+                em outro projeto. Trocar {telasOutroProjeto.length === 1 ? "ela" : "todas"} para{" "}
+                <span className="font-bold">
+                  {tituloAtivo?.trim() ? `"${tituloAtivo}"` : "este roteiro"}
+                </span>{" "}
+                agora?
+              </p>
+              <p className="text-xs text-marca-cinza">
+                O texto muda na hora em cada aparelho, sem precisar mexer nas outras telas.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPopupTroca(false)}
+                  className="flex-1 rounded-marca border border-marca-cinza/40 px-3 py-2 text-sm font-semibold text-marca-azulEscuro transition hover:bg-marca-branco"
+                >
+                  Agora não
+                </button>
+                <button
+                  type="button"
+                  onClick={trocarEmTodas}
+                  className="flex-1 rounded-marca bg-marca-laranja px-3 py-2 text-sm font-bold text-white transition hover:brightness-95"
+                >
+                  Sim, trocar tudo
+                </button>
               </div>
             </div>
           </div>

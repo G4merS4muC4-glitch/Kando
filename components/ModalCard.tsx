@@ -38,6 +38,7 @@ import {
   campanhaArquivada,
 } from "@/lib/config";
 import { useBoard } from "@/lib/store";
+import { useOrg } from "@/lib/orgProvider";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { formatarDuracao } from "@/lib/apontamentos";
 import { useCanalTeleprompter, type ModoTela } from "@/lib/teleprompterAoVivo";
@@ -91,6 +92,7 @@ export default function ModalCard({
     reabrirCard,
   } = useBoard();
   const { iniciarTimer, totalMsDoCard, timerAtivo, registrosDoCard } = useApontamentos();
+  const { orgId } = useOrg();
   // Canal ao vivo do teleprompter: recebe na hora o que o visitante digita no
   // link publico (e envia o que o time digita), nos dois sentidos.
   const { enviar: enviarTp } = useCanalTeleprompter(card.id, (texto) =>
@@ -1100,6 +1102,8 @@ export default function ModalCard({
         cardId={card.id}
         onFechar={fecharTeleprompter}
         modoInicial={modoTpInicial}
+        titulo={card.titulo}
+        escopoGlobal={orgId}
       />
     )}
 

@@ -270,3 +270,117 @@ export function useControleTeleprompter(
 
   return { enviarControle, comandarModo, enviarPosicao, enviarPosicaoRemota, telas, ativo };
 }
+
+/**
+ * Presenca GLOBAL do teleprompter (por organizacao, nao por card): permite que
+ * telas abertas em PROJETOS DIFERENTES se enxerguem. Serve para trocar o roteiro
+ * de todas as telas de uma vez ("comecar o proximo video") sem ir em cada
+ * aparelho: quem abre o novo projeto manda um comando `trocar` com o texto e as
+ * outras telas (mesmo em outro card) recarregam na hora.
+ */
+export interface PresencaGlobal {
+  id: string;
+  cardId: string;
+  titulo: string;
+  modo: ModoTela;
+}
+
+interface OpcoesGlobal {
+  meuId: string;
+  cardId: string | null;
+  titulo: string;
+  modo: ModoTela;
+  aoTrocar: (cardId: string, texto: string, titulo: string) => void;
+}
+
+export function usePresencaGlobalTeleprompter(
+  escopo: string | null | undefined,
+  opts: OpcoesGlobal,
+  habilitado = true
+): {
+  telasGlobais: PresencaGlobal[];
+  enviarTroca: (cardId: string, texto: string, titulo: string) => void;
+  ativoGlobal: boolean;
+} {
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+  const canalRef = useRef<RealtimeChannel | null>(null);
+  const [ativoGlobal, setAtivoGlobal] = useState(false);
+  const [telasGlobais, setTelasGlobais] = useState<PresencaGlobal[]>([]);
+
+  useEffect(() => {
+    if (!habilitado || !escopo || !supabaseConfigurado()) {
+      setAtivoGlobal(false);
+      setTelasGlobais([]);
+      return;
+    }
+    const sb = criarClienteNavegador();
+    const meuId = optsRef.current.meuId;
+    const canal = sb.channel(`tp-global:${escopo}`, {
+      config: { broadcast: { self: false }, presence: { key: meuId } },
+    });
+
+    canal.on(
+      "broadcast",
+      { event: "trocar" },
+      (msg: { payload?: { cardId?: string; texto?: string; titulo?: string } }) => {
+        const p = msg?.payload;
+        if (p && typeof p.cardId === "string" && typeof p.texto === "string") {
+          optsRef.current.aoTrocar(p.cardId, p.texto, typeof p.titulo === "string" ? p.titulo : "");
+        }
+      }
+    );
+
+    canal.on("presence", { event: "sync" }, () => {
+      const estado = canal.presenceState() as Record<
+        string,
+        Array<{ id?: string; cardId?: string; titulo?: string; modo?: ModoTela }>
+      >;
+      const lista: PresencaGlobal[] = [];
+      const vistos = new Set<string>();
+      Object.values(estado).forEach((entradas) =>
+        entradas.forEach((e) => {
+          const id = e.id ?? "";
+          if (!id || vistos.has(id)) return;
+          vistos.add(id);
+          const m: ModoTela = e.modo === "exibir" ? "exibir" : e.modo === "remoto" ? "remoto" : "controle";
+          lista.push({ id, cardId: e.cardId ?? "", titulo: e.titulo ?? "", modo: m });
+        })
+      );
+      setTelasGlobais(lista);
+    });
+
+    canal.subscribe((status: string) => {
+      const ok = status === "SUBSCRIBED";
+      setAtivoGlobal(ok);
+      if (ok) {
+        const o = optsRef.current;
+        void canal.track({ id: o.meuId, cardId: o.cardId ?? "", titulo: o.titulo, modo: o.modo });
+      }
+    });
+    canalRef.current = canal;
+
+    return () => {
+      canalRef.current = null;
+      setAtivoGlobal(false);
+      setTelasGlobais([]);
+      void sb.removeChannel(canal);
+    };
+  }, [escopo, habilitado]);
+
+  // Atualiza a presenca global quando o card/titulo/modo desta tela mudam
+  // (ex: acabou de trocar de projeto).
+  useEffect(() => {
+    const canal = canalRef.current;
+    if (canal && ativoGlobal) {
+      void canal.track({ id: opts.meuId, cardId: opts.cardId ?? "", titulo: opts.titulo, modo: opts.modo });
+    }
+  }, [opts.meuId, opts.cardId, opts.titulo, opts.modo, ativoGlobal]);
+
+  const enviarTroca = useCallback((cardId: string, texto: string, titulo: string) => {
+    const canal = canalRef.current;
+    if (canal) void canal.send({ type: "broadcast", event: "trocar", payload: { cardId, texto, titulo } });
+  }, []);
+
+  return { telasGlobais, enviarTroca, ativoGlobal };
+}
