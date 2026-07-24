@@ -89,6 +89,38 @@ input[type="search"]::-webkit-search-cancel-button {
   transform: scale(1.18);
 }
 
+/* Campo numerico ao lado das barras (velocidade / tamanho): digitar o valor
+   direto. Compacto, escuro e sem as setinhas nativas. */
+.tp-num {
+  width: 4rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.tp-num:focus {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(250, 97, 30, 0.7);
+}
+.tp-num::-webkit-outer-spin-button,
+.tp-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.tp-num {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* ---------------- Liquid glass (vidro liquido) do card de timer --------------
    Tres camadas para isolar a optica do conteudo:
    - Fundo: o desfoque do cenario acontece no proprio elemento (backdrop-filter).

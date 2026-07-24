@@ -92,6 +92,12 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(24px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Card que acabou de ser solto numa coluna: cresce de leve e um anel
+        // laranja pulsa e some (feedback de "chegou aqui").
+        chegou: {
+          "0%": { transform: "scale(0.96)", boxShadow: "0 0 0 5px rgba(250, 97, 30, 0.28)" },
+          "100%": { transform: "scale(1)", boxShadow: "0 0 0 0 rgba(250, 97, 30, 0)" },
+        },
       },
       animation: {
         pop: "pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -105,6 +111,7 @@ const config: Config = {
         entraDir: "entraDir 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
         entraEsq: "entraEsq 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
         subirSheet: "subirSheet 0.28s cubic-bezier(0.22, 1, 0.36, 1)",
+        chegou: "chegou 0.5s cubic-bezier(0.2, 0.9, 0.3, 1)",
       },
       transitionTimingFunction: {
         // Easing suave padrao (sai rapido, assenta devagar) para hovers e lifts.

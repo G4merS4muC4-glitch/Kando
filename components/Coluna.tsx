@@ -23,12 +23,14 @@ export default function Coluna({
   onAbrir,
   onNovo,
   arrastando = false,
+  recemMovidoId = null,
 }: {
   coluna: EtapaOrg;
   cards: CardConteudo[];
   onAbrir: (id: string) => void;
   onNovo: (etapa: Etapa) => void;
   arrastando?: boolean;
+  recemMovidoId?: string | null;
 }) {
   // A coluna inteira e um destino de drop (permite soltar em coluna vazia).
   const { setNodeRef, isOver } = useDroppable({ id: coluna.id });
@@ -124,7 +126,12 @@ export default function Coluna({
       >
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
-            <Card key={card.id} card={card} onAbrir={onAbrir} />
+            <Card
+              key={card.id}
+              card={card}
+              onAbrir={onAbrir}
+              recemMovido={card.id === recemMovidoId}
+            />
           ))}
         </SortableContext>
 

@@ -48,6 +48,9 @@ export default function Board({
   const { moverCard, pronto, etapas } = useBoard();
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [larguraArrasto, setLarguraArrasto] = useState<number | undefined>(undefined);
+  // Card recem-solto: recebe o pop de "chegou" por ~meio segundo.
+  const [recemMovidoId, setRecemMovidoId] = useState<string | null>(null);
+  const popTimer = useRef<number | null>(null);
 
   // Mouse: arrasta com um pequeno movimento. Toque: segura ~0,2s para arrastar
   // (assim o deslize do dedo rola o quadro normalmente, sem agarrar o card).
@@ -104,7 +107,13 @@ export default function Board({
   }
 
   // Garante que o loop pare se o componente desmontar no meio de um arraste.
-  useEffect(() => () => pararFisica(), []);
+  useEffect(
+    () => () => {
+      pararFisica();
+      if (popTimer.current) window.clearTimeout(popTimer.current);
+    },
+    []
+  );
 
   function aoIniciarArrasto(evento: DragStartEvent) {
     setLarguraArrasto(evento.active.rect.current.initial?.width);
@@ -131,7 +140,14 @@ export default function Board({
     const { active, over } = evento;
     pararFisica();
     setArrastandoId(null);
-    if (over) moverCard(String(active.id), String(over.id));
+    if (over) {
+      const id = String(active.id);
+      moverCard(id, String(over.id));
+      // Pop de "chegou" no card recem-solto (some depois de ~meio segundo).
+      setRecemMovidoId(id);
+      if (popTimer.current) window.clearTimeout(popTimer.current);
+      popTimer.current = window.setTimeout(() => setRecemMovidoId(null), 560);
+    }
   }
 
   function aoCancelar() {
@@ -165,6 +181,7 @@ export default function Board({
               onAbrir={onAbrir}
               onNovo={onNovo}
               arrastando={!!arrastandoId}
+              recemMovidoId={recemMovidoId}
             />
           ))}
         </div>

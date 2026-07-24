@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, memo, useRef, type ComponentPropsWithoutRef } from "react";
-import { useSortable } from "@dnd-kit/sortable";
+import { useSortable, defaultAnimateLayoutChanges, type AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   Calendar,
@@ -280,6 +280,17 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   );
 });
 
+// Curva suave da marca (sai rapido, assenta devagar) para o reflow dos cards ao
+// abrir espaco para o arrastado. animarLayout tambem anima quando a lista se
+// reacomoda depois de soltar (nao so durante o arraste), deixando tudo fluido.
+const REFLOW_MS = 260;
+const REFLOW_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const animarLayout: AnimateLayoutChanges = (args) => {
+  const { isSorting, wasDragging } = args;
+  if (isSorting || wasDragging) return defaultAnimateLayoutChanges(args);
+  return true;
+};
+
 /**
  * Card ordenavel do quadro. Enquanto e arrastado, a previa que segue o cursor
  * (DragOverlay, no Board) mostra exatamente este mesmo visual. O card de origem
@@ -288,18 +299,27 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
 function Card({
   card,
   onAbrir,
+  recemMovido = false,
 }: {
   card: CardConteudo;
   onAbrir: (id: string) => void;
+  recemMovido?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: card.id, data: { etapa: card.etapa } });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isSorting } =
+    useSortable({
+      id: card.id,
+      data: { etapa: card.etapa },
+      animateLayoutChanges: animarLayout,
+      transition: { duration: REFLOW_MS, easing: REFLOW_EASING },
+    });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     // Esconde o original durante o arraste, sem mudar tamanho (o espaco fica).
     opacity: isDragging ? 0 : 1,
+    // GPU so enquanto reordena (evita camadas permanentes em muitos cards).
+    willChange: isSorting ? "transform" : undefined,
   };
 
   return (
@@ -308,6 +328,7 @@ function Card({
       card={card}
       onAbrir={onAbrir}
       style={style}
+      className={recemMovido ? "animate-chegou" : undefined}
       onClick={() => onAbrir(card.id)}
       {...attributes}
       {...listeners}

@@ -30,6 +30,12 @@ import { gerarId } from "@/lib/util";
 
 const CHAVE_PAPEL = "kando:tp-papel";
 
+// Escala de velocidade bem ampla (px por quadro): de bem devagar a bem rapido.
+const VEL_MIN = 0.4;
+const VEL_MAX = 20;
+const FONTE_MIN = 20;
+const FONTE_MAX = 100;
+
 type BlocoRoteiro = { tipo: "marca" | "texto"; conteudo: string };
 
 /**
@@ -152,6 +158,11 @@ export default function Teleprompter({
   const [velocidade, setVelocidade] = useState(1.4); // px por quadro
   const [espelhoH, setEspelhoH] = useState(false);
   const [saltoToken, setSaltoToken] = useState(0);
+  // Texto em edicao dos campos numericos (velocidade/tamanho). Enquanto o usuario
+  // digita, o campo mostra o texto cru (deixa digitar ponto e valores parciais);
+  // ao sair do campo (blur) volta a refletir o valor ja limitado.
+  const [velTexto, setVelTexto] = useState<string | null>(null);
+  const [tamTexto, setTamTexto] = useState<string | null>(null);
 
   const tocandoRef = useRef(tocando);
   const velocidadeRef = useRef(velocidade);
@@ -246,7 +257,8 @@ export default function Teleprompter({
 
   const mudarVelocidade = useCallback(
     (v: number) => {
-      const nv = Math.min(6, Math.max(0.4, +v.toFixed(1)));
+      if (!Number.isFinite(v)) return;
+      const nv = Math.min(VEL_MAX, Math.max(VEL_MIN, +v.toFixed(1)));
       velocidadeRef.current = nv;
       setVelocidade(nv);
       transmitir({});
@@ -256,7 +268,8 @@ export default function Teleprompter({
 
   const mudarTamanho = useCallback(
     (t: number) => {
-      const nt = Math.min(100, Math.max(20, t));
+      if (!Number.isFinite(t)) return;
+      const nt = Math.min(FONTE_MAX, Math.max(FONTE_MIN, Math.round(t)));
       tamanhoRef.current = nt;
       setTamanho(nt);
       transmitir({});
@@ -401,8 +414,8 @@ export default function Teleprompter({
     "flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white transition-transform duration-100 hover:bg-white/20 active:scale-90";
 
   // Preenchimento das barras liquidas (0..100%) conforme o valor atual.
-  const pctVel = ((velocidade - 0.4) / (6 - 0.4)) * 100;
-  const pctFonte = ((tamanho - 20) / (100 - 20)) * 100;
+  const pctVel = ((velocidade - VEL_MIN) / (VEL_MAX - VEL_MIN)) * 100;
+  const pctFonte = ((tamanho - FONTE_MIN) / (FONTE_MAX - FONTE_MIN)) * 100;
   const fundoSlider = (p: number) =>
     `linear-gradient(to right, #FA611E 0%, #FA611E ${p}%, rgba(255,255,255,0.18) ${p}%, rgba(255,255,255,0.18) 100%)`;
 
@@ -534,14 +547,15 @@ export default function Teleprompter({
               </div>
             )}
 
-            {/* Barras liquidas: velocidade e tamanho da fonte (escala fluida) */}
+            {/* Barras liquidas: velocidade e tamanho da fonte (escala fluida).
+                Ao lado, um campo com o numero para ajustar/digitar direto. */}
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <Turtle size={18} aria-hidden className="shrink-0 text-white/55" />
                 <input
                   type="range"
-                  min={0.4}
-                  max={6}
+                  min={VEL_MIN}
+                  max={VEL_MAX}
                   step={0.1}
                   value={velocidade}
                   onChange={(e) => mudarVelocidade(parseFloat(e.target.value))}
@@ -550,13 +564,31 @@ export default function Teleprompter({
                   style={{ background: fundoSlider(pctVel) }}
                 />
                 <Rabbit size={18} aria-hidden className="shrink-0 text-white/55" />
+                <input
+                  type="number"
+                  min={VEL_MIN}
+                  max={VEL_MAX}
+                  step={0.1}
+                  value={velTexto ?? String(velocidade)}
+                  onChange={(e) => {
+                    setVelTexto(e.target.value);
+                    const n = parseFloat(e.target.value);
+                    if (Number.isFinite(n)) mudarVelocidade(n);
+                  }}
+                  onBlur={() => setVelTexto(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  }}
+                  aria-label="Velocidade (número)"
+                  className="tp-num shrink-0"
+                />
               </div>
               <div className="flex items-center gap-3">
                 <Type size={14} aria-hidden className="shrink-0 text-white/55" />
                 <input
                   type="range"
-                  min={20}
-                  max={100}
+                  min={FONTE_MIN}
+                  max={FONTE_MAX}
                   step={2}
                   value={tamanho}
                   onChange={(e) => mudarTamanho(parseInt(e.target.value, 10))}
@@ -565,6 +597,24 @@ export default function Teleprompter({
                   style={{ background: fundoSlider(pctFonte) }}
                 />
                 <Type size={22} aria-hidden className="shrink-0 text-white/55" />
+                <input
+                  type="number"
+                  min={FONTE_MIN}
+                  max={FONTE_MAX}
+                  step={1}
+                  value={tamTexto ?? String(tamanho)}
+                  onChange={(e) => {
+                    setTamTexto(e.target.value);
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isFinite(n)) mudarTamanho(n);
+                  }}
+                  onBlur={() => setTamTexto(null)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  }}
+                  aria-label="Tamanho da fonte (número)"
+                  className="tp-num shrink-0"
+                />
               </div>
             </div>
           </div>
@@ -627,6 +677,9 @@ export default function Teleprompter({
         }`}
       >
         <div className="mx-auto max-w-4xl" style={{ transform: `scaleX(${espelhoH ? -1 : 1})` }}>
+          {/* Folga de rolagem no topo: o texto comeca mais para o meio da tela,
+              com espaco livre acima, em vez de colado no topo (melhor para gravar). */}
+          <div className="h-[42vh]" aria-hidden />
           {blocos.length === 0 ? (
             <p
               className="whitespace-pre-wrap text-center font-semibold"
