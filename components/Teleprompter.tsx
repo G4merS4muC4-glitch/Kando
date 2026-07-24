@@ -19,6 +19,8 @@ import {
   Maximize,
   Minimize,
   Link2,
+  Gamepad2,
+  MonitorSmartphone,
 } from "lucide-react";
 import {
   useControleTeleprompter,
@@ -30,11 +32,19 @@ import { gerarId } from "@/lib/util";
 
 const CHAVE_PAPEL = "kando:tp-papel";
 
-// Escala de velocidade bem ampla (px por quadro): de bem devagar a bem rapido.
-const VEL_MIN = 0.4;
+// Escala de velocidade bem ampla (px por quadro): de bem devagar (0.01) a bem rapido.
+const VEL_MIN = 0.01;
 const VEL_MAX = 20;
 const FONTE_MIN = 20;
 const FONTE_MAX = 100;
+
+// Controle remoto: quantos caracteres por segundo cada unidade de velocidade
+// representa (avanco por frase, independente do tamanho da tela). Calibrado para
+// que a velocidade padrao (1.4) fique numa narracao confortavel (~12 car/s).
+const CARACT_POR_VEL = 8.5;
+// Onde fica a "linha de leitura" na tela de exibicao (fracao da altura, do topo).
+// A frase atual e trazida para esta altura quando o remoto comanda.
+const LINHA_LEITURA = 0.42;
 
 type BlocoRoteiro = { tipo: "marca" | "texto"; conteudo: string };
 
@@ -81,15 +91,21 @@ function lerPapel(): { nome: string; modo: ModoTela } {
     const bruto = window.localStorage.getItem(CHAVE_PAPEL);
     if (bruto) {
       const p = JSON.parse(bruto) as { nome?: unknown; modo?: unknown };
+      const modo: ModoTela = p.modo === "exibir" ? "exibir" : p.modo === "remoto" ? "remoto" : "controle";
       return {
         nome: typeof p.nome === "string" && p.nome.trim() ? p.nome : "Controle",
-        modo: p.modo === "exibir" ? "exibir" : "controle",
+        modo,
       };
     }
   } catch {
     // ignora
   }
   return { nome: "Controle", modo: "controle" };
+}
+
+/** Nome padrao de cada modo (usado ao trocar de papel). */
+function nomePadrao(modo: ModoTela): string {
+  return modo === "exibir" ? "Teleprompter" : modo === "remoto" ? "Controle remoto" : "Controle";
 }
 
 /** Elemento atualmente em tela cheia (com prefixo webkit para Safari/iPad). */
@@ -122,10 +138,14 @@ export default function Teleprompter({
   texto,
   onFechar,
   cardId = null,
+  modoInicial,
 }: {
   texto: string;
   onFechar: () => void;
   cardId?: string | null;
+  // Quando informado, abre ja neste modo (ex: "remoto" pelo botao de controle
+  // remoto), ignorando o papel salvo neste aparelho.
+  modoInicial?: ModoTela;
 }) {
   const areaRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -146,7 +166,11 @@ export default function Teleprompter({
     return typeof el.requestFullscreen === "function" || typeof el.webkitRequestFullscreen === "function";
   });
 
-  const papelInicial = useRef(lerPapel());
+  const papelInicial = useRef(
+    modoInicial
+      ? { nome: nomePadrao(modoInicial), modo: modoInicial }
+      : lerPapel()
+  );
   const [nome, setNome] = useState(papelInicial.current.nome);
   const [modo, setModo] = useState<ModoTela>(papelInicial.current.modo);
   const [painelTelas, setPainelTelas] = useState(false);
@@ -169,6 +193,114 @@ export default function Teleprompter({
   const tamanhoRef = useRef(tamanho);
   const pctPendenteRef = useRef(0);
 
+  const remoto = modo === "remoto";
+  const remotoRef = useRef(remoto);
+  remotoRef.current = remoto;
+
+  // --- Controle remoto: posicao por FRASE (fb = fracao de bloco, 0..N) ---
+  // fb: frase "atual" mostrada no remoto (e comandada nas telas). cpRef: posicao
+  // em caracteres (avanco continuo do play). Nas telas de exibicao, guardamos a
+  // posicao recebida do remoto para deslizar suave ate a frase certa.
+  const [fb, setFb] = useState(0);
+  const fbRef = useRef(0);
+  const cpRef = useRef(0);
+  const remFbRef = useRef(0);
+  const remVelRef = useRef(0);
+  const remQuandoRef = useRef(0);
+  const guiaRemotoRef = useRef(false);
+
+  // Telas de exibicao: nos DOM de cada bloco (para medir onde cada frase esta) e
+  // os topos absolutos medidos (usados para centralizar a frase comandada).
+  const blocosDomRef = useRef<(HTMLElement | null)[]>([]);
+  const toposRef = useRef<number[]>([]);
+  const pendFbRef = useRef<number | null>(null);
+  const [saltoFbToken, setSaltoFbToken] = useState(0);
+
+  const blocos = useMemo(() => dividirRoteiro(texto), [texto]);
+  const totalFrases = blocos.length;
+
+  // Peso (em caracteres) de cada bloco, para o avanco por frase do remoto
+  // respeitar frases longas/curtas. cum[i] = caracteres antes do bloco i.
+  const medidas = useMemo(() => {
+    const chars = blocos.map((b) => Math.max(6, b.conteudo.trim().length));
+    const cum: number[] = [];
+    let acc = 0;
+    for (const c of chars) {
+      cum.push(acc);
+      acc += c;
+    }
+    return { chars, cum, total: Math.max(1, acc) };
+  }, [blocos]);
+
+  // Posicao em caracteres -> fracao de bloco (fb, 0..N).
+  const fbDeCp = useCallback(
+    (cp: number): number => {
+      const { chars, cum, total } = medidas;
+      const n = chars.length;
+      if (n === 0) return 0;
+      const x = Math.min(total, Math.max(0, cp));
+      for (let i = 0; i < n; i++) {
+        if (x < cum[i] + chars[i] || i === n - 1) return i + (x - cum[i]) / chars[i];
+      }
+      return n;
+    },
+    [medidas]
+  );
+
+  // Fracao de bloco (fb) -> posicao em caracteres.
+  const cpDeFb = useCallback(
+    (f: number): number => {
+      const { chars, cum, total } = medidas;
+      const n = chars.length;
+      if (n === 0) return 0;
+      const i = Math.min(Math.max(0, Math.floor(f)), n - 1);
+      const frac = Math.min(1, Math.max(0, f - i));
+      return Math.min(total, cum[i] + frac * chars[i]);
+    },
+    [medidas]
+  );
+
+  // --- Telas de exibicao: medir onde cada frase esta e centralizar a comandada ---
+  // Mede o topo absoluto de cada bloco (dentro do conteudo rolavel). O ultimo
+  // valor extra e o fim do ultimo bloco (para interpolar ate o fim).
+  const recomputarTopos = useCallback(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const ra = el.getBoundingClientRect();
+    const base = el.scrollTop;
+    const nodes = blocosDomRef.current;
+    const arr: number[] = [];
+    for (let i = 0; i < totalFrases; i++) {
+      const node = nodes[i];
+      if (node) arr.push(node.getBoundingClientRect().top - ra.top + base);
+      else arr.push(arr.length ? arr[arr.length - 1] : 0);
+    }
+    const ultimo = nodes[totalFrases - 1];
+    if (ultimo) {
+      const r = ultimo.getBoundingClientRect();
+      arr.push(r.top - ra.top + base + r.height);
+    } else {
+      arr.push(el.scrollHeight);
+    }
+    toposRef.current = arr;
+  }, [totalFrases]);
+
+  // Fracao de bloco (fb) -> scrollTop que traz a frase para a linha de leitura.
+  const alvoScrollDeFb = useCallback((f: number): number => {
+    const el = areaRef.current;
+    const topos = toposRef.current;
+    if (!el) return 0;
+    if (topos.length < 2) return el.scrollTop;
+    const n = topos.length - 1; // numero de blocos
+    const fc = Math.min(n, Math.max(0, f));
+    const i = Math.min(Math.floor(fc), n - 1);
+    const frac = fc - i;
+    const y = topos[i] + (topos[i + 1] - topos[i]) * frac;
+    const off = el.clientHeight * LINHA_LEITURA;
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    return Math.min(max, Math.max(0, y - off));
+  }, []);
+
   const pctAtual = useCallback((): number => {
     const el = areaRef.current;
     if (!el) return 0;
@@ -187,13 +319,22 @@ export default function Teleprompter({
     tocandoRef.current = c.tocando;
     setTocando(c.tocando);
     if (!c.tocando) guiaVelRef.current = 0; // guia parou: congela a extrapolacao
+    guiaRemotoRef.current = Boolean(c.remoto); // a guia atual e um controle remoto?
     velocidadeRef.current = c.velocidade;
     setVelocidade(c.velocidade);
     tamanhoRef.current = c.tamanho;
     setTamanho(c.tamanho);
     if (c.saltar) {
-      pctPendenteRef.current = c.posicaoPct;
-      setSaltoToken((t) => t + 1);
+      if (typeof c.fbSaltar === "number") {
+        // Salto por FRASE (vindo do remoto): a tela centraliza esta frase.
+        pendFbRef.current = c.fbSaltar;
+        fbRef.current = c.fbSaltar;
+        setFb(c.fbSaltar);
+        setSaltoFbToken((t) => t + 1);
+      } else {
+        pctPendenteRef.current = c.posicaoPct;
+        setSaltoToken((t) => t + 1);
+      }
     }
   }, []);
 
@@ -205,17 +346,29 @@ export default function Teleprompter({
     guiaQuandoRef.current = Date.now();
   }, []);
 
-  const { enviarControle, comandarModo, enviarPosicao, telas, ativo } = useControleTeleprompter(
-    cardId,
-    {
+  // Posicao por FRASE vinda do remoto: a tela desliza suave ate essa frase.
+  const aoReceberPosicaoRemota = useCallback((f: number, vel: number) => {
+    guiaRemotoRef.current = true;
+    remFbRef.current = f;
+    remVelRef.current = vel;
+    remQuandoRef.current = Date.now();
+    if (remotoRef.current) {
+      // Se ESTA tela tambem e um remoto (raro), acompanha o preview do outro.
+      fbRef.current = f;
+      setFb(f);
+    }
+  }, []);
+
+  const { enviarControle, comandarModo, enviarPosicao, enviarPosicaoRemota, telas, ativo } =
+    useControleTeleprompter(cardId, {
       meuId,
       nome,
       modo,
       aoReceberControle,
       aoComandoModo,
       aoReceberPosicao,
-    }
-  );
+      aoReceberPosicaoRemota,
+    });
 
   // Salva o papel deste aparelho (para reabrir ja na funcao certa).
   useEffect(() => {
@@ -234,6 +387,7 @@ export default function Teleprompter({
         tamanho: tamanhoRef.current,
         posicaoPct: pctAtual(),
         saltar: false,
+        remoto: remotoRef.current,
         ...extra,
       });
     },
@@ -244,6 +398,33 @@ export default function Teleprompter({
     if (saltoToken === 0) return;
     aplicarPct(pctPendenteRef.current);
   }, [saltoToken, aplicarPct]);
+
+  // Salto por FRASE recebido do remoto: centraliza a frase (ate parado).
+  useEffect(() => {
+    if (saltoFbToken === 0 || pendFbRef.current === null) return;
+    const el = areaRef.current;
+    if (el) el.scrollTop = alvoScrollDeFb(pendFbRef.current);
+  }, [saltoFbToken, alvoScrollDeFb]);
+
+  // Telas de exibicao: remede os topos das frases quando o layout muda
+  // (texto, fonte, tela cheia, redimensionamento). Sem isso o "seguir por
+  // frase" centralizaria a frase errada.
+  useEffect(() => {
+    if (remoto) return; // o remoto nao renderiza o texto
+    recomputarTopos();
+    const el = areaRef.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", recomputarTopos);
+      return () => window.removeEventListener("resize", recomputarTopos);
+    }
+    const ro = new ResizeObserver(() => recomputarTopos());
+    ro.observe(el);
+    window.addEventListener("resize", recomputarTopos);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", recomputarTopos);
+    };
+  }, [remoto, blocos, tamanho, telaCheia, espelhoH, recomputarTopos]);
 
   const definirTocando = useCallback(
     (v: boolean) => {
@@ -258,7 +439,7 @@ export default function Teleprompter({
   const mudarVelocidade = useCallback(
     (v: number) => {
       if (!Number.isFinite(v)) return;
-      const nv = Math.min(VEL_MAX, Math.max(VEL_MIN, +v.toFixed(1)));
+      const nv = Math.min(VEL_MAX, Math.max(VEL_MIN, +v.toFixed(2)));
       velocidadeRef.current = nv;
       setVelocidade(nv);
       transmitir({});
@@ -277,15 +458,38 @@ export default function Teleprompter({
     [transmitir]
   );
 
+  // Controle remoto: vai para a frase `f` (fracao de bloco) e manda as telas
+  // centralizarem essa frase. Mantem a posicao em caracteres coerente.
+  const irParaFb = useCallback(
+    (f: number) => {
+      const alvo = Math.min(totalFrases, Math.max(0, f));
+      fbRef.current = alvo;
+      setFb(alvo);
+      cpRef.current = cpDeFb(alvo);
+      transmitir({ saltar: true, fbSaltar: alvo });
+    },
+    [totalFrases, cpDeFb, transmitir]
+  );
+
   const reiniciar = useCallback(() => {
-    aplicarPct(0);
     tocandoRef.current = false;
     setTocando(false);
+    if (remotoRef.current) {
+      irParaFb(0);
+      return;
+    }
+    aplicarPct(0);
     transmitir({ posicaoPct: 0, saltar: true });
-  }, [aplicarPct, transmitir]);
+  }, [aplicarPct, transmitir, irParaFb]);
 
   const pular = useCallback(
     (dir: number) => {
+      if (remotoRef.current) {
+        // No remoto, avanca/retrocede uma FRASE inteira.
+        const alvo = dir > 0 ? Math.floor(fbRef.current) + 1 : Math.ceil(fbRef.current) - 1;
+        irParaFb(alvo);
+        return;
+      }
       const el = areaRef.current;
       if (!el) return;
       const max = Math.max(1, el.scrollHeight - el.clientHeight);
@@ -293,7 +497,7 @@ export default function Teleprompter({
       el.scrollTop = novo * max;
       transmitir({ posicaoPct: novo, saltar: true });
     },
-    [transmitir]
+    [transmitir, irParaFb]
   );
 
   const sincronizar = useCallback(() => {
@@ -351,6 +555,7 @@ export default function Teleprompter({
   //   estiver acompanhando, transmite a propria posicao (~4x/s) para quem acompanha.
   // - Se a guia some (sem posicao ha >1.2s), quem acompanha volta a rolar sozinho.
   useEffect(() => {
+    if (remoto) return; // o controle remoto nao rola texto (tem seu proprio loop)
     if (!tocando && !seguir) return;
     let raf = 0;
     let ultimoEnvio = 0;
@@ -363,7 +568,19 @@ export default function Teleprompter({
         const agoraMs = Date.now();
         const dtGuia = agoraMs - guiaQuandoRef.current;
         const recebendoGuia = dtGuia < 1200;
-        if (seguir && recebendoGuia) {
+        const dtRem = agoraMs - remQuandoRef.current;
+        if (guiaRemotoRef.current) {
+          // A guia e um controle remoto: seguimos a FRASE (independe do tamanho
+          // da tela). Nunca rolamos sozinhos aqui.
+          if (dtRem < 1500) {
+            const dtPred = Math.min(dtRem, 400);
+            const fbAlvo = remFbRef.current + remVelRef.current * dtPred;
+            const alvo = alvoScrollDeFb(fbAlvo);
+            const delta = alvo - el.scrollTop;
+            // Salto grande (trocar de frase / scrub): vai direto; senao desliza.
+            el.scrollTop += Math.abs(delta) > el.clientHeight ? delta : delta * 0.18;
+          }
+        } else if (seguir && recebendoGuia) {
           // Extrapola a posicao da guia (posicao + velocidade) e desliza ate ela.
           // Continua suave mesmo recebendo poucas atualizacoes e em telas diferentes.
           const max = Math.max(1, el.scrollHeight - el.clientHeight);
@@ -400,11 +617,51 @@ export default function Teleprompter({
     };
     raf = requestAnimationFrame(passo);
     return () => cancelAnimationFrame(raf);
-  }, [tocando, seguir, velocidade, enviarPosicao, pctAtual]);
+  }, [remoto, tocando, seguir, velocidade, enviarPosicao, pctAtual, alvoScrollDeFb]);
+
+  // Controle remoto: avanco por FRASE ao longo do tempo. Anda em "caracteres"
+  // (frases longas demoram mais), converte para fracao de bloco e transmite a
+  // posicao para as telas seguirem. A velocidade controla o ritmo; o tamanho da
+  // tela nao importa. Ao chegar no fim, pausa.
+  useEffect(() => {
+    if (!remoto || !tocando) return;
+    let raf = 0;
+    let ultimoT = Date.now();
+    let ultimoEnvio = 0;
+    let envFb = fbRef.current;
+    let envT = Date.now();
+    const passo = () => {
+      const agora = Date.now();
+      const dt = agora - ultimoT;
+      ultimoT = agora;
+      const cps = velocidadeRef.current * CARACT_POR_VEL;
+      cpRef.current = Math.min(medidas.total, cpRef.current + (cps * dt) / 1000);
+      const nfb = fbDeCp(cpRef.current);
+      fbRef.current = nfb;
+      setFb(nfb);
+      if (agora - ultimoEnvio > 90) {
+        const dtE = agora - envT;
+        const vel = dtE > 0 ? (nfb - envFb) / dtE : 0;
+        enviarPosicaoRemota(nfb, vel);
+        envFb = nfb;
+        envT = agora;
+        ultimoEnvio = agora;
+      }
+      if (cpRef.current >= medidas.total) {
+        tocandoRef.current = false;
+        setTocando(false);
+        enviarPosicaoRemota(nfb, 0);
+        transmitir({});
+        return;
+      }
+      raf = requestAnimationFrame(passo);
+    };
+    raf = requestAnimationFrame(passo);
+    return () => cancelAnimationFrame(raf);
+  }, [remoto, tocando, medidas.total, fbDeCp, enviarPosicaoRemota, transmitir]);
 
   const limpa = modo === "exibir";
   const outras = telas.filter((t) => t.id !== meuId);
-  const blocos = useMemo(() => dividirRoteiro(texto), [texto]);
   const tamMarca = Math.max(13, Math.round(tamanho * 0.4)); // etiqueta menor que a fala
   const btn = "rounded-marca bg-white/10 text-white transition hover:bg-white/20 active:bg-white/30";
   // Botoes flutuantes redondos com leve animacao ao tocar.
@@ -419,13 +676,19 @@ export default function Teleprompter({
   const fundoSlider = (p: number) =>
     `linear-gradient(to right, #FA611E 0%, #FA611E ${p}%, rgba(255,255,255,0.18) ${p}%, rgba(255,255,255,0.18) 100%)`;
 
+  // Controle remoto: frase atual e vizinhas (para o preview) + posicao na barra.
+  const iAtual = totalFrases > 0 ? Math.min(totalFrases - 1, Math.max(0, Math.floor(fb))) : 0;
+  const fracAtual = Math.min(1, Math.max(0, fb - iAtual));
+  const pctFrase = totalFrases > 0 ? (fb / totalFrases) * 100 : 0;
+  const noFim = totalFrases > 0 && fb >= totalFrases - 0.001;
+
   return (
     <div
       ref={containerRef}
       className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d12] text-white animate-fadeIn"
     >
       {/* Controles flutuantes na parte de baixo (preferencia do usuario). */}
-      {!limpa && (
+      {!limpa && !remoto && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center p-3">
           <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-white/10 bg-black/50 p-3 shadow-2xl backdrop-blur-md">
             {/* Acoes secundarias */}
@@ -480,6 +743,15 @@ export default function Teleprompter({
                     {telaCheia ? <Minimize size={16} aria-hidden /> : <Maximize size={16} aria-hidden />}
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => definirPapel("Controle remoto", "remoto")}
+                  title="Virar controle remoto de bolso (so a frase + barra)"
+                  aria-label="Virar controle remoto"
+                  className={fabSec}
+                >
+                  <Gamepad2 size={16} aria-hidden />
+                </button>
                 <button
                   type="button"
                   onClick={() => definirPapel("Teleprompter", "exibir")}
@@ -556,7 +828,7 @@ export default function Teleprompter({
                   type="range"
                   min={VEL_MIN}
                   max={VEL_MAX}
-                  step={0.1}
+                  step={0.01}
                   value={velocidade}
                   onChange={(e) => mudarVelocidade(parseFloat(e.target.value))}
                   aria-label="Velocidade"
@@ -568,7 +840,7 @@ export default function Teleprompter({
                   type="number"
                   min={VEL_MIN}
                   max={VEL_MAX}
-                  step={0.1}
+                  step={0.01}
                   value={velTexto ?? String(velocidade)}
                   onChange={(e) => {
                     setVelTexto(e.target.value);
@@ -668,7 +940,9 @@ export default function Teleprompter({
       )}
 
       {/* Texto do roteiro. No modo controle, tocar rola/pausa; no modo limpa nao
-          (evita pausar sem querer enquanto o ator le). */}
+          (evita pausar sem querer enquanto o ator le). O controle remoto nao
+          mostra o texto rolando (tem seu proprio painel). */}
+      {!remoto && (
       <div
         ref={areaRef}
         onClick={limpa ? undefined : alternarTocando}
@@ -692,6 +966,9 @@ export default function Teleprompter({
               b.tipo === "marca" ? (
                 <span
                   key={i}
+                  ref={(n) => {
+                    blocosDomRef.current[i] = n;
+                  }}
                   className="mb-1 mt-6 block text-center font-bold uppercase tracking-widest first:mt-0"
                   style={{ fontSize: `${tamMarca}px`, color: "#EC1313", lineHeight: 1.2 }}
                 >
@@ -700,6 +977,9 @@ export default function Teleprompter({
               ) : (
                 <p
                   key={i}
+                  ref={(n) => {
+                    blocosDomRef.current[i] = n;
+                  }}
                   className="whitespace-pre-wrap text-center font-semibold"
                   style={{ fontSize: `${tamanho}px`, lineHeight: 1.5 }}
                 >
@@ -711,10 +991,11 @@ export default function Teleprompter({
           <div className="h-[60vh]" aria-hidden />
         </div>
       </div>
+      )}
 
       {/* Indicador discreto do controle ao vivo (no topo, ja que os controles
           agora ficam embaixo). So no modo controle. */}
-      {!limpa && (
+      {!limpa && !remoto && (
         <div className="pointer-events-none absolute top-2 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
           {espelhoH && (
             <p className="rounded-marca bg-white/10 px-3 py-1 text-[11px] font-medium text-white/75">
@@ -728,6 +1009,264 @@ export default function Teleprompter({
           ) : (
             <p className="text-[11px] text-white/40">Toque na tela para rolar ou pausar</p>
           )}
+        </div>
+      )}
+
+      {/* ============================ CONTROLE REMOTO ============================
+          Painel de bolso: mostra so a frase atual (com as vizinhas esmaecidas),
+          uma barra arrastavel na linha do tempo do texto e os botoes. Comanda as
+          telas de exibicao POR FRASE, entao acompanha igual em qualquer tamanho
+          de tela. Funciona em retrato e em paisagem (celular deitado / laptop). */}
+      {remoto && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* Barra superior */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5">
+            <div className="flex min-w-0 items-center gap-2">
+              <MonitorSmartphone size={18} className="shrink-0 text-marca-laranja" aria-hidden />
+              <span className="truncate text-sm font-bold">Controle remoto</span>
+              {ativo && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-marca-verde/15 px-2 py-0.5 text-[11px] font-semibold text-marca-verde">
+                  <Radio size={11} aria-hidden />
+                  <span className="hidden sm:inline">ao vivo</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {cardId && (
+                <button
+                  type="button"
+                  onClick={() => setPainelTelas(true)}
+                  title="Telas conectadas"
+                  aria-label="Telas conectadas"
+                  className={`relative ${fabSec}`}
+                >
+                  <Users size={16} aria-hidden />
+                  {ativo && telas.length > 0 && (
+                    <span className="absolute -right-1 -top-1 rounded-full bg-marca-verde px-1 text-[10px] font-bold text-white">
+                      {telas.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              {suportaTelaCheia && (
+                <button
+                  type="button"
+                  onClick={alternarTelaCheia}
+                  title={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+                  aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"}
+                  className={fabSec}
+                >
+                  {telaCheia ? <Minimize size={16} aria-hidden /> : <Maximize size={16} aria-hidden />}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => definirPapel("Controle", "controle")}
+                title="Ver o texto completo nesta tela"
+                aria-label="Ver o texto completo"
+                className={fabSec}
+              >
+                <Sliders size={16} aria-hidden />
+              </button>
+              <button type="button" onClick={onFechar} title="Fechar" aria-label="Fechar" className={fabSec}>
+                <X size={16} aria-hidden />
+              </button>
+            </div>
+          </div>
+
+          {/* Miolo: preview da frase + painel de comandos. Em tela baixa (celular
+              deitado) os dois ficam lado a lado; senao empilhados. */}
+          <div className="flex min-h-0 flex-1 flex-col baixo:flex-row">
+            {/* Preview: frase anterior (esmaecida), atual (grande) e proxima */}
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-4 text-center sm:px-10">
+              {totalFrases === 0 ? (
+                <p className="text-white/50">Sem roteiro para exibir.</p>
+              ) : (
+                <>
+                  <p className="line-clamp-2 max-w-2xl text-sm text-white/25 sm:text-lg">
+                    {iAtual > 0 ? blocos[iAtual - 1].conteudo : ""}
+                  </p>
+                  <div className="w-full max-w-2xl">
+                    <p
+                      className={`leading-snug ${
+                        blocos[iAtual].tipo === "marca"
+                          ? "text-xl font-bold uppercase tracking-widest text-marca-vermelho sm:text-3xl"
+                          : "text-2xl font-bold text-white sm:text-4xl"
+                      }`}
+                    >
+                      {blocos[iAtual].conteudo}
+                    </p>
+                    <div className="mx-auto mt-3.5 h-1 w-36 overflow-hidden rounded-full bg-white/12">
+                      <div
+                        className="h-full rounded-full bg-marca-laranja transition-[width] duration-100"
+                        style={{ width: `${fracAtual * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="line-clamp-2 max-w-2xl text-sm text-white/25 sm:text-lg">
+                    {iAtual < totalFrases - 1
+                      ? blocos[iAtual + 1].conteudo
+                      : noFim
+                        ? "Fim do texto"
+                        : ""}
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Comandos: barra arrastavel + transporte + velocidade/fonte */}
+            <div className="shrink-0 border-t border-white/10 bg-black/30 px-4 py-3.5 backdrop-blur-md baixo:w-[380px] baixo:overflow-y-auto baixo:border-l baixo:border-t-0 sm:px-6">
+              <div className="mx-auto flex max-w-xl flex-col gap-3.5">
+                {/* Barra da linha do tempo (arrastavel: volta e avanca) */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-white/55">
+                    <span>
+                      Frase {Math.min(iAtual + 1, totalFrases)} de {totalFrases}
+                    </span>
+                    <span>{Math.round(pctFrase)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0.001, totalFrases)}
+                    step={0.001}
+                    value={fb}
+                    onChange={(e) => irParaFb(parseFloat(e.target.value))}
+                    disabled={totalFrases === 0}
+                    aria-label="Posição no texto"
+                    className="tp-slider w-full disabled:opacity-40"
+                    style={{ background: fundoSlider(pctFrase) }}
+                  />
+                </div>
+
+                {/* Transporte */}
+                <div className="flex items-center justify-center gap-3 sm:gap-4">
+                  <button
+                    type="button"
+                    onClick={reiniciar}
+                    title="Reiniciar do começo"
+                    aria-label="Reiniciar do começo"
+                    className={`${fab} h-10 w-10`}
+                  >
+                    <RotateCcw size={18} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pular(-1)}
+                    title="Frase anterior"
+                    aria-label="Frase anterior"
+                    className={`${fab} h-12 w-12`}
+                  >
+                    <SkipBack size={22} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={alternarTocando}
+                    aria-label={tocando ? "Pausar" : "Iniciar"}
+                    className="flex h-16 w-16 items-center justify-center rounded-full bg-marca-laranja text-white shadow-lg transition-transform duration-100 hover:brightness-110 active:scale-95"
+                  >
+                    {tocando ? <Pause size={30} aria-hidden /> : <Play size={30} aria-hidden className="ml-0.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pular(1)}
+                    title="Próxima frase"
+                    aria-label="Próxima frase"
+                    className={`${fab} h-12 w-12`}
+                  >
+                    <SkipForward size={22} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEspelhoH((e) => !e)}
+                    aria-pressed={espelhoH}
+                    title="Espelho para o vidro do teleprompter"
+                    className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-100 active:scale-90 ${
+                      espelhoH ? "bg-marca-laranja text-white" : "bg-white/12 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    <FlipHorizontal size={18} aria-hidden />
+                  </button>
+                </div>
+
+                {/* Velocidade e tamanho da fonte (valem para as telas) */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-3">
+                    <Turtle size={18} aria-hidden className="shrink-0 text-white/55" />
+                    <input
+                      type="range"
+                      min={VEL_MIN}
+                      max={VEL_MAX}
+                      step={0.01}
+                      value={velocidade}
+                      onChange={(e) => mudarVelocidade(parseFloat(e.target.value))}
+                      aria-label="Velocidade"
+                      className="tp-slider flex-1"
+                      style={{ background: fundoSlider(pctVel) }}
+                    />
+                    <Rabbit size={18} aria-hidden className="shrink-0 text-white/55" />
+                    <input
+                      type="number"
+                      min={VEL_MIN}
+                      max={VEL_MAX}
+                      step={0.01}
+                      value={velTexto ?? String(velocidade)}
+                      onChange={(e) => {
+                        setVelTexto(e.target.value);
+                        const n = parseFloat(e.target.value);
+                        if (Number.isFinite(n)) mudarVelocidade(n);
+                      }}
+                      onBlur={() => setVelTexto(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      aria-label="Velocidade (número)"
+                      className="tp-num shrink-0"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Type size={14} aria-hidden className="shrink-0 text-white/55" />
+                    <input
+                      type="range"
+                      min={FONTE_MIN}
+                      max={FONTE_MAX}
+                      step={2}
+                      value={tamanho}
+                      onChange={(e) => mudarTamanho(parseInt(e.target.value, 10))}
+                      aria-label="Tamanho da fonte"
+                      className="tp-slider flex-1"
+                      style={{ background: fundoSlider(pctFonte) }}
+                    />
+                    <Type size={22} aria-hidden className="shrink-0 text-white/55" />
+                    <input
+                      type="number"
+                      min={FONTE_MIN}
+                      max={FONTE_MAX}
+                      step={1}
+                      value={tamTexto ?? String(tamanho)}
+                      onChange={(e) => {
+                        setTamTexto(e.target.value);
+                        const n = parseInt(e.target.value, 10);
+                        if (Number.isFinite(n)) mudarTamanho(n);
+                      }}
+                      onBlur={() => setTamTexto(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                      }}
+                      aria-label="Tamanho da fonte (número)"
+                      className="tp-num shrink-0"
+                    />
+                  </div>
+                </div>
+
+                {!ativo && (
+                  <p className="text-center text-[11px] text-white/40">
+                    Abra o teleprompter em outra tela (no card) para comandá-la daqui.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -765,14 +1304,17 @@ export default function Teleprompter({
                   <BotaoPapel ativo={limpa} onClick={() => definirPapel("Teleprompter", "exibir")}>
                     Tela limpa
                   </BotaoPapel>
+                  <BotaoPapel ativo={remoto} onClick={() => definirPapel("Controle remoto", "remoto")}>
+                    Controle remoto
+                  </BotaoPapel>
                   <BotaoPapel
-                    ativo={!limpa && nome === "Ator"}
+                    ativo={!limpa && !remoto && nome === "Ator"}
                     onClick={() => definirPapel("Ator", "controle")}
                   >
                     Ator
                   </BotaoPapel>
                   <BotaoPapel
-                    ativo={!limpa && nome === "Cinegrafista"}
+                    ativo={!limpa && !remoto && nome === "Cinegrafista"}
                     onClick={() => definirPapel("Cinegrafista", "controle")}
                   >
                     Cinegrafista
@@ -864,20 +1406,26 @@ function LinhaTela({
   onComandar: (alvoId: string, modo: ModoTela) => void;
 }) {
   const limpa = tela.modo === "exibir";
+  const ehRemoto = tela.modo === "remoto";
+  const rotulo = limpa ? "Tela limpa" : ehRemoto ? "Controle remoto" : "Controle";
   return (
     <div className="flex items-center gap-2 rounded-marca border border-marca-cinza/30 bg-white p-2">
       <span
         className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-marca text-white ${
-          limpa ? "bg-marca-azulEscuro" : "bg-marca-laranja"
+          limpa ? "bg-marca-azulEscuro" : ehRemoto ? "bg-marca-azulClaro" : "bg-marca-laranja"
         }`}
       >
-        {limpa ? <MonitorPlay size={15} aria-hidden /> : <Sliders size={15} aria-hidden />}
+        {limpa ? (
+          <MonitorPlay size={15} aria-hidden />
+        ) : ehRemoto ? (
+          <MonitorSmartphone size={15} aria-hidden />
+        ) : (
+          <Sliders size={15} aria-hidden />
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-marca-preto">{tela.nome}</span>
-        <span className="block text-[11px] text-marca-cinza">
-          {limpa ? "Tela limpa" : "Controle"}
-        </span>
+        <span className="block text-[11px] text-marca-cinza">{rotulo}</span>
       </span>
       {limpa ? (
         <button

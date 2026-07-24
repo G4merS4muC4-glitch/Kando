@@ -87,10 +87,23 @@ export interface ControleTeleprompter {
   tamanho: number;
   posicaoPct: number;
   saltar: boolean;
+  // Salto por FRASE (fracao de bloco, 0..N): quando presente com `saltar`, as
+  // telas pulam para esta frase (independe do tamanho da tela). Usado pelo
+  // controle remoto; no modo normal fica ausente e vale o `posicaoPct`.
+  fbSaltar?: number;
+  // A guia atual e um controle remoto: as telas de exibicao NAO rolam sozinhas,
+  // so seguem a posicao por frase (posrem). Evita elas rolarem em px em paralelo.
+  remoto?: boolean;
 }
 
-/** Modo de uma tela: "exibir" = limpa (so o prompt); "controle" = botoes grandes. */
-export type ModoTela = "controle" | "exibir";
+/**
+ * Modo de uma tela:
+ * - "exibir": limpa (so o prompt rolando);
+ * - "controle": botoes grandes + o texto;
+ * - "remoto": controle remoto de bolso (so a frase atual + barra e botoes), que
+ *   comanda as telas de exibicao POR FRASE, independente do tamanho de cada tela.
+ */
+export type ModoTela = "controle" | "exibir" | "remoto";
 
 /** Uma tela conectada na sala do card (presenca em tempo real). */
 export interface PresencaTela {
@@ -106,6 +119,10 @@ interface OpcoesControle {
   aoReceberControle: (c: ControleTeleprompter) => void;
   aoComandoModo: (modo: ModoTela) => void;
   aoReceberPosicao: (pct: number, vel: number) => void;
+  // Posicao POR FRASE vinda do controle remoto (fb = fracao de bloco; vel em
+  // frações de bloco por ms). As telas deslizam ate a frase, independente do
+  // tamanho de cada uma.
+  aoReceberPosicaoRemota: (fb: number, vel: number) => void;
 }
 
 /**
@@ -122,6 +139,7 @@ export function useControleTeleprompter(
   enviarControle: (c: ControleTeleprompter) => void;
   comandarModo: (alvoId: string, modo: ModoTela) => void;
   enviarPosicao: (pct: number, vel: number) => void;
+  enviarPosicaoRemota: (fb: number, vel: number) => void;
   telas: PresencaTela[];
   ativo: boolean;
 } {
@@ -152,13 +170,27 @@ export function useControleTeleprompter(
         tamanho: typeof p.tamanho === "number" ? p.tamanho : 44,
         posicaoPct: typeof p.posicaoPct === "number" ? p.posicaoPct : 0,
         saltar: Boolean(p.saltar),
+        fbSaltar: typeof p.fbSaltar === "number" ? p.fbSaltar : undefined,
+        remoto: Boolean(p.remoto),
       });
     });
 
     canal.on("broadcast", { event: "modo" }, (msg: { payload?: { alvo?: string; modo?: ModoTela } }) => {
       const p = msg?.payload;
-      if (p && p.alvo === meuId && (p.modo === "controle" || p.modo === "exibir")) {
+      if (
+        p &&
+        p.alvo === meuId &&
+        (p.modo === "controle" || p.modo === "exibir" || p.modo === "remoto")
+      ) {
         optsRef.current.aoComandoModo(p.modo);
+      }
+    });
+
+    // Posicao POR FRASE do controle remoto (independe do tamanho de cada tela).
+    canal.on("broadcast", { event: "posrem" }, (msg: { payload?: { fb?: number; vel?: number } }) => {
+      const p = msg?.payload;
+      if (p && typeof p.fb === "number") {
+        optsRef.current.aoReceberPosicaoRemota(p.fb, typeof p.vel === "number" ? p.vel : 0);
       }
     });
 
@@ -183,7 +215,8 @@ export function useControleTeleprompter(
           const id = e.id ?? "";
           if (!id || vistos.has(id)) return;
           vistos.add(id);
-          lista.push({ id, nome: e.nome ?? "Tela", modo: e.modo === "exibir" ? "exibir" : "controle" });
+          const m: ModoTela = e.modo === "exibir" ? "exibir" : e.modo === "remoto" ? "remoto" : "controle";
+          lista.push({ id, nome: e.nome ?? "Tela", modo: m });
         })
       );
       setTelas(lista);
@@ -230,5 +263,10 @@ export function useControleTeleprompter(
     if (canal) void canal.send({ type: "broadcast", event: "pos", payload: { pct, vel } });
   }, []);
 
-  return { enviarControle, comandarModo, enviarPosicao, telas, ativo };
+  const enviarPosicaoRemota = useCallback((fb: number, vel: number) => {
+    const canal = canalRef.current;
+    if (canal) void canal.send({ type: "broadcast", event: "posrem", payload: { fb, vel } });
+  }, []);
+
+  return { enviarControle, comandarModo, enviarPosicao, enviarPosicaoRemota, telas, ativo };
 }

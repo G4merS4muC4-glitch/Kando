@@ -8,6 +8,7 @@ import {
   Save,
   Copy,
   MonitorPlay,
+  MonitorSmartphone,
   Send,
   RotateCcw,
   Clock,
@@ -39,7 +40,7 @@ import {
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { formatarDuracao } from "@/lib/apontamentos";
-import { useCanalTeleprompter } from "@/lib/teleprompterAoVivo";
+import { useCanalTeleprompter, type ModoTela } from "@/lib/teleprompterAoVivo";
 import type { Canal, CardConteudo, Etapa, Prioridade, TipoConteudo } from "@/lib/types";
 import { agora, formatarData } from "@/lib/util";
 import { criarProjetoVazio } from "@/lib/projeto";
@@ -98,6 +99,9 @@ export default function ModalCard({
   const [aba, setAba] = useState<Aba>("visao");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [teleprompterAberto, setTeleprompterAberto] = useState(false);
+  // Quando abre pelo botao "Controle remoto", ja entra nesse modo; pelo botao
+  // "Teleprompter" respeita o papel salvo neste aparelho (undefined).
+  const [modoTpInicial, setModoTpInicial] = useState<ModoTela | undefined>(undefined);
   const [copiado, setCopiado] = useState(false);
   const [copiadoTp, setCopiadoTp] = useState(false);
   const [copiadoLegenda, setCopiadoLegenda] = useState(false);
@@ -951,7 +955,24 @@ export default function ModalCard({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setTeleprompterAberto(true)}
+                      onClick={() => {
+                        setModoTpInicial("remoto");
+                        setTeleprompterAberto(true);
+                      }}
+                      disabled={!card.teleprompter?.trim() && !card.roteiro.trim()}
+                      title="Comandar o teleprompter das outras telas pelo celular"
+                      className="flex items-center gap-1.5 rounded-marca border border-marca-cinza/40 px-3 py-1.5 text-sm font-semibold text-marca-azulEscuro transition hover:bg-marca-branco disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <MonitorSmartphone size={15} aria-hidden />
+                      <span className="hidden sm:inline">Controle remoto</span>
+                      <span className="sm:hidden">Remoto</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModoTpInicial(undefined);
+                        setTeleprompterAberto(true);
+                      }}
                       disabled={!card.teleprompter?.trim() && !card.roteiro.trim()}
                       className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-3 py-1.5 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
                     >
@@ -1078,6 +1099,7 @@ export default function ModalCard({
         texto={card.teleprompter?.trim() ? card.teleprompter : card.roteiro}
         cardId={card.id}
         onFechar={fecharTeleprompter}
+        modoInicial={modoTpInicial}
       />
     )}
 
