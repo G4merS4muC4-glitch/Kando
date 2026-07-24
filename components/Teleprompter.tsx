@@ -42,14 +42,20 @@ const FONTE_MIN = 20;
 const FONTE_MAX = 100;
 
 // Controle remoto: quantos caracteres por segundo cada unidade de velocidade
-// representa (avanco por frase, independente do tamanho da tela). Calibrado para
+// representa (avanco por trecho, independente do tamanho da tela). Calibrado para
 // que a velocidade padrao (1.4) fique numa narracao confortavel (~12 car/s).
 const CARACT_POR_VEL = 8.5;
 // Onde fica a "linha de leitura" na tela de exibicao (fracao da altura, do topo).
-// A frase atual e trazida para esta altura quando o remoto comanda.
+// O trecho atual e trazido para esta altura quando o remoto comanda.
 const LINHA_LEITURA = 0.42;
+// Tamanho do "trecho" do controle remoto: poucas palavras por vez, para o
+// preview trocar rapido (e a tela seguir em passos curtos), em vez de mostrar o
+// paragrafo inteiro. Marcadores (-hook, -virada) sao um trecho a parte.
+const PALAVRAS_POR_TRECHO = 4;
 
 type BlocoRoteiro = { tipo: "marca" | "texto"; conteudo: string };
+// Unidade do controle remoto: um trecho curto (poucas palavras) ou um marcador.
+type Unidade = { tipo: "marca" | "texto"; texto: string };
 
 /**
  * Divide o roteiro em blocos para o teleprompter. Uma linha que comeca com "-"
@@ -269,12 +275,40 @@ export default function Teleprompter({
   const msgTrocaTimer = useRef<number | null>(null);
 
   const blocos = useMemo(() => dividirRoteiro(textoAtivo), [textoAtivo]);
-  const totalFrases = blocos.length;
 
-  // Peso (em caracteres) de cada bloco, para o avanco por frase do remoto
-  // respeitar frases longas/curtas. cum[i] = caracteres antes do bloco i.
+  // Quebra em TRECHOS curtos (poucas palavras) para o controle remoto: o preview
+  // troca rapido e a tela segue em passos curtos, em vez de um paragrafo inteiro.
+  // `blocosRender` mantem a leitura em paragrafos (cada trecho e um <span> inline,
+  // so para medir onde ele esta); `unidades` e a lista plana usada na linha do tempo.
+  const { unidades, blocosRender } = useMemo(() => {
+    const unid: Unidade[] = [];
+    const render: { tipo: "marca" | "texto"; trechos: { texto: string; idx: number }[] }[] = [];
+    for (const b of blocos) {
+      if (b.tipo === "marca") {
+        const idx = unid.length;
+        unid.push({ tipo: "marca", texto: b.conteudo });
+        render.push({ tipo: "marca", trechos: [{ texto: b.conteudo, idx }] });
+      } else {
+        const palavras = b.conteudo.split(/\s+/).filter(Boolean);
+        const trechos: { texto: string; idx: number }[] = [];
+        for (let i = 0; i < palavras.length; i += PALAVRAS_POR_TRECHO) {
+          const idx = unid.length;
+          const texto = palavras.slice(i, i + PALAVRAS_POR_TRECHO).join(" ");
+          unid.push({ tipo: "texto", texto });
+          trechos.push({ texto, idx });
+        }
+        if (trechos.length) render.push({ tipo: "texto", trechos });
+      }
+    }
+    return { unidades: unid, blocosRender: render };
+  }, [blocos]);
+
+  const totalFrases = unidades.length;
+
+  // Peso (em caracteres) de cada trecho, para o avanco do remoto respeitar
+  // trechos maiores/menores. cum[i] = caracteres antes do trecho i.
   const medidas = useMemo(() => {
-    const chars = blocos.map((b) => Math.max(6, b.conteudo.trim().length));
+    const chars = unidades.map((u) => Math.max(6, u.texto.trim().length));
     const cum: number[] = [];
     let acc = 0;
     for (const c of chars) {
@@ -282,7 +316,7 @@ export default function Teleprompter({
       acc += c;
     }
     return { chars, cum, total: Math.max(1, acc) };
-  }, [blocos]);
+  }, [unidades]);
 
   // Posicao em caracteres -> fracao de bloco (fb, 0..N).
   const fbDeCp = useCallback(
@@ -611,7 +645,7 @@ export default function Teleprompter({
   const pular = useCallback(
     (dir: number) => {
       if (remotoRef.current) {
-        // No remoto, avanca/retrocede uma FRASE inteira.
+        // No remoto, avanca/retrocede um TRECHO inteiro.
         const alvo = dir > 0 ? Math.floor(fbRef.current) + 1 : Math.ceil(fbRef.current) - 1;
         irParaFb(alvo);
         return;
@@ -689,6 +723,11 @@ export default function Teleprompter({
     let envPct = pctAtual(); // posicao no ultimo envio (guia)
     let envT = Date.now();
     let velSuave = 0; // velocidade relativa suavizada (guia)
+    // Posicao em ponto flutuante para o auto-scroll: o navegador arredonda o
+    // scrollTop para pixel inteiro, entao velocidades baixas (ex: 0.26/quadro)
+    // se perderiam no arredondamento e "travariam". Acumulamos aqui e escrevemos.
+    let posFloat: number | null = null;
+    let ultimoSet: number | null = null;
     const passo = () => {
       const el = areaRef.current;
       if (el) {
@@ -718,7 +757,15 @@ export default function Teleprompter({
           // Salto grande (sincronizar/pular): vai direto; senao desliza suave.
           el.scrollTop += Math.abs(delta) > el.clientHeight ? delta : delta * 0.2;
         } else if (tocando) {
-          el.scrollTop += velocidade;
+          // Acumula em ponto flutuante (nao no scrollTop, que arredonda): assim
+          // 0.1/quadro tambem anda, so que devagar, em vez de travar.
+          if (posFloat === null) posFloat = el.scrollTop;
+          else if (ultimoSet !== null && Math.abs(el.scrollTop - ultimoSet) > 1) {
+            posFloat = el.scrollTop; // alguem mexeu no scroll (pular/sincronizar/dedo)
+          }
+          posFloat += velocidade;
+          el.scrollTop = posFloat;
+          ultimoSet = el.scrollTop;
           if (el.scrollTop + el.clientHeight >= el.scrollHeight - 1) {
             tocandoRef.current = false;
             setTocando(false);
@@ -1095,7 +1142,7 @@ export default function Teleprompter({
           {/* Folga de rolagem no topo: o texto comeca mais para o meio da tela,
               com espaco livre acima, em vez de colado no topo (melhor para gravar). */}
           <div className="h-[42vh]" aria-hidden />
-          {blocos.length === 0 ? (
+          {blocosRender.length === 0 ? (
             <p
               className="whitespace-pre-wrap text-center font-semibold"
               style={{ fontSize: `${tamanho}px`, lineHeight: 1.5 }}
@@ -1103,28 +1150,36 @@ export default function Teleprompter({
               Sem roteiro para exibir.
             </p>
           ) : (
-            blocos.map((b, i) =>
+            blocosRender.map((b, i) =>
               b.tipo === "marca" ? (
                 <span
                   key={i}
                   ref={(n) => {
-                    blocosDomRef.current[i] = n;
+                    blocosDomRef.current[b.trechos[0].idx] = n;
                   }}
                   className="mb-1 mt-6 block text-center font-bold uppercase tracking-widest first:mt-0"
                   style={{ fontSize: `${tamMarca}px`, color: "#EC1313", lineHeight: 1.2 }}
                 >
-                  {b.conteudo}
+                  {b.trechos[0].texto}
                 </span>
               ) : (
+                // Paragrafo continua fluindo normal; cada trecho e um <span> inline
+                // so para medirmos onde ele esta (o remoto segue trecho a trecho).
                 <p
                   key={i}
-                  ref={(n) => {
-                    blocosDomRef.current[i] = n;
-                  }}
-                  className="whitespace-pre-wrap text-center font-semibold"
+                  className="text-center font-semibold"
                   style={{ fontSize: `${tamanho}px`, lineHeight: 1.5 }}
                 >
-                  {b.conteudo}
+                  {b.trechos.map((t) => (
+                    <span
+                      key={t.idx}
+                      ref={(n) => {
+                        blocosDomRef.current[t.idx] = n;
+                      }}
+                    >
+                      {t.texto}{" "}
+                    </span>
+                  ))}
                 </p>
               )
             )
@@ -1232,35 +1287,35 @@ export default function Teleprompter({
           {/* Miolo: preview da frase + painel de comandos. Em tela baixa (celular
               deitado) os dois ficam lado a lado; senao empilhados. */}
           <div className="flex min-h-0 flex-1 flex-col baixo:flex-row">
-            {/* Preview: frase anterior (esmaecida), atual (grande) e proxima */}
+            {/* Preview: trecho anterior (esmaecido), atual (grande) e proximo */}
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 py-4 text-center sm:px-10">
               {totalFrases === 0 ? (
                 <p className="text-white/50">Sem roteiro para exibir.</p>
               ) : (
                 <>
-                  <p className="line-clamp-2 max-w-2xl text-sm text-white/25 sm:text-lg">
-                    {iAtual > 0 ? blocos[iAtual - 1].conteudo : ""}
+                  <p className="line-clamp-2 max-w-2xl text-base text-white/30 sm:text-xl">
+                    {iAtual > 0 ? unidades[iAtual - 1].texto : ""}
                   </p>
-                  <div className="w-full max-w-2xl">
+                  <div className="w-full max-w-3xl">
                     <p
                       className={`leading-snug ${
-                        blocos[iAtual].tipo === "marca"
-                          ? "text-xl font-bold uppercase tracking-widest text-marca-vermelho sm:text-3xl"
-                          : "text-2xl font-bold text-white sm:text-4xl"
+                        unidades[iAtual].tipo === "marca"
+                          ? "text-2xl font-bold uppercase tracking-widest text-marca-vermelho sm:text-4xl"
+                          : "text-3xl font-bold text-white sm:text-5xl"
                       }`}
                     >
-                      {blocos[iAtual].conteudo}
+                      {unidades[iAtual].texto}
                     </p>
-                    <div className="mx-auto mt-3.5 h-1 w-36 overflow-hidden rounded-full bg-white/12">
+                    <div className="mx-auto mt-4 h-1 w-36 overflow-hidden rounded-full bg-white/12">
                       <div
                         className="h-full rounded-full bg-marca-laranja transition-[width] duration-100"
                         style={{ width: `${fracAtual * 100}%` }}
                       />
                     </div>
                   </div>
-                  <p className="line-clamp-2 max-w-2xl text-sm text-white/25 sm:text-lg">
+                  <p className="line-clamp-2 max-w-2xl text-base text-white/30 sm:text-xl">
                     {iAtual < totalFrases - 1
-                      ? blocos[iAtual + 1].conteudo
+                      ? unidades[iAtual + 1].texto
                       : noFim
                         ? "Fim do texto"
                         : ""}
@@ -1276,7 +1331,7 @@ export default function Teleprompter({
                 <div>
                   <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-white/55">
                     <span>
-                      Frase {Math.min(iAtual + 1, totalFrases)} de {totalFrases}
+                      Trecho {Math.min(iAtual + 1, totalFrases)} de {totalFrases}
                     </span>
                     <span>{Math.round(pctFrase)}%</span>
                   </div>
@@ -1308,8 +1363,8 @@ export default function Teleprompter({
                   <button
                     type="button"
                     onClick={() => pular(-1)}
-                    title="Frase anterior"
-                    aria-label="Frase anterior"
+                    title="Trecho anterior"
+                    aria-label="Trecho anterior"
                     className={`${fab} h-12 w-12`}
                   >
                     <SkipBack size={22} aria-hidden />
@@ -1325,8 +1380,8 @@ export default function Teleprompter({
                   <button
                     type="button"
                     onClick={() => pular(1)}
-                    title="Próxima frase"
-                    aria-label="Próxima frase"
+                    title="Próximo trecho"
+                    aria-label="Próximo trecho"
                     className={`${fab} h-12 w-12`}
                   >
                     <SkipForward size={22} aria-hidden />
