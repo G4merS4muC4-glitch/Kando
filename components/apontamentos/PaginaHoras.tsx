@@ -81,16 +81,36 @@ export default function PaginaHoras() {
     [registros, marcaFiltro, projetoFiltro, pessoaFiltro, marcaPorCampanha]
   );
 
-  // KPIs do periodo atual (referencia = hoje), nao do mes navegado.
+  // "Hoje" e "Esta semana" sao sempre relativos a HOJE (visao ao vivo do agora).
   const kpis = useMemo(() => calcularKpis(filtrados, new Date()), [filtrados]);
+
+  // "Este mes" e "Projeto lider" seguem o MES aberto no calendario (ano/mes),
+  // para a metrificacao acompanhar a navegacao.
+  const mesExibidoMs = useMemo(
+    () => registrosDoMes(filtrados, ano, mes).reduce((s, r) => s + duracaoMs(r), 0),
+    [filtrados, ano, mes]
+  );
+  const mesAnteriorMs = useMemo(() => {
+    const a = mes === 0 ? ano - 1 : ano;
+    const m = mes === 0 ? 11 : mes - 1;
+    return registrosDoMes(filtrados, a, m).reduce((s, r) => s + duracaoMs(r), 0);
+  }, [filtrados, ano, mes]);
+  const variacaoMes = mesAnteriorMs > 0 ? ((mesExibidoMs - mesAnteriorMs) / mesAnteriorMs) * 100 : null;
   const lider = useMemo(() => {
-    const h = new Date();
-    const doMes = registrosDoMes(filtrados, h.getFullYear(), h.getMonth());
+    const doMes = registrosDoMes(filtrados, ano, mes);
     const tot = totalPorCard(doMes);
     const top = [...tot.entries()].sort((a, b) => b[1] - a[1])[0];
     if (!top) return null;
     return { titulo: cardPorId(top[0])?.titulo || "Card removido", ms: top[1] };
-  }, [filtrados, cardPorId]);
+  }, [filtrados, ano, mes, cardPorId]);
+
+  // Rotulos dinamicos: no mes atual fica "Este mes"; navegando, mostra o mes.
+  const hojeRef = new Date();
+  const mesCorrente = ano === hojeRef.getFullYear() && mes === hojeRef.getMonth();
+  const rotuloMes = mesCorrente
+    ? "Este mês"
+    : `${MESES[mes]}${ano !== hojeRef.getFullYear() ? ` ${ano}` : ""}`;
+  const rotuloLider = mesCorrente ? "Projeto líder (mês)" : `Projeto líder · ${MESES[mes]}`;
 
   // Opcoes dos filtros.
   const projetosComHoras = useMemo(() => {
@@ -136,8 +156,6 @@ export default function PaginaHoras() {
     return <div className="p-6 text-sm text-marca-cinza">Carregando horas...</div>;
   }
 
-  const temCards = cards.length > 0;
-
   return (
     <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -155,9 +173,9 @@ export default function PaginaHoras() {
           <button
             type="button"
             onClick={() => setEditar("novo")}
-            disabled={!temCards}
+            disabled={campanhas.length === 0}
             className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-            title={temCards ? "Lançar horas manualmente" : "Crie um card primeiro"}
+            title={campanhas.length > 0 ? "Lançar horas manualmente" : "Crie uma campanha primeiro"}
           >
             <Plus size={16} aria-hidden /> Lançar manual
           </button>
@@ -167,8 +185,8 @@ export default function PaginaHoras() {
         <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi indice={0} rotulo="Hoje" ms={kpis.hojeMs} />
           <Kpi indice={1} rotulo="Esta semana" ms={kpis.semanaMs} />
-          <Kpi indice={2} rotulo="Este mês" ms={kpis.mesMs} variacao={kpis.variacaoMesPct} />
-          <Kpi indice={3} rotulo="Projeto líder (mês)" ms={lider?.ms} sub={lider?.titulo} />
+          <Kpi indice={2} rotulo={rotuloMes} ms={mesExibidoMs} variacao={variacaoMes} />
+          <Kpi indice={3} rotulo={rotuloLider} ms={lider?.ms} sub={lider?.titulo} />
         </div>
 
         {/* Trabalhando agora: timers da equipe ao vivo (some quando ninguem timra) */}

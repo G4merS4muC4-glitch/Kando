@@ -5,8 +5,9 @@ import { X, Save, Trash2, Plus, ListChecks } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import { deInputLocal, formatarDuracao, paraInputLocal } from "@/lib/apontamentos";
+import { TIPOS, TIPOS_ORDEM } from "@/lib/config";
 import { agora } from "@/lib/util";
-import type { Checkpoint, RegistroTempo } from "@/lib/types";
+import type { Checkpoint, RegistroTempo, TipoConteudo } from "@/lib/types";
 import ListaCheckpoints from "./ListaCheckpoints";
 import LinhaDoTempoProjeto, { type ServicoNaLinha } from "./LinhaDoTempoProjeto";
 
@@ -26,7 +27,7 @@ export default function ModalEditarRegistro({
   cardIdPadrao?: string;
   onFechar: () => void;
 }) {
-  const { cards, campanhas, marcas } = useBoard();
+  const { cards, campanhas, marcas, etapas, adicionarCard, atualizarCard } = useBoard();
   const { editarRegistro, adicionarManual, excluirRegistro, registrosDoCard, timerAtivo } =
     useApontamentos();
 
@@ -38,6 +39,11 @@ export default function ModalEditarRegistro({
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>(registro?.checkpoints ?? []);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
+  // Lancamento novo: por padrao "avulso" (escreve o que foi e vira um card, tipo
+  // Servico), sem precisar escolher um projeto; ou apontar num card existente.
+  const [modoNovo, setModoNovo] = useState<"avulso" | "projeto">(cardIdPadrao ? "projeto" : "avulso");
+  const [titulo, setTitulo] = useState("");
+  const [tipoNovo, setTipoNovo] = useState<TipoConteudo>("servico");
 
   const inicioISO = deInputLocal(inicio);
   const fimISO = deInputLocal(fim);
@@ -58,11 +64,9 @@ export default function ModalEditarRegistro({
     setErro(null);
   }
 
+  const avulso = !editando && modoNovo === "avulso";
+
   function salvar() {
-    if (!cardId) {
-      setErro("Escolha o projeto ou card.");
-      return;
-    }
     if (!valido) {
       setErro("O término precisa ser depois do início.");
       return;
@@ -76,6 +80,10 @@ export default function ModalEditarRegistro({
       return;
     }
     if (editando && registro) {
+      if (!cardId) {
+        setErro("Escolha o projeto ou card.");
+        return;
+      }
       editarRegistro({
         ...registro,
         cardId,
@@ -84,7 +92,32 @@ export default function ModalEditarRegistro({
         nota,
         checkpoints: checkpoints.length > 0 ? checkpoints : undefined,
       });
+    } else if (avulso) {
+      // Avulso: cria um card na hora (padrao Servico) com o que foi escrito e
+      // ja lanca as horas nele. Cai na primeira campanha (primeira etapa).
+      if (!titulo.trim()) {
+        setErro("Escreva o que foi feito.");
+        return;
+      }
+      const campanhaId = campanhas[0]?.id;
+      if (!campanhaId) {
+        setErro("Crie uma campanha primeiro para lançar avulso.");
+        return;
+      }
+      const etapa = etapas[0]?.id ?? "";
+      const novo = adicionarCard(campanhaId, etapa, tipoNovo);
+      atualizarCard({
+        ...novo,
+        titulo: titulo.trim(),
+        // Servico e enxuto: nasce sem canais de publicacao.
+        canais: tipoNovo === "servico" ? [] : novo.canais,
+      });
+      adicionarManual(novo.id, inicioISO, fimISO, nota);
     } else {
+      if (!cardId) {
+        setErro("Escolha o projeto ou card.");
+        return;
+      }
       adicionarManual(cardId, inicioISO, fimISO, nota);
     }
     onFechar();
@@ -120,41 +153,119 @@ export default function ModalEditarRegistro({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className={`grid grid-cols-1 gap-5 ${avulso ? "" : "sm:grid-cols-2"}`}>
             <div className="space-y-4">
-          {/* Projeto/card */}
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-              Projeto ou card
-            </span>
-            <select
-              value={cardId}
-              onChange={(e) => {
-                setCardId(e.target.value);
-                setErro(null);
-              }}
-              className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
-            >
-              <option value="">Selecione...</option>
-              {marcas.map((m) =>
-                campanhas
-                  .filter((c) => c.marca === m.id)
-                  .map((camp) => {
-                    const cs = cards.filter((cd) => cd.campanhaId === camp.id);
-                    if (cs.length === 0) return null;
-                    return (
-                      <optgroup key={camp.id} label={`${m.nome} · ${camp.nome}`}>
-                        {cs.map((cd) => (
-                          <option key={cd.id} value={cd.id}>
-                            {cd.titulo || "Sem título"}
-                          </option>
-                        ))}
-                      </optgroup>
-                    );
-                  })
-              )}
-            </select>
-          </label>
+          {/* Como lancar: avulso (escreve e vira card) ou num projeto existente.
+              So no lancamento novo; ao editar, sempre mostra o seletor de card. */}
+          {!editando && (
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setModoNovo("avulso");
+                  setErro(null);
+                }}
+                aria-pressed={modoNovo === "avulso"}
+                className={`flex-1 rounded-marca border px-3 py-2 text-sm font-semibold transition ${
+                  modoNovo === "avulso"
+                    ? "border-transparent bg-marca-laranja text-white"
+                    : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
+                }`}
+              >
+                Escrever o que foi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setModoNovo("projeto");
+                  setErro(null);
+                }}
+                aria-pressed={modoNovo === "projeto"}
+                className={`flex-1 rounded-marca border px-3 py-2 text-sm font-semibold transition ${
+                  modoNovo === "projeto"
+                    ? "border-transparent bg-marca-laranja text-white"
+                    : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
+                }`}
+              >
+                Projeto existente
+              </button>
+            </div>
+          )}
+
+          {avulso ? (
+            <>
+              {/* Avulso: o que foi feito (vira o titulo do card) + tipo */}
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                  O que foi feito
+                </span>
+                <input
+                  type="text"
+                  value={titulo}
+                  autoFocus
+                  onChange={(e) => {
+                    setTitulo(e.target.value);
+                    setErro(null);
+                  }}
+                  placeholder="Ex: Gravação, reunião, edição de vídeo..."
+                  className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                  Tipo
+                </span>
+                <select
+                  value={tipoNovo}
+                  onChange={(e) => setTipoNovo(e.target.value as TipoConteudo)}
+                  className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
+                >
+                  {TIPOS_ORDEM.map((t) => (
+                    <option key={t} value={t}>
+                      {TIPOS[t].label}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-marca-cinza">
+                  Vira um card novo com esse nome e as horas ja lançadas.
+                </span>
+              </label>
+            </>
+          ) : (
+            /* Projeto/card existente */
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                Projeto ou card
+              </span>
+              <select
+                value={cardId}
+                onChange={(e) => {
+                  setCardId(e.target.value);
+                  setErro(null);
+                }}
+                className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
+              >
+                <option value="">Selecione...</option>
+                {marcas.map((m) =>
+                  campanhas
+                    .filter((c) => c.marca === m.id)
+                    .map((camp) => {
+                      const cs = cards.filter((cd) => cd.campanhaId === camp.id);
+                      if (cs.length === 0) return null;
+                      return (
+                        <optgroup key={camp.id} label={`${m.nome} · ${camp.nome}`}>
+                          {cs.map((cd) => (
+                            <option key={cd.id} value={cd.id}>
+                              {cd.titulo || "Sem título"}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })
+                )}
+              </select>
+            </label>
+          )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block">
@@ -237,27 +348,30 @@ export default function ModalEditarRegistro({
           {erro && <p className="text-sm font-semibold text-marca-vermelho">{erro}</p>}
             </div>
 
-            {/* Linha do tempo COMPLETA do projeto: todas as sessoes, datas e pontos. */}
-            <div className="min-w-0">
-              <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
-                <ListChecks size={13} aria-hidden /> Linha do tempo do projeto
-              </span>
-              <LinhaDoTempoProjeto
-                registros={cardId ? registrosDoCard(cardId) : []}
-                timerAtivo={timerAtivo && timerAtivo.cardId === cardId ? timerAtivo : undefined}
-                servicos={
-                  cardId
-                    ? cards
-                        .filter((c) => c.tipo === "servico" && (c.cardsVinculados ?? []).includes(cardId))
-                        .map<ServicoNaLinha>((s) => ({
-                          titulo: s.titulo || "Serviço",
-                          registros: registrosDoCard(s.id),
-                          timer: timerAtivo && timerAtivo.cardId === s.id ? timerAtivo : undefined,
-                        }))
-                    : []
-                }
-              />
-            </div>
+            {/* Linha do tempo COMPLETA do projeto: todas as sessoes, datas e pontos.
+                No modo avulso (card ainda nem existe) nao ha o que mostrar. */}
+            {!avulso && (
+              <div className="min-w-0">
+                <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
+                  <ListChecks size={13} aria-hidden /> Linha do tempo do projeto
+                </span>
+                <LinhaDoTempoProjeto
+                  registros={cardId ? registrosDoCard(cardId) : []}
+                  timerAtivo={timerAtivo && timerAtivo.cardId === cardId ? timerAtivo : undefined}
+                  servicos={
+                    cardId
+                      ? cards
+                          .filter((c) => c.tipo === "servico" && (c.cardsVinculados ?? []).includes(cardId))
+                          .map<ServicoNaLinha>((s) => ({
+                            titulo: s.titulo || "Serviço",
+                            registros: registrosDoCard(s.id),
+                            timer: timerAtivo && timerAtivo.cardId === s.id ? timerAtivo : undefined,
+                          }))
+                      : []
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
 
