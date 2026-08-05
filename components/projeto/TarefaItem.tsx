@@ -95,6 +95,17 @@ function TarefaItem({
         {tarefa.feita && <Check size={13} strokeWidth={3} className="animate-checkPop" aria-hidden />}
       </button>
 
+      {/* Selo de tarefa critica (derruba a entrega se falhar) */}
+      {tarefa.critico && (
+        <span
+          title="Tarefa crítica"
+          aria-label="Tarefa crítica"
+          className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-marca-vermelho/10 text-[11px] font-bold leading-none text-marca-vermelho"
+        >
+          !
+        </span>
+      )}
+
       {/* Texto editavel */}
       <input
         ref={inputRef}

@@ -9,6 +9,52 @@ import { arrayMove } from "@dnd-kit/sortable";
 import type { ProjetoDados, ProjetoFase } from "./types";
 import { gerarId } from "./util";
 
+/**
+ * Interpreta um roteiro em texto (tipico do "Colar do Claude") como as FASES e
+ * as TAREFAS de um projeto. Linhas que comecam com "FASE" viram fases; as demais
+ * viram tarefas da fase corrente. Uma tarefa que comeca com "!" e marcada como
+ * critica. Retorna null quando nao ha nada aproveitavel (o chamador cai no
+ * projeto vazio padrao).
+ */
+export function projetoDeRoteiro(roteiro: string): ProjetoDados | null {
+  if (!roteiro || !roteiro.trim()) return null;
+
+  const ehCabecalhoFase = (l: string) => /^\s*(?:#+\s*)?fase\b/i.test(l);
+  const nomeDaFase = (l: string) => l.replace(/^\s*#+\s*/, "").trim();
+  const limparTarefa = (l: string): { texto: string; critico: boolean } => {
+    let t = l.trim();
+    t = t.replace(/^[-*•]\s+/, ""); // marcador de lista antes do texto
+    let critico = false;
+    if (t.startsWith("!")) {
+      critico = true;
+      t = t.replace(/^!+\s*/, "");
+    }
+    return { texto: t.trim(), critico };
+  };
+
+  const fases: ProjetoFase[] = [];
+  let atual: ProjetoFase | null = null;
+  for (const linha of roteiro.split(/\r?\n/)) {
+    if (!linha.trim()) continue;
+    if (ehCabecalhoFase(linha)) {
+      atual = { id: gerarId(), nome: nomeDaFase(linha), tarefas: [] };
+      fases.push(atual);
+      continue;
+    }
+    const { texto, critico } = limparTarefa(linha);
+    if (!texto) continue;
+    if (!atual) {
+      // Tarefas antes de qualquer "FASE": caem numa fase implicita.
+      atual = { id: gerarId(), nome: "Tarefas", tarefas: [] };
+      fases.push(atual);
+    }
+    atual.tarefas.push({ id: gerarId(), texto, feita: false, ...(critico ? { critico: true } : {}) });
+  }
+
+  if (fases.length === 0 || fases.every((f) => f.tarefas.length === 0)) return null;
+  return { fases };
+}
+
 /** Calcula o percentual a partir de feitas/total, sempre seguro (nunca NaN). */
 function percentual(feitas: number, total: number): number {
   return total === 0 ? 0 : Math.round((feitas / total) * 100);

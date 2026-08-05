@@ -121,6 +121,7 @@ export interface ProjetoTarefa {
   texto: string; // ex: "Ver medidas"
   feita: boolean;
   feitaEm?: string; // ISO datetime de quando foi marcada (para analise futura)
+  critico?: boolean; // tarefa critica (derruba a entrega se falhar); vem do "!" no colar
 }
 
 export interface ProjetoFase {

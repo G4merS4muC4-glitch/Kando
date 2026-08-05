@@ -33,7 +33,7 @@ Teleprompter: apenas as falas, sem indicações de cena; separe as seções com 
 Legenda: ...`;
 
 /** Prompt pronto para copiar e colar no Claude: instrucao + formato exato. */
-export const PROMPT_SUGERIDO = `Crie o(s) conteúdo(s) no formato EXATO abaixo, em português do Brasil e sem travessão. Para vários conteúdos, repita o bloco separando cada um com uma linha só de traços (---). No Teleprompter, escreva apenas as falas (sem "Cena 1", sem indicações) e marque as seções com uma linha começando por traço, por exemplo: -hook, -problema, -solução, -cta.
+export const PROMPT_SUGERIDO = `Crie o(s) conteúdo(s) no formato EXATO abaixo, em português do Brasil e sem travessão. Para vários conteúdos, repita o bloco separando cada um com uma linha só de traços (---). No Teleprompter, escreva apenas as falas (sem "Cena 1", sem indicações) e marque as seções com uma linha começando por traço, por exemplo: -hook, -problema, -solução, -cta. Para Tipo Projeto, no Roteiro escreva cada fase numa linha começando por FASE (ex: "FASE 1. Alinhamento") e liste as tarefas abaixo, uma por linha; comece com "!" as tarefas críticas.
 
 ${FORMATO_SUGERIDO}`;
 

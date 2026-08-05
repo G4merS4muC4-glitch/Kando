@@ -5,7 +5,7 @@ import { X, ClipboardPaste, Sparkles, Plus, Copy, Check } from "lucide-react";
 import { CANAIS, TIPOS } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { FORMATO_SUGERIDO, PROMPT_SUGERIDO, parseClaude, type ConteudoColado } from "@/lib/parseClaude";
-import { criarProjetoVazio } from "@/lib/projeto";
+import { criarProjetoVazio, projetoDeRoteiro, contarProgresso } from "@/lib/projeto";
 import type { CardConteudo, Etapa } from "@/lib/types";
 import { agora, gerarId } from "@/lib/util";
 
@@ -69,6 +69,10 @@ export default function ColarDoClaude({
     const ts = agora();
     const tipo = c.tipo ?? "post";
     const ehProjeto = tipo === "projeto";
+    // Projeto: transforma o roteiro (FASE... + tarefas) nas fases/tarefas do
+    // fluxo. Se der para montar, o roteiro em texto fica vazio (o conteudo vive
+    // nas fases); se nao der, mantem o roteiro e cai no projeto padrao.
+    const projetoParseado = ehProjeto ? projetoDeRoteiro(c.roteiro) : null;
     return {
       id: gerarId(),
       campanhaId,
@@ -79,11 +83,11 @@ export default function ColarDoClaude({
       tema: c.tema,
       dataPublicacao: c.dataPublicacao,
       briefing: c.briefing,
-      roteiro: c.roteiro,
+      roteiro: ehProjeto && projetoParseado ? "" : c.roteiro,
       teleprompter: c.teleprompter,
       legenda: c.legenda,
       responsavel: c.responsavel,
-      projeto: ehProjeto ? criarProjetoVazio() : undefined,
+      projeto: ehProjeto ? projetoParseado ?? criarProjetoVazio() : undefined,
       criadoEm: ts,
       atualizadoEm: ts,
     };
@@ -210,16 +214,33 @@ export default function ColarDoClaude({
                       <span className="text-sm font-semibold text-marca-preto">{c.titulo}</span>
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-marca-cinza">
-                      <span>
-                        Canais:{" "}
-                        {(c.canais.length ? c.canais : (["instagram"] as const))
-                          .map((ca) => CANAIS[ca].label)
-                          .join(", ")}
-                      </span>
-                      {c.tema && <span>Tema: {c.tema}</span>}
-                      {c.dataPublicacao && <span>Data: {c.dataPublicacao}</span>}
-                      <span>{c.roteiro ? "com roteiro" : "sem roteiro"}</span>
-                      <span>{c.legenda ? "com legenda" : "sem legenda"}</span>
+                      {(c.tipo ?? "post") === "projeto" ? (
+                        (() => {
+                          const proj = projetoDeRoteiro(c.roteiro);
+                          const p = contarProgresso(proj ?? undefined);
+                          return p.total > 0 ? (
+                            <span className="font-semibold text-marca-azulEscuro">
+                              {p.fases} {p.fases === 1 ? "fase" : "fases"} · {p.total}{" "}
+                              {p.total === 1 ? "tarefa" : "tarefas"}
+                            </span>
+                          ) : (
+                            <span>projeto sem fases detectadas</span>
+                          );
+                        })()
+                      ) : (
+                        <>
+                          <span>
+                            Canais:{" "}
+                            {(c.canais.length ? c.canais : (["instagram"] as const))
+                              .map((ca) => CANAIS[ca].label)
+                              .join(", ")}
+                          </span>
+                          {c.tema && <span>Tema: {c.tema}</span>}
+                          {c.dataPublicacao && <span>Data: {c.dataPublicacao}</span>}
+                          <span>{c.roteiro ? "com roteiro" : "sem roteiro"}</span>
+                          <span>{c.legenda ? "com legenda" : "sem legenda"}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
