@@ -12,7 +12,7 @@ import {
 } from "react";
 import type { Checkpoint, RegistroTempo, TimerAtivo } from "./types";
 import { agora, gerarId } from "./util";
-import { duracaoMs, formatarDuracao } from "./apontamentos";
+import { duracaoMs, formatarDuracao, timerRecemEscolhido } from "./apontamentos";
 import {
   assinarApontamentos,
   assinarTimersAtivos,
@@ -49,7 +49,10 @@ interface ApontamentosStore {
   timersEquipe: TimerEquipe[]; // timers em andamento da equipe (ao vivo), inclui o meu
   autor: Autor;
   pronto: boolean;
+  // Inicia no card ("" = sem projeto). Recem-iniciado e sem nada anotado, so troca
+  // o card do timer; senao grava o trecho atual e comeca um novo.
   iniciarTimer: (cardId: string, nota?: string) => void;
+  vincularTimer: (cardId: string, nota?: string) => void; // o timer atual passa a contar no card desde o inicio
   pararTimer: () => void;
   ajustarEPararTimer: (fimISO: string) => void; // para com horario de termino corrigido
   descartarTimer: () => void; // descarta sem gravar
@@ -64,6 +67,9 @@ interface ApontamentosStore {
 }
 
 const AUTOR_LOCAL: Autor = { id: "local", nome: "Você" };
+
+// Timer sem projeto parado antes disso, sem nada anotado, foi clique sem querer.
+const MIN_SEM_PROJETO_MS = 60_000;
 
 const ApontamentosContext = createContext<ApontamentosStore | null>(null);
 
@@ -188,8 +194,11 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         criadoEm: ts,
         atualizadoEm: ts,
       };
-      // Descarta intervalos sem duracao (play/stop acidental).
-      if (duracaoMs(reg) > 0) aplicar([reg, ...registrosRef.current]);
+      // Descarta intervalos sem duracao (play/stop acidental) e o timer sem projeto
+      // parado logo, sem nada anotado (Iniciar clicado sem querer).
+      const dur = duracaoMs(reg);
+      const acidental = !t.cardId && checkpointsFinais.length === 0 && dur < MIN_SEM_PROJETO_MS;
+      if (dur > 0 && !acidental) aplicar([reg, ...registrosRef.current]);
       if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
       timerRef.current = null; // sincroniza o ref no mesmo tick
       setTimerAtivo(null); // o efeito de sincronizacao apaga a linha compartilhada
@@ -277,10 +286,31 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     setTimerAtivo(novo);
   }, []);
 
+  /** Troca o card do timer em andamento sem gravar trecho (segue do mesmo inicio). */
+  const trocarCardDoTimer = useCallback((t: TimerAtivo, cardId: string, nota?: string) => {
+    const novo: TimerAtivo = {
+      ...t,
+      cardId,
+      vinculadoEm: agora(),
+      nota: nota?.trim() || t.nota,
+    };
+    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
+    timerRef.current = novo;
+    setTimerAtivo(novo);
+  }, []);
+
   const iniciarTimer = useCallback(
     (cardId: string, nota?: string) => {
+      const t = timerRef.current;
+      // Acabou de comecar (ou de escolher o card) e nada foi anotado: e so a
+      // escolha do card (ex.: comecou sem projeto e em seguida escolheu). O timer
+      // continua de onde estava, em vez de gravar um trecho de segundos.
+      if (t && timerRecemEscolhido(t, Date.now())) {
+        if (t.cardId !== cardId) trocarCardDoTimer(t, cardId, nota);
+        return;
+      }
       // Um timer por vez: para o atual (gravando) antes de iniciar o novo.
-      if (timerRef.current) pararInterno(agora());
+      if (t) pararInterno(agora());
       const a = autorRef.current;
       const novo: TimerAtivo = {
         cardId,
@@ -293,7 +323,20 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       timerRef.current = novo;
       setTimerAtivo(novo);
     },
-    [pararInterno]
+    [pararInterno, trocarCardDoTimer]
+  );
+
+  /**
+   * O timer em andamento passa a contar no card DESDE O INICIO (ex.: rodou sem
+   * projeto e, na verdade, era tudo deste card). Os pontos anotados vao junto.
+   */
+  const vincularTimer = useCallback(
+    (cardId: string, nota?: string) => {
+      const t = timerRef.current;
+      if (!t) iniciarTimer(cardId, nota);
+      else if (t.cardId !== cardId) trocarCardDoTimer(t, cardId, nota);
+    },
+    [iniciarTimer, trocarCardDoTimer]
   );
 
   const adicionarManual = useCallback(
@@ -434,6 +477,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       autor,
       pronto,
       iniciarTimer,
+      vincularTimer,
       pararTimer,
       ajustarEPararTimer,
       descartarTimer,
@@ -452,6 +496,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       autor,
       pronto,
       iniciarTimer,
+      vincularTimer,
       pararTimer,
       ajustarEPararTimer,
       descartarTimer,

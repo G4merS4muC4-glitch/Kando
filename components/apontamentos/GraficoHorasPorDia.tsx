@@ -13,7 +13,14 @@ import {
 } from "recharts";
 import { useBoard } from "@/lib/store";
 import type { RegistroTempo } from "@/lib/types";
-import { diaDoRegistro, duracaoMs, emHoras, registrosDoMes, totalPorCard } from "@/lib/apontamentos";
+import {
+  diaDoRegistro,
+  duracaoMs,
+  emHoras,
+  registrosDoMes,
+  tituloApontamento,
+  totalPorCard,
+} from "@/lib/apontamentos";
 import { chaveData } from "@/lib/util";
 
 const CINZA = "#8790AB";
@@ -21,6 +28,9 @@ const PALETA = ["#FA611E", "#044B8C", "#1bbf5d", "#6D4FC0", "#0E7490", "#002952"
 const COR_OUTROS = "#B6BCcc";
 
 type Modo = "total" | "projeto";
+
+// Serie de cada card no grafico; sem projeto ("") precisa de uma chave de verdade.
+const chaveSerie = (cardId: string) => cardId || "__semProjeto";
 
 /** Barras de horas por dia do mes. Modo "projeto" empilha pelos cards lideres. */
 export default function GraficoHorasPorDia({
@@ -45,8 +55,8 @@ export default function GraficoHorasPorDia({
     const tot = totalPorCard(regMes);
     const top = [...tot.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
     const lista = top.map((id, i) => ({
-      key: id,
-      nome: cardPorId(id)?.titulo || "Card removido",
+      key: chaveSerie(id),
+      nome: tituloApontamento(id, cardPorId(id)),
       cor: PALETA[i % PALETA.length],
     }));
     const temOutros = tot.size > top.length;
@@ -66,7 +76,8 @@ export default function GraficoHorasPorDia({
         for (const r of regsDia) {
           const h = emHoras(duracaoMs(r));
           if (series.top.includes(r.cardId)) {
-            linha[r.cardId] = Number((((linha[r.cardId] as number) ?? 0) + h).toFixed(2));
+            const k = chaveSerie(r.cardId);
+            linha[k] = Number((((linha[k] as number) ?? 0) + h).toFixed(2));
           } else {
             outros += h;
           }

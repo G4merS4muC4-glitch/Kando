@@ -65,6 +65,9 @@ export default function ModalEditarRegistro({
   }
 
   const avulso = !editando && modoNovo === "avulso";
+  // Linha do tempo do projeto ao lado: so com um card escolhido (no avulso o card
+  // ainda nem existe; sem projeto nao ha projeto para mostrar).
+  const mostrarLinhaProjeto = !avulso && Boolean(cardId);
 
   function salvar() {
     if (!valido) {
@@ -80,10 +83,8 @@ export default function ModalEditarRegistro({
       return;
     }
     if (editando && registro) {
-      if (!cardId) {
-        setErro("Escolha o projeto ou card.");
-        return;
-      }
+      // Ao editar, "sem projeto" vale (o registro veio do timer livre); da para
+      // manter assim ou escolher o card em que essas horas contam.
       editarRegistro({
         ...registro,
         cardId,
@@ -153,7 +154,7 @@ export default function ModalEditarRegistro({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className={`grid grid-cols-1 gap-5 ${avulso ? "" : "sm:grid-cols-2"}`}>
+          <div className={`grid grid-cols-1 gap-5 ${mostrarLinhaProjeto ? "sm:grid-cols-2" : ""}`}>
             <div className="space-y-4">
           {/* Como lancar: avulso (escreve e vira card) ou num projeto existente.
               So no lancamento novo; ao editar, sempre mostra o seletor de card. */}
@@ -245,7 +246,7 @@ export default function ModalEditarRegistro({
                 }}
                 className="w-full rounded-marca border border-marca-cinza/40 bg-white px-3 py-2 text-sm text-marca-preto outline-none focus:border-marca-laranja focus:ring-2 focus:ring-marca-laranja/40"
               >
-                <option value="">Selecione...</option>
+                <option value="">{editando ? "Sem projeto" : "Selecione..."}</option>
                 {marcas.map((m) =>
                   campanhas
                     .filter((c) => c.marca === m.id)
@@ -348,9 +349,8 @@ export default function ModalEditarRegistro({
           {erro && <p className="text-sm font-semibold text-marca-vermelho">{erro}</p>}
             </div>
 
-            {/* Linha do tempo COMPLETA do projeto: todas as sessoes, datas e pontos.
-                No modo avulso (card ainda nem existe) nao ha o que mostrar. */}
-            {!avulso && (
+            {/* Linha do tempo COMPLETA do projeto: todas as sessoes, datas e pontos. */}
+            {mostrarLinhaProjeto && (
               <div className="min-w-0">
                 <span className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
                   <ListChecks size={13} aria-hidden /> Linha do tempo do projeto

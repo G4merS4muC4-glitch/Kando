@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { FolderKanban, Users } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import type { Marca, RegistroTempo } from "@/lib/types";
-import { formatarDuracao, totalPorAutor, totalPorCard } from "@/lib/apontamentos";
+import { formatarDuracao, tituloApontamento, totalPorAutor, totalPorCard } from "@/lib/apontamentos";
 
 /** Mostra so o nome (antes do @) quando o autor for um e-mail. */
 function nomeCurto(nome: string): string {
@@ -25,7 +25,7 @@ export default function ResumoPorProjeto({ registros }: { registros: RegistroTem
         return {
           cardId,
           ms,
-          titulo: card?.titulo || "Card removido",
+          titulo: tituloApontamento(cardId, card),
           cor: marcaPorId(marca ?? "").cor,
         };
       })

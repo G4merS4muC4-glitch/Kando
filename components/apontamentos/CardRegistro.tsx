@@ -3,7 +3,14 @@
 import { Clock, User, ListChecks } from "lucide-react";
 import { useBoard } from "@/lib/store";
 import type { CardConteudo, Marca, RegistroTempo } from "@/lib/types";
-import { duracaoMs, formatarDuracao, diaDoRegistro, horaLocal } from "@/lib/apontamentos";
+import {
+  duracaoMs,
+  formatarDuracao,
+  diaDoRegistro,
+  horaLocal,
+  resumoDasNotas,
+  tituloApontamento,
+} from "@/lib/apontamentos";
 import { formatarData } from "@/lib/util";
 import BadgeTipo from "@/components/BadgeTipo";
 
@@ -27,6 +34,9 @@ export default function CardRegistro({
 }) {
   const { marcaPorId } = useBoard();
   const corMarca = marcaPorId(marca ?? "").cor;
+  const semProjeto = !registro.cardId;
+  // Sem projeto, o que foi feito esta nos pontos anotados: mostra um resumo deles.
+  const detalhe = registro.nota || (semProjeto ? resumoDasNotas(registro.checkpoints) : undefined);
   return (
     <button
       type="button"
@@ -37,8 +47,12 @@ export default function CardRegistro({
       <span className="min-w-0 flex-1">
         <span className="mb-1 flex items-center gap-1.5">
           {card && <BadgeTipo tipo={card.tipo} tamanho="pequeno" />}
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-marca-preto">
-            {card?.titulo || "Card removido"}
+          <span
+            className={`min-w-0 flex-1 truncate text-sm font-semibold ${
+              semProjeto ? "italic text-marca-cinza" : "text-marca-preto"
+            }`}
+          >
+            {tituloApontamento(registro.cardId, card)}
           </span>
           <span className="shrink-0 text-sm font-bold text-marca-azulEscuro">
             {formatarDuracao(duracaoMs(registro))}
@@ -59,9 +73,7 @@ export default function CardRegistro({
             </span>
           )}
         </span>
-        {registro.nota && (
-          <span className="mt-1 block truncate text-xs text-marca-cinza/90">{registro.nota}</span>
-        )}
+        {detalhe && <span className="mt-1 block truncate text-xs text-marca-cinza/90">{detalhe}</span>}
       </span>
     </button>
   );

@@ -162,10 +162,13 @@ export interface Checkpoint {
  * Apontamento de horas: um intervalo trabalhado, vinculado a um card
  * (projeto ou conteudo) e atribuido a quem fez (usuario logado). A duracao NAO
  * e guardada: e sempre calculada por diferenca entre fim e inicio (fonte unica).
+ *
+ * Sem projeto: `cardId` vazio ("", ver SEM_PROJETO) e o timer livre, em que so
+ * os pontos anotados contam o que foi feito. Da para vincular a um card depois.
  */
 export interface RegistroTempo {
   id: string;
-  cardId: string; // card vinculado (projeto/conteudo)
+  cardId: string; // card vinculado (projeto/conteudo); "" = sem projeto
   inicio: string; // ISO datetime
   fim: string; // ISO datetime
   nota?: string; // o que estava sendo feito
@@ -184,8 +187,9 @@ export interface RegistroTempo {
  * e calculado por diferenca (agora menos inicio), nunca por um contador da aba.
  */
 export interface TimerAtivo {
-  cardId: string;
+  cardId: string; // "" = sem projeto (timer livre)
   inicio: string; // ISO datetime
+  vinculadoEm?: string; // ISO de quando passou a contar neste card (ausente = desde o inicio)
   nota?: string;
   checkpoints?: Checkpoint[]; // marcadores anotados enquanto o timer roda
   pausaMs?: number; // tempo ja acumulado em pausas concluidas
@@ -197,6 +201,31 @@ export interface TimerAtivo {
 /** Documento compartilhado dos apontamentos (linha propria na tabela boards). */
 export interface ApontamentosDoc {
   registros: RegistroTempo[];
+}
+
+/**
+ * Contagem regressiva: um prazo com nome (ex.: "Entregar o video institucional")
+ * e o momento em que ele vence. Serve para se organizar: o quanto falta em dias,
+ * horas e minutos e sempre calculado por diferenca (alvo menos agora), nunca por
+ * um contador da aba, entao fechar o app ou trocar de aparelho nao atrapalha.
+ *
+ * A lista e compartilhada pela organizacao (mesmo padrao dos apontamentos); qual
+ * contagem fica fixada na tela e escolha de cada aparelho (localStorage).
+ */
+export interface Contagem {
+  id: string;
+  titulo: string;
+  alvo: string; // ISO datetime do prazo
+  cardId?: string; // projeto/conteudo vinculado (opcional)
+  criadoEm: string; // ISO datetime (tambem e a base da barra de progresso)
+  atualizadoEm: string; // ISO datetime
+  autorId: string; // quem criou (ou "local" no modo sem login)
+  autorNome: string; // e-mail/apelido para exibir
+}
+
+/** Documento compartilhado das contagens (linha propria na tabela boards). */
+export interface ContagensDoc {
+  contagens: Contagem[];
 }
 
 /** Filtros aplicados sobre os cards visiveis dentro de uma campanha. */

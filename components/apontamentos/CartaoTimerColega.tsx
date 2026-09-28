@@ -48,7 +48,7 @@ export default function CartaoTimerColega({ timer }: { timer: TimerAtivo }) {
       </div>
 
       <h3 className="line-clamp-2 text-base font-bold leading-snug text-marca-azulEscuro">
-        {card?.titulo || "Conteúdo"}
+        {timer.cardId ? card?.titulo || "Conteúdo" : "Sem projeto"}
       </h3>
 
       <div className="mt-3 flex items-center justify-between gap-3 rounded-marca bg-marca-branco p-3">

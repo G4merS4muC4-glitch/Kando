@@ -6,10 +6,58 @@
  * dia de inicio; o caso raro de timer esquecido e mitigado pelo aviso ao parar).
  */
 
-import type { Checkpoint, RegistroTempo } from "./types";
+import type { Checkpoint, RegistroTempo, TimerAtivo } from "./types";
 import { chaveData } from "./util";
 
 const UMA_HORA_MS = 3_600_000;
+
+/** cardId do apontamento sem projeto (timer livre: so os pontos anotados). */
+export const SEM_PROJETO = "";
+
+// Trocar de card ate este tempo depois de escolher, sem nada anotado, e so
+// corrigir a escolha: o timer segue de onde estava (nao grava um trecho curto).
+const JANELA_TROCA_MS = 2 * 60_000;
+
+/** Nome para exibir do card de um apontamento ("Sem projeto" no timer livre). */
+export function tituloApontamento(cardId: string, card?: { titulo: string }): string {
+  if (!cardId) return "Sem projeto";
+  return card?.titulo || "Card removido";
+}
+
+/** Ponto anotado a mao (nao os automaticos de pausa, etapa ou tarefa). */
+function ehNotaManual(c: Checkpoint): boolean {
+  return !c.pausaMs && (c.tipo === undefined || c.tipo === "nota");
+}
+
+/** Ultima coisa anotada a mao: o "fazendo agora" do timer sem projeto. */
+export function ultimaNota(checkpoints: Checkpoint[] | undefined): string | undefined {
+  const notas = (checkpoints ?? []).filter(ehNotaManual);
+  return notas.length > 0 ? notas[notas.length - 1].texto : undefined;
+}
+
+/** Resumo curto do que foi anotado ("emails · reuniao · planilha"). */
+export function resumoDasNotas(checkpoints: Checkpoint[] | undefined, max = 3): string | undefined {
+  const notas = (checkpoints ?? []).filter(ehNotaManual).map((c) => c.texto);
+  if (notas.length === 0) return undefined;
+  return notas.slice(0, max).join(" · ") + (notas.length > max ? " ..." : "");
+}
+
+/** Titulo do timer em andamento: sem projeto, mostra a ultima nota anotada. */
+export function tituloDoTimer(timer: TimerAtivo, card?: { titulo: string }): string {
+  if (!timer.cardId) return ultimaNota(timer.checkpoints) ?? "Sem projeto";
+  return tituloApontamento(timer.cardId, card);
+}
+
+/**
+ * O timer acabou de ser iniciado (ou vinculado ao card atual) e nada foi anotado
+ * desde entao: trocar de card agora e so escolher/corrigir o card, sem gravar.
+ */
+export function timerRecemEscolhido(timer: TimerAtivo, agoraMs: number): boolean {
+  if (timer.pausadoEm) return false;
+  const baseMs = new Date(timer.vinculadoEm ?? timer.inicio).getTime();
+  if (!Number.isFinite(baseMs) || agoraMs - baseMs > JANELA_TROCA_MS) return false;
+  return !(timer.checkpoints ?? []).some((c) => new Date(c.em).getTime() >= baseMs);
+}
 
 /** Duracao trabalhada do registro em ms (intervalo menos as pausas, nunca negativa). */
 export function duracaoMs(reg: { inicio: string; fim: string; pausaMs?: number }): number {

@@ -4,10 +4,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { BoardProvider } from "@/lib/store";
 import { ApontamentosProvider } from "@/lib/apontamentosProvider";
+import { ContagensProvider } from "@/lib/contagensProvider";
 import { OrgProvider, useOrg } from "@/lib/orgProvider";
 import Topo from "./Topo";
 import BarraNavInferior from "./BarraNavInferior";
 import CartaoTimerFlutuante from "./CartaoTimerFlutuante";
+import CartaoContagemFlutuante from "./contagens/CartaoContagemFlutuante";
 import CentralNotificacoes from "./CentralNotificacoes";
 import AvisoErroCarregar from "./AvisoErroCarregar";
 import GuardaSenha from "./GuardaSenha";
@@ -55,16 +57,20 @@ function ShellComOrg({ children }: { children: ReactNode }) {
     <GuardaSenha>
       <BoardProvider>
         <ApontamentosProvider>
-          <AvisoErroCarregar />
-          <div className="flex h-dvh flex-col bg-marca-branco">
-            <Topo />
-            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-            {/* Barra de navegacao do mobile (no desktop some e a navegacao fica no
-                topo). O timer ativo aparece no card flutuante, sobre qualquer pagina. */}
-            <BarraNavInferior />
-            <CartaoTimerFlutuante />
-            <CentralNotificacoes />
-          </div>
+          <ContagensProvider>
+            <AvisoErroCarregar />
+            <div className="flex h-dvh flex-col bg-marca-branco">
+              <Topo />
+              <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+              {/* Barra de navegacao do mobile (no desktop some e a navegacao fica
+                  no topo). O timer em andamento e o prazo fixado aparecem nos
+                  cards flutuantes, sobre qualquer pagina. */}
+              <BarraNavInferior />
+              <CartaoTimerFlutuante />
+              <CartaoContagemFlutuante />
+              <CentralNotificacoes />
+            </div>
+          </ContagensProvider>
         </ApontamentosProvider>
       </BoardProvider>
     </GuardaSenha>

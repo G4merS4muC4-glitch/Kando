@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Play,
   ArrowUp,
   ArrowDown,
   X,
@@ -14,11 +15,13 @@ import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
 import type { Marca, MarcaFiltro, RegistroTempo } from "@/lib/types";
 import {
+  SEM_PROJETO,
   calcularKpis,
   diaDoRegistro,
   duracaoMs,
   formatarDuracao,
   registrosDoMes,
+  tituloApontamento,
   totalPorCard,
 } from "@/lib/apontamentos";
 import { MESES, formatarData } from "@/lib/util";
@@ -28,13 +31,14 @@ import ListaRegistrosRecentes from "./ListaRegistrosRecentes";
 import ResumoPorProjeto from "./ResumoPorProjeto";
 import CardRegistro from "./CardRegistro";
 import CartaoTimerColega from "./CartaoTimerColega";
+import PainelContagens from "@/components/contagens/PainelContagens";
 import ModalEditarRegistro from "./ModalEditarRegistro";
 
 type ModoGrafico = "total" | "projeto";
 
 /** Painel de horas: KPIs, calendario, grafico, recentes e resumo por projeto. */
 export default function PaginaHoras() {
-  const { registros, timerAtivo, timersEquipe, autor, pronto } = useApontamentos();
+  const { registros, timerAtivo, timersEquipe, autor, pronto, iniciarTimer } = useApontamentos();
   // Exclui o meu proprio timer so quando este aparelho ja o mostra em "Registros
   // recentes" (tem timer local). Se iniciei em outro dispositivo, ele aparece aqui.
   const equipeAoVivo = timersEquipe.filter((t) => t.userId !== autor.id || !timerAtivo);
@@ -99,9 +103,10 @@ export default function PaginaHoras() {
   const lider = useMemo(() => {
     const doMes = registrosDoMes(filtrados, ano, mes);
     const tot = totalPorCard(doMes);
+    tot.delete(SEM_PROJETO); // "Sem projeto" nao disputa o posto de projeto lider
     const top = [...tot.entries()].sort((a, b) => b[1] - a[1])[0];
     if (!top) return null;
-    return { titulo: cardPorId(top[0])?.titulo || "Card removido", ms: top[1] };
+    return { titulo: tituloApontamento(top[0], cardPorId(top[0])), ms: top[1] };
   }, [filtrados, ano, mes, cardPorId]);
 
   // Rotulos dinamicos: no mes atual fica "Este mes"; navegando, mostra o mes.
@@ -116,7 +121,7 @@ export default function PaginaHoras() {
   const projetosComHoras = useMemo(() => {
     const ids = new Set(registros.map((r) => r.cardId));
     return [...ids]
-      .map((id) => ({ id, titulo: cardPorId(id)?.titulo || "Card removido" }))
+      .map((id) => ({ id, titulo: tituloApontamento(id, cardPorId(id)) }))
       .sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
   }, [registros, cardPorId]);
 
@@ -166,19 +171,31 @@ export default function PaginaHoras() {
               Horas
             </h1>
             <p className="text-sm text-marca-cinza">
-              Controle de horas e eficiência por projeto e por pessoa. Use o timer no topo ou lance
-              manualmente.
+              Controle de horas e eficiência por projeto e por pessoa. Inicie o timer (dá para
+              começar sem projeto e ir anotando) ou lance manualmente.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEditar("novo")}
-            disabled={campanhas.length === 0}
-            className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
-            title={campanhas.length > 0 ? "Lançar horas manualmente" : "Crie uma campanha primeiro"}
-          >
-            <Plus size={16} aria-hidden /> Lançar manual
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!timerAtivo && (
+              <button
+                type="button"
+                onClick={() => iniciarTimer(SEM_PROJETO)}
+                className="flex items-center gap-1.5 rounded-marca border border-marca-azulEscuro/30 bg-white px-4 py-2 text-sm font-bold text-marca-azulEscuro transition hover:border-marca-laranja hover:text-marca-laranja"
+                title="Começa sem projeto: vá anotando e digite o nome de um card para vincular"
+              >
+                <Play size={16} aria-hidden /> Iniciar timer
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setEditar("novo")}
+              disabled={campanhas.length === 0}
+              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+              title={campanhas.length > 0 ? "Lançar horas manualmente" : "Crie uma campanha primeiro"}
+            >
+              <Plus size={16} aria-hidden /> Lançar manual
+            </button>
+          </div>
         </div>
 
         {/* KPIs */}
@@ -334,6 +351,7 @@ export default function PaginaHoras() {
 
           {/* Coluna lateral */}
           <div className="space-y-4">
+            <PainelContagens />
             <ListaRegistrosRecentes
               registros={filtrados}
               timerAtivo={timerAtivo}

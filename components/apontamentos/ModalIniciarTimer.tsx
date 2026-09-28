@@ -5,6 +5,7 @@ import { X, Play, Search, AlertTriangle, History } from "lucide-react";
 import { campanhaArquivada } from "@/lib/config";
 import { useBoard } from "@/lib/store";
 import { useApontamentos } from "@/lib/apontamentosProvider";
+import { timerRecemEscolhido } from "@/lib/apontamentos";
 import type { CardConteudo, Marca, MarcaFiltro } from "@/lib/types";
 import BadgeTipo from "@/components/BadgeTipo";
 
@@ -60,6 +61,15 @@ export default function ModalIniciarTimer({ onFechar }: { onFechar: () => void }
   }, [registros, cards]);
 
   const cardRodando = timerAtivo ? cards.find((c) => c.id === timerAtivo.cardId) : null;
+  // Recem-iniciado e sem nada anotado: o card escolhido so assume o timer atual.
+  const soTrocaOCard = timerAtivo ? timerRecemEscolhido(timerAtivo, Date.now()) : false;
+  const avisoTimer = !timerAtivo
+    ? null
+    : soTrocaOCard
+      ? "O timer que você acabou de iniciar passa a contar no card escolhido."
+      : !timerAtivo.cardId
+        ? "O tempo sem projeto até agora fica salvo como está e o card escolhido começa a contar agora."
+        : null;
 
   function confirmar() {
     if (!selecionadoId) return;
@@ -95,15 +105,22 @@ export default function ModalIniciarTimer({ onFechar }: { onFechar: () => void }
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {cardRodando && (
+          {avisoTimer ? (
             <div className="mb-4 flex items-start gap-2 rounded-marca border border-marca-laranja/40 bg-marca-laranja/5 px-3 py-2.5 text-sm text-marca-azulEscuro">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-marca-laranja" aria-hidden />
-              <span>
-                Já existe um timer rodando em{" "}
-                <strong>{cardRodando.titulo || "Sem título"}</strong>. Iniciar um novo vai parar e
-                salvar o atual.
-              </span>
+              <span>{avisoTimer}</span>
             </div>
+          ) : (
+            cardRodando && (
+              <div className="mb-4 flex items-start gap-2 rounded-marca border border-marca-laranja/40 bg-marca-laranja/5 px-3 py-2.5 text-sm text-marca-azulEscuro">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-marca-laranja" aria-hidden />
+                <span>
+                  Já existe um timer rodando em{" "}
+                  <strong>{cardRodando.titulo || "Sem título"}</strong>. Iniciar um novo vai parar e
+                  salvar o atual.
+                </span>
+              </div>
+            )
           )}
 
           {/* Busca */}

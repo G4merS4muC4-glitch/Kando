@@ -3,34 +3,30 @@
 import { useState } from "react";
 import { Timer, Square, AlertTriangle } from "lucide-react";
 import { useApontamentos } from "@/lib/apontamentosProvider";
-import { formatarDuracao } from "@/lib/apontamentos";
-import ModalIniciarTimer from "./ModalIniciarTimer";
+import { SEM_PROJETO, formatarDuracao } from "@/lib/apontamentos";
 
 /**
- * Botao de iniciar timer, fixo no topo e visivel em qualquer pagina. Quando ha
- * um timer rodando, quem assume e o card de tempo flutuante (CartaoTimerFlutuante),
- * entao aqui nao mostramos nada para nao duplicar o indicador.
+ * Botao de iniciar timer, fixo no topo e visivel em qualquer pagina. Comeca na
+ * hora, sem projeto: no card flutuante da para ir anotando e, digitando o nome,
+ * escolher o card em que o tempo conta. Com um timer rodando, quem assume e o
+ * card flutuante (CartaoTimerFlutuante), entao aqui nao mostramos nada.
  */
 export default function IndicadorTimerTopo() {
-  const { timerAtivo } = useApontamentos();
-  const [iniciarAberto, setIniciarAberto] = useState(false);
+  const { timerAtivo, iniciarTimer } = useApontamentos();
 
   // Rodando: o card flutuante assume o controle; o topo nao mostra a pilula.
   if (timerAtivo) return null;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setIniciarAberto(true)}
-        className="flex items-center gap-1.5 rounded-marca border border-white/25 px-2.5 py-1.5 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
-        title="Iniciar timer"
-      >
-        <Timer size={16} aria-hidden />
-        <span className="hidden md:inline">Iniciar</span>
-      </button>
-      {iniciarAberto && <ModalIniciarTimer onFechar={() => setIniciarAberto(false)} />}
-    </>
+    <button
+      type="button"
+      onClick={() => iniciarTimer(SEM_PROJETO)}
+      className="flex items-center gap-1.5 rounded-marca border border-white/25 px-2.5 py-1.5 text-sm font-semibold text-white/85 transition hover:bg-white/10 hover:text-white"
+      title="Iniciar timer (sem projeto: digite o nome de um card para vincular)"
+    >
+      <Timer size={16} aria-hidden />
+      <span className="hidden md:inline">Iniciar</span>
+    </button>
   );
 }
 
@@ -53,7 +49,7 @@ export function ModalAjustarParada({
   onFechar,
 }: {
   inicioISO: string;
-  tituloCard: string;
+  tituloCard: string; // "" = timer sem projeto
   pausaMs?: number; // tempo pausado, descontado do que sera gravado
   onFechar: () => void;
 }) {
@@ -95,8 +91,14 @@ export function ModalAjustarParada({
           <AlertTriangle size={18} className="text-marca-laranja" aria-hidden /> Timer longo
         </h2>
         <p className="mt-1.5 text-sm text-marca-cinza">
-          O timer de <strong>{tituloCard}</strong> rodou por muito tempo. Confirme o término para
-          não distorcer as horas.
+          {tituloCard ? (
+            <>
+              O timer de <strong>{tituloCard}</strong> rodou
+            </>
+          ) : (
+            "O timer sem projeto rodou"
+          )}{" "}
+          por muito tempo. Confirme o término para não distorcer as horas.
         </p>
 
         <label className="mt-4 block">
