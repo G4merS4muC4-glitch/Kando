@@ -5,7 +5,12 @@ import AppShell from "@/components/AppShell";
 export const metadata: Metadata = {
   title: "Kando by Brusoft",
   description: "Kando: painel de gestão de conteúdo de redes sociais da Brusoft e Evotalks",
-  icons: { icon: "/kando-logo.svg" },
+  // O iPhone nao usa SVG na tela de inicio: pede um PNG opaco de 180x180 (o K
+  // laranja sobre o azul da marca; os cantos ele mesmo arredonda). Sem isso ele
+  // gera um "K" generico. O Android segue com o SVG.
+  icons: { icon: "/kando-logo.svg", apple: { url: "/apple-touch-icon.png", sizes: "180x180" } },
+  // Nome embaixo do icone na tela de inicio do iPhone (o titulo inteiro nao cabe).
+  appleWebApp: { title: "Kando" },
 };
 
 export const viewport: Viewport = {
