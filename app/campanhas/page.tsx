@@ -58,29 +58,29 @@ export default function Campanhas() {
 
   return (
     <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 espacoso:py-6">
         {/* Cabecalho da pagina */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 espacoso:mb-5">
           <div>
-            <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
+            <h1 className="font-titulo text-xl font-bold uppercase tracking-wide text-marca-azulEscuro espacoso:text-2xl">
               Campanhas
             </h1>
-            <p className="text-sm text-marca-cinza">
+            <p className="hidden text-sm text-marca-cinza espacoso:block">
               Escolha uma campanha para abrir o quadro de conteúdos.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setCriando(true)}
-            className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro"
+            className="pressionavel flex items-center gap-1.5 rounded-full bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marca-azulEscuro espacoso:rounded-marca"
           >
             <Plus size={16} aria-hidden />
             Nova campanha
           </button>
         </div>
 
-        {/* Filtro de marca */}
-        <div className="mb-3 flex flex-wrap items-center gap-2">
+        {/* Filtro de marca (no celular, uma linha que desliza de lado) */}
+        <div className="sem-barra -mx-4 mb-2.5 flex items-center gap-2 overflow-x-auto px-4 espacoso:mx-0 espacoso:mb-3 espacoso:flex-wrap espacoso:overflow-visible espacoso:px-0">
           <FiltroMarca ativo={marcaFiltro === "todas"} onClick={() => setMarcaFiltro("todas")}>
             Todas
           </FiltroMarca>
@@ -96,9 +96,9 @@ export default function Campanhas() {
           ))}
         </div>
 
-        {/* Filtro de situacao */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-marca-cinza">
+        {/* Filtro de situacao (no celular, uma linha que desliza de lado) */}
+        <div className="sem-barra -mx-4 mb-5 flex items-center gap-2 overflow-x-auto px-4 espacoso:mx-0 espacoso:mb-6 espacoso:flex-wrap espacoso:overflow-visible espacoso:px-0">
+          <span className="mr-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-marca-cinza">
             Situação:
           </span>
           {STATUS_OPCOES.map((o) => {
@@ -110,7 +110,7 @@ export default function Campanhas() {
                 type="button"
                 onClick={() => setStatusFiltro(o.id)}
                 aria-pressed={ativo}
-                className={`flex items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
                   ativo
                     ? "border-transparent bg-marca-azulEscuro text-white"
                     : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"
@@ -205,7 +205,7 @@ function FiltroMarca({
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
+      className={`flex shrink-0 items-center gap-1.5 rounded-marca border px-3 py-1.5 text-sm font-semibold transition ${
         ativo
           ? "border-transparent text-white"
           : "border-marca-cinza/40 bg-white text-marca-cinza hover:text-marca-azulEscuro"

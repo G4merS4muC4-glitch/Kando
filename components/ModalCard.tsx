@@ -25,6 +25,8 @@ import {
   Maximize2,
   Minimize2,
   Flag,
+  ChevronDown,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -52,6 +54,7 @@ import ModalCompartilhar from "./ModalCompartilhar";
 import SeletorData from "./SeletorData";
 import SeletorHora from "./SeletorHora";
 import SeletorOpcao from "./SeletorOpcao";
+import FolhaInferior from "./FolhaInferior";
 
 type Aba = "visao" | "projeto" | "briefing" | "roteiro" | "legenda" | "linha";
 
@@ -130,11 +133,50 @@ export default function ModalCard({
     });
   }
   const tituloRef = useRef<HTMLInputElement>(null);
-  // Botao "Salvar e fechar" flutuante no mobile: visivel enquanto rola; some
-  // quando o rodape (com os outros dois botoes) aparece no fim do conteudo.
-  const conteudoRef = useRef<HTMLDivElement>(null);
-  const rodapeMobileRef = useRef<HTMLDivElement>(null);
-  const [rodapeVisivel, setRodapeVisivel] = useState(false);
+  const [etapasAberto, setEtapasAberto] = useState(false); // escolher etapa (celular)
+
+  // Celular: o card e uma folha que sobe do rodape; arrastar o cabecalho para
+  // baixo fecha (a folha segue o dedo e volta ao lugar se o gesto for curto).
+  // Imperativo (sem re-renderizar o card inteiro a cada movimento do dedo).
+  const folhaRef = useRef<HTMLDivElement>(null);
+  const fundoRef = useRef<HTMLDivElement>(null);
+  const arrasteFolha = useRef<{ y0: number; t0: number; ativo: boolean; dy: number } | null>(null);
+  function aoPressionarCabecalho(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.pointerType === "mouse") return; // no desktop o card nao arrasta
+    arrasteFolha.current = { y0: e.clientY, t0: e.timeStamp, ativo: false, dy: 0 };
+  }
+  function aoMoverCabecalho(e: React.PointerEvent<HTMLDivElement>) {
+    const a = arrasteFolha.current;
+    const folha = folhaRef.current;
+    if (!a || !folha) return;
+    const dy = Math.max(0, e.clientY - a.y0);
+    // So vira arraste depois de alguns px: um toque simples no X continua clique.
+    if (!a.ativo) {
+      if (dy < 6) return;
+      a.ativo = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      folha.style.transition = "none";
+    }
+    a.dy = dy;
+    folha.style.transform = `translateY(${dy}px)`;
+    if (fundoRef.current) fundoRef.current.style.opacity = String(Math.max(0.2, 1 - dy / 600));
+  }
+  function aoSoltarCabecalho(e: React.PointerEvent<HTMLDivElement>) {
+    const a = arrasteFolha.current;
+    arrasteFolha.current = null;
+    const folha = folhaRef.current;
+    if (!a || !a.ativo || !folha) return;
+    const vel = a.dy / Math.max(1, e.timeStamp - a.t0);
+    folha.style.transition = "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)";
+    if (a.dy > 120 || (a.dy > 30 && vel > 0.6)) {
+      folha.style.transform = "translateY(100%)";
+      if (fundoRef.current) fundoRef.current.style.opacity = "0";
+      window.setTimeout(onFechar, 200);
+    } else {
+      folha.style.transform = "";
+      if (fundoRef.current) fundoRef.current.style.opacity = "";
+    }
+  }
 
   // Bloqueia o scroll do fundo. Foca o titulo so no desktop (espacoso): no mobile,
   // focar abriria o teclado de cara, atrapalhando quem so quer ler/abrir o card
@@ -159,20 +201,6 @@ export default function ModalCard({
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
   }, [onFechar]);
-
-  // Observa o rodape do mobile: quando ele entra na tela (fim do conteudo), o
-  // botao flutuante some e os tres botoes ficam juntos. Reconecta a cada troca
-  // de aba (a altura muda) para a leitura ficar sempre correta.
-  useEffect(() => {
-    const alvo = rodapeMobileRef.current;
-    if (!alvo) return;
-    const obs = new IntersectionObserver(
-      ([entrada]) => setRodapeVisivel(entrada.isIntersecting),
-      { root: conteudoRef.current, threshold: 0.1 }
-    );
-    obs.observe(alvo);
-    return () => obs.disconnect();
-  }, [aba]);
 
   const ehProjeto = card.tipo === "projeto";
   // Roteiro e Teleprompter so fazem sentido em video: apenas Reels os mostra.
@@ -448,25 +476,40 @@ export default function ModalCard({
   return (
     <>
     <div
-      className={`fixed inset-0 z-50 flex items-stretch justify-center bg-marca-preto/50 animate-fadeIn ${
-        maximizado ? "p-0" : "p-0 espacoso:items-center espacoso:p-4"
+      className={`fixed inset-0 z-50 flex items-end justify-center animate-fadeIn ${
+        maximizado ? "espacoso:items-stretch" : "espacoso:items-center espacoso:p-4"
       }`}
       onClick={onFechar}
       role="dialog"
       aria-modal="true"
       aria-label={`Detalhe do conteúdo: ${card.titulo || "sem título"}`}
     >
+      {/* Fundo escurecido (clareia enquanto a folha e arrastada para baixo) */}
+      <div ref={fundoRef} className="absolute inset-0 bg-marca-preto/50 transition-opacity" aria-hidden />
+      {/* Celular: folha que sobe (94% da tela, cantos arredondados). Desktop:
+          janela central, ou tela cheia quando maximizado. */}
       <div
-        className={`flex h-full w-full flex-col overflow-hidden bg-white shadow-modal ${
+        ref={folhaRef}
+        className={`relative flex h-[94dvh] w-full flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-modal motion-safe:animate-folhaSobe espacoso:animate-none ${
           maximizado
-            ? "max-w-none rounded-none"
+            ? "espacoso:h-full espacoso:max-w-none espacoso:rounded-none"
             : "espacoso:h-[660px] espacoso:max-h-[90vh] espacoso:max-w-2xl espacoso:rounded-marca"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cabecalho do modal */}
-        <div className="flex items-center justify-between gap-3 bg-marca-azulEscuro px-5 py-4 text-white baixo:py-2.5">
-          <div className="flex items-center gap-2">
+        {/* Cabecalho do modal (no celular, e a alca: arrastar para baixo fecha) */}
+        <div
+          className="relative flex touch-none items-center justify-between gap-3 bg-marca-azulEscuro px-4 pb-3 pt-5 text-white espacoso:touch-auto espacoso:px-5 espacoso:py-4 baixo:py-2.5"
+          onPointerDown={aoPressionarCabecalho}
+          onPointerMove={aoMoverCabecalho}
+          onPointerUp={aoSoltarCabecalho}
+          onPointerCancel={aoSoltarCabecalho}
+        >
+          <span
+            className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/30 espacoso:hidden"
+            aria-hidden
+          />
+          <div className="flex min-w-0 items-center gap-2">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-marca"
               style={{ backgroundColor: TIPOS[card.tipo].cor }}
@@ -506,8 +549,62 @@ export default function ModalCard({
           </div>
         </div>
 
+        {/* Celular: acoes rapidas numa linha so (etapa, postado, timer), com
+            alvos grandes para o dedo. A etapa abre a lista para escolher. */}
+        <div className="sem-barra flex shrink-0 items-center gap-2 overflow-x-auto border-b border-marca-cinza/30 bg-white px-4 py-2.5 espacoso:hidden">
+          <button
+            type="button"
+            onClick={() => setEtapasAberto(true)}
+            className={`pressionavel flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-bold ${
+              postado ? "bg-marca-verde text-white" : "bg-marca-azulEscuro/[0.08] text-marca-azulEscuro"
+            }`}
+          >
+            {etapaPorId(card.etapa).titulo}
+            <ChevronDown size={15} aria-hidden />
+          </button>
+          {postado ? (
+            <button
+              type="button"
+              onClick={() => reabrirCard(card.id)}
+              className="pressionavel flex shrink-0 items-center gap-1.5 rounded-full border border-marca-verde px-3.5 py-2 text-sm font-bold text-marca-verdeEscuro"
+            >
+              <RotateCcw size={15} aria-hidden /> Reabrir
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => marcarPostado(card.id)}
+              className="pressionavel flex shrink-0 items-center gap-1.5 rounded-full bg-marca-verde px-3.5 py-2 text-sm font-bold text-white"
+            >
+              <Send size={15} aria-hidden /> Postado
+            </button>
+          )}
+          {timerNesteCard ? (
+            <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-marca-laranja/10 px-3.5 py-2 text-sm font-bold text-marca-laranja">
+              <span className="relative flex h-2 w-2" aria-hidden>
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-marca-laranja/60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-marca-laranja" />
+              </span>
+              Contando
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => iniciarTimer(card.id)}
+              className="pressionavel flex shrink-0 items-center gap-1.5 rounded-full border border-marca-cinza/40 px-3.5 py-2 text-sm font-bold text-marca-azulEscuro"
+            >
+              <Timer size={15} aria-hidden /> Timer
+            </button>
+          )}
+          {totalCard > 0 && (
+            <span className="shrink-0 px-1 text-xs font-semibold text-marca-cinza">
+              {formatarDuracao(totalCard)} apontadas
+            </span>
+          )}
+        </div>
+
         {/* Acao rapida de status: marcar como postado ou reabrir */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2.5 baixo:py-1.5">
+        <div className="hidden flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2.5 espacoso:flex baixo:py-1.5">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-marca-azulEscuro">
             Etapa
             <span
@@ -559,8 +656,9 @@ export default function ModalCard({
           </div>
         )}
 
-        {/* Timer e total de horas apontadas neste card */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2 baixo:py-1">
+        {/* Timer e total de horas apontadas neste card (desktop; no celular fica
+            na linha de acoes rapidas) */}
+        <div className="hidden flex-wrap items-center justify-between gap-2 border-b border-marca-cinza/30 bg-white px-5 py-2 espacoso:flex baixo:py-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-marca-cinza">
             <Timer size={14} aria-hidden />
             {totalCard > 0 ? `${formatarDuracao(totalCard)} apontadas` : "Sem horas apontadas"}
@@ -622,7 +720,7 @@ export default function ModalCard({
         </div>
 
         {/* Conteudo das abas (altura fixa do modal: o miolo rola, o tamanho nao muda) */}
-        <div ref={conteudoRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 baixo:py-2.5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] espacoso:px-5 espacoso:py-5 baixo:py-2.5">
           {aba === "projeto" && ehProjeto && <AbaProjeto card={card} />}
 
           {aba === "visao" && (
@@ -1065,10 +1163,10 @@ export default function ModalCard({
           {/* Acoes no mobile: rolam junto com o conteudo, no fim do card (nao
               ficam fixas comendo a tela). Ao aparecer, o botao flutuante some e
               os tres botoes ficam juntos. */}
-          <div
-            ref={rodapeMobileRef}
-            className="mt-8 flex items-center justify-between gap-2 border-t border-marca-cinza/30 pt-4 espacoso:hidden"
-          >
+          {/* Celular: o card salva sozinho a cada mudanca, entao nao ha botao
+              flutuante cobrindo os campos; no fim do conteudo ficam compartilhar,
+              excluir e fechar. */}
+          <div className="mt-8 flex items-center justify-between gap-2 border-t border-marca-cinza/30 pt-4 espacoso:hidden">
             {acoesEsquerda}
             {acoesDireita}
           </div>
@@ -1079,22 +1177,44 @@ export default function ModalCard({
           {acoesEsquerda}
           {acoesDireita}
         </div>
-
-        {/* Botao flutuante (mobile): "Salvar e fechar" sempre a mao enquanto rola;
-            desliza para fora quando o rodape com os outros botoes aparece no fim. */}
-        <button
-          type="button"
-          onClick={onFechar}
-          aria-label="Salvar e fechar"
-          className={`fixed bottom-4 right-4 z-[60] flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-3 text-sm font-bold text-white shadow-modal transition-all duration-200 ease-suave espacoso:hidden ${
-            rodapeVisivel ? "pointer-events-none translate-y-4 opacity-0" : "translate-y-0 opacity-100"
-          }`}
-        >
-          <Save size={16} aria-hidden />
-          Salvar e fechar
-        </button>
       </div>
     </div>
+
+    {etapasAberto && (
+      <FolhaInferior onFechar={() => setEtapasAberto(false)} titulo="Mover para" subtitulo={card.titulo || "Sem título"}>
+        <div className="flex flex-col gap-1.5">
+          {etapas.map((e) => {
+            const aqui = e.id === card.etapa;
+            return (
+              <button
+                key={e.id}
+                type="button"
+                disabled={aqui}
+                onClick={() => {
+                  if (e.id === etapaPostado.id) marcarPostado(card.id);
+                  else mudarEtapa(e.id);
+                  setEtapasAberto(false);
+                }}
+                className={`pressionavel flex items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left text-sm font-semibold ${
+                  aqui
+                    ? "bg-marca-azulEscuro/[0.06] text-marca-cinza"
+                    : e.id === etapaPostado.id
+                      ? "bg-marca-verdeClaro text-marca-verdeEscuro"
+                      : "bg-marca-branco text-marca-azulEscuro"
+                }`}
+              >
+                <span className="min-w-0 truncate">{e.titulo}</span>
+                {aqui ? (
+                  <span className="shrink-0 text-[11px] font-bold uppercase tracking-wide">Está aqui</span>
+                ) : (
+                  <ChevronRight size={16} className="shrink-0" aria-hidden />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </FolhaInferior>
+    )}
 
     {teleprompterAberto && (
       <Teleprompter

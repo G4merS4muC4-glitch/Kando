@@ -190,12 +190,25 @@ export interface TimerAtivo {
   cardId: string; // "" = sem projeto (timer livre)
   inicio: string; // ISO datetime
   vinculadoEm?: string; // ISO de quando passou a contar neste card (ausente = desde o inicio)
+  atualizadoEm?: string; // ISO da ultima mudanca (em qualquer aparelho): a versao mais nova vence
   nota?: string;
   checkpoints?: Checkpoint[]; // marcadores anotados enquanto o timer roda
   pausaMs?: number; // tempo ja acumulado em pausas concluidas
   pausadoEm?: string; // ISO de quando a pausa atual comecou (ausente = rodando)
   autorId: string;
   autorNome: string;
+}
+
+/**
+ * Marcador de "timer parado": ao parar, a linha da pessoa em timers_ativos passa a
+ * guardar isto em vez de sumir. Assim os OUTROS aparelhos dela sabem que o timer
+ * acabou (e quando), em vez de achar que a linha so nao chegou ainda. Sem cardId,
+ * versoes antigas do app ignoram a linha como timer invalido.
+ */
+export interface TimerParado {
+  parado: true;
+  em: string; // ISO de quando parou (ou foi descartado)
+  inicioParado: string; // inicio do timer que parou
 }
 
 /** Documento compartilhado dos apontamentos (linha propria na tabela boards). */

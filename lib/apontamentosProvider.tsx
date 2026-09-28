@@ -10,22 +10,24 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Checkpoint, RegistroTempo, TimerAtivo } from "./types";
+import type { Checkpoint, RegistroTempo, TimerAtivo, TimerParado } from "./types";
 import { agora, gerarId } from "./util";
 import { duracaoMs, formatarDuracao, timerRecemEscolhido } from "./apontamentos";
 import {
   assinarApontamentos,
   assinarTimersAtivos,
-  deleteTimerAtivo,
   getApontamentos,
+  lerMeuTimer,
   lerTimerLocal,
   lerTimersAtivos,
   limparTimerLocal,
+  publicarTimerParado,
   salvarApontamentos,
   salvarTimerLocal,
   upsertTimerAtivo,
   type TimerEquipe,
 } from "./apontamentosStorage";
+import { chaveVersao, decidirSincronia, ehTimerParado } from "./sincroniaTimer";
 import { useOrg } from "./orgProvider";
 import { lerConfigAutoParada, limiteAutoParada } from "./autoParada";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
@@ -36,7 +38,18 @@ import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
  * Registros vivem num documento compartilhado; o timer em andamento vive no
  * localStorage do aparelho. O tempo corrido e calculado por diferenca (ver o
  * IndicadorTimerTopo), entao fechar a aba nao para a contagem.
+ *
+ * Com login, o timer tambem segue a pessoa entre aparelhos: a linha dela em
+ * timers_ativos guarda a versao mais nova (carimbada em `atualizadoEm`), ou o
+ * marcador de parado. Cada aparelho compara a sua versao com a de la e fica com a
+ * mais nova: iniciou no computador, abriu o celular, o timer ja esta correndo ali.
  */
+
+/** Avisa o card flutuante que um timer sem projeto comecou AQUI (ele abre e foca o campo). */
+function avisarTimerLivre() {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("kando:timer-livre"));
+}
+
 
 interface Autor {
   id: string;
@@ -91,6 +104,33 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   autorRef.current = autor;
   const orgIdRef = useRef(orgId);
   orgIdRef.current = orgId;
+  const prontoRef = useRef(pronto);
+  prontoRef.current = pronto;
+
+  // Sincronia entre aparelhos (ver sincronizar).
+  const paradaRef = useRef<TimerParado | null>(null); // ultimo "parei" conhecido por este aparelho
+  const versaoPublicadaRef = useRef<string | null>(null); // o que o servidor ja tem (evita eco)
+  const sincronizadoRef = useRef(false); // so publica depois de comparar com o servidor
+  const sincronizandoRef = useRef(false);
+  const pendenteRef = useRef(false);
+  const sincronizarRef = useRef<() => Promise<void>>(async () => {});
+
+  /**
+   * Troca o timer deste aparelho (estado, ref e localStorage). Toda mudanca feita
+   * aqui ganha o carimbo `atualizadoEm`: e por ele que os aparelhos da pessoa
+   * sabem qual versao do timer e a mais nova. `carimbar = false` so ao adotar uma
+   * versao que veio de outro aparelho (ela ja vem carimbada).
+   */
+  const definirTimer = useCallback((novo: TimerAtivo | null, carimbar = true) => {
+    const final = novo && carimbar ? { ...novo, atualizadoEm: agora() } : novo;
+    const org = orgIdRef.current;
+    if (org) {
+      if (final) salvarTimerLocal(org, final);
+      else limparTimerLocal(org);
+    }
+    timerRef.current = final; // sincroniza o ref no mesmo tick
+    setTimerAtivo(final);
+  }, []);
 
   // Carrega registros e timer da organizacao ativa, descobre o autor e assina
   // mudancas. Recarrega ao trocar de organizacao.
@@ -98,6 +138,9 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     if (!orgId) return;
     let ativo = true;
     setPronto(false);
+    paradaRef.current = null;
+    versaoPublicadaRef.current = null;
+    sincronizadoRef.current = false;
 
     getApontamentos(orgId)
       .then((r) => {
@@ -109,7 +152,9 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         if (ativo) setPronto(true);
       });
 
-    setTimerAtivo(lerTimerLocal(orgId));
+    const local = lerTimerLocal(orgId);
+    timerRef.current = local;
+    setTimerAtivo(local);
 
     if (supabaseConfigurado()) {
       try {
@@ -124,10 +169,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
             // autor: atribui o registro a pessoa certa e passa a compartilhar o timer.
             const t = timerRef.current;
             if (t && t.autorId === "local") {
-              const corrigido: TimerAtivo = { ...t, autorId: u.id, autorNome: u.email ?? t.autorNome };
-              if (orgId) salvarTimerLocal(orgId, corrigido);
-              timerRef.current = corrigido;
-              setTimerAtivo(corrigido);
+              definirTimer({ ...t, autorId: u.id, autorNome: u.email ?? t.autorNome });
             }
           });
       } catch {
@@ -144,8 +186,11 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     void lerTimersAtivos(orgId).then((t) => {
       if (ativo) setTimersEquipe(t);
     });
-    const cancelarTimers = assinarTimersAtivos(orgId, (t) => {
-      if (ativo) setTimersEquipe(t);
+    const cancelarTimers = assinarTimersAtivos(orgId, (t, quemMudou) => {
+      if (!ativo) return;
+      setTimersEquipe(t);
+      // Minha linha mudou (outro aparelho meu mexeu no timer): sincroniza aqui.
+      if (quemMudou && quemMudou === autorRef.current.id) void sincronizarRef.current();
     });
 
     return () => {
@@ -153,7 +198,7 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       if (cancelar) cancelar();
       if (cancelarTimers) cancelarTimers();
     };
-  }, [orgId]);
+  }, [orgId, definirTimer]);
 
   /** Atualiza o estado e persiste a lista inteira (acoes sao pouco frequentes). */
   const aplicar = useCallback((novos: RegistroTempo[]) => {
@@ -195,15 +240,18 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
         atualizadoEm: ts,
       };
       // Descarta intervalos sem duracao (play/stop acidental) e o timer sem projeto
-      // parado logo, sem nada anotado (Iniciar clicado sem querer).
+      // parado logo, sem nada anotado (Iniciar clicado sem querer). Tambem nao
+      // grava de novo o que outro aparelho meu ja gravou (ex.: os dois pararam
+      // sozinhos no limite do dia).
       const dur = duracaoMs(reg);
       const acidental = !t.cardId && checkpointsFinais.length === 0 && dur < MIN_SEM_PROJETO_MS;
-      if (dur > 0 && !acidental) aplicar([reg, ...registrosRef.current]);
-      if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
-      timerRef.current = null; // sincroniza o ref no mesmo tick
-      setTimerAtivo(null); // o efeito de sincronizacao apaga a linha compartilhada
+      const jaGravado = registrosRef.current.some((r) => r.autorId === t.autorId && r.inicio === t.inicio);
+      if (dur > 0 && !acidental && !jaGravado) aplicar([reg, ...registrosRef.current]);
+      // Avisa os outros aparelhos que este timer acabou (efeito de publicacao).
+      paradaRef.current = { parado: true, em: ts, inicioParado: t.inicio };
+      definirTimer(null);
     },
-    [aplicar]
+    [aplicar, definirTimer]
   );
 
   const pararTimer = useCallback(() => {
@@ -218,10 +266,10 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
   );
 
   const descartarTimer = useCallback(() => {
-    if (orgIdRef.current) limparTimerLocal(orgIdRef.current);
-    timerRef.current = null;
-    setTimerAtivo(null);
-  }, []);
+    const t = timerRef.current;
+    if (t) paradaRef.current = { parado: true, em: agora(), inicioParado: t.inicio };
+    definirTimer(null);
+  }, [definirTimer]);
 
   /**
    * Anota um marcador na linha do tempo do timer em andamento. `tipo` distingue
@@ -233,27 +281,18 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     const txt = texto.trim();
     if (!t || !txt) return;
     const cp: Checkpoint = { id: gerarId(), em: agora(), texto: txt, tipo };
-    const novo: TimerAtivo = { ...t, checkpoints: [...(t.checkpoints ?? []), cp] };
-    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
-    // Atualiza o ref no mesmo tick: varios checkpoints disparados juntos (ex.: 2
+    // O ref e atualizado no mesmo tick: varios checkpoints disparados juntos (ex.: 2
     // tarefas concluidas) acumulam em vez de o ultimo sobrescrever os anteriores.
-    timerRef.current = novo;
-    setTimerAtivo(novo);
-  }, []);
+    definirTimer({ ...t, checkpoints: [...(t.checkpoints ?? []), cp] });
+  }, [definirTimer]);
 
   /** Remove um marcador (corrige um Enter dado por engano). */
   const removerCheckpoint = useCallback((indice: number) => {
     const t = timerRef.current;
     if (!t || !t.checkpoints) return;
     const restantes = t.checkpoints.filter((_, i) => i !== indice);
-    const novo: TimerAtivo = {
-      ...t,
-      checkpoints: restantes.length > 0 ? restantes : undefined,
-    };
-    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
-    timerRef.current = novo;
-    setTimerAtivo(novo);
-  }, []);
+    definirTimer({ ...t, checkpoints: restantes.length > 0 ? restantes : undefined });
+  }, [definirTimer]);
 
   /**
    * Pausa ou retoma o timer. Ao retomar, soma o tempo parado e deixa um marcador
@@ -281,23 +320,17 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     } else {
       novo = { ...t, pausadoEm: agora() };
     }
-    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
-    timerRef.current = novo;
-    setTimerAtivo(novo);
-  }, []);
+    definirTimer(novo);
+  }, [definirTimer]);
 
   /** Troca o card do timer em andamento sem gravar trecho (segue do mesmo inicio). */
-  const trocarCardDoTimer = useCallback((t: TimerAtivo, cardId: string, nota?: string) => {
-    const novo: TimerAtivo = {
-      ...t,
-      cardId,
-      vinculadoEm: agora(),
-      nota: nota?.trim() || t.nota,
-    };
-    if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
-    timerRef.current = novo;
-    setTimerAtivo(novo);
-  }, []);
+  const trocarCardDoTimer = useCallback(
+    (t: TimerAtivo, cardId: string, nota?: string) => {
+      definirTimer({ ...t, cardId, vinculadoEm: agora(), nota: nota?.trim() || t.nota });
+      if (!cardId) avisarTimerLivre();
+    },
+    [definirTimer]
+  );
 
   const iniciarTimer = useCallback(
     (cardId: string, nota?: string) => {
@@ -312,18 +345,16 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
       // Um timer por vez: para o atual (gravando) antes de iniciar o novo.
       if (t) pararInterno(agora());
       const a = autorRef.current;
-      const novo: TimerAtivo = {
+      definirTimer({
         cardId,
         inicio: agora(),
         nota: nota?.trim() || undefined,
         autorId: a.id,
         autorNome: a.nome,
-      };
-      if (orgIdRef.current) salvarTimerLocal(orgIdRef.current, novo);
-      timerRef.current = novo;
-      setTimerAtivo(novo);
+      });
+      if (!cardId) avisarTimerLivre();
     },
-    [pararInterno, trocarCardDoTimer]
+    [pararInterno, trocarCardDoTimer, definirTimer]
   );
 
   /**
@@ -429,36 +460,111 @@ export function ApontamentosProvider({ children }: { children: ReactNode }) {
     };
   }, [adicionarCheckpoint]);
 
-  // Sincroniza o MEU timer com o servidor (compartilhado): fonte unica de verdade.
-  // Publica quando ha timer (com o autor ja resolvido) e apaga quando para; assim
-  // nao ha corrida de "delete apos upsert" e o timer e republicado no load (o
-  // estado vem do localStorage). Guarda org+user para apagar a linha certa.
-  const publicadoRef = useRef<{ org: string; userId: string } | null>(null);
-  useEffect(() => {
-    if (!supabaseConfigurado()) return;
-    const org = orgId;
-    if (org && timerAtivo && timerAtivo.autorId !== "local") {
-      publicadoRef.current = { org, userId: timerAtivo.autorId };
-      void upsertTimerAtivo(org, timerAtivo.autorId, timerAtivo);
-    } else if (!timerAtivo && publicadoRef.current) {
-      const { org: o, userId } = publicadoRef.current;
-      publicadoRef.current = null;
-      void deleteTimerAtivo(o, userId);
+  /**
+   * Sincroniza o MEU timer entre os meus aparelhos: le a minha linha no servidor
+   * e fica com a versao mais nova (regra em lib/sincroniaTimer.ts). Roda ao abrir,
+   * ao voltar para o app, a cada batida e quando a minha linha muda em tempo real.
+   *
+   * - La mais nova e rodando: adota (iniciou/pausou/anotou em outro aparelho).
+   * - La mais nova e parada: encerra aqui SEM gravar (quem parou ja gravou).
+   * - Aqui mais nova: publica a versao daqui.
+   */
+  const sincronizar = useCallback(async () => {
+    const org = orgIdRef.current;
+    const eu = autorRef.current.id;
+    if (!supabaseConfigurado() || !org || eu === "local" || !prontoRef.current) return;
+    if (sincronizandoRef.current) {
+      pendenteRef.current = true; // chegou outro aviso no meio: roda de novo no fim
+      return;
     }
+    sincronizandoRef.current = true;
+    try {
+      const remoto = await lerMeuTimer(org, eu);
+      if (remoto === undefined || orgIdRef.current !== org) return; // falhou: tenta na proxima
+
+      // O timer daqui e lido DEPOIS da espera: pega o que mudou enquanto o servidor respondia.
+      const { descartarLocal, acao } = decidirSincronia({
+        local: timerRef.current,
+        paradaLocal: paradaRef.current,
+        remoto,
+        jaGravado: (inicio) => registrosRef.current.some((r) => r.autorId === eu && r.inicio === inicio),
+      });
+      if (descartarLocal) definirTimer(null, false); // parado em outro aparelho (versao antiga do app)
+
+      if (acao.tipo === "adotar") {
+        versaoPublicadaRef.current = chaveVersao(acao.timer);
+        definirTimer(acao.timer, false); // ja vem carimbado de la
+      } else if (acao.tipo === "encerrar") {
+        if (timerRef.current) definirTimer(null, false); // quem parou ja gravou o registro
+        paradaRef.current = acao.parado;
+        versaoPublicadaRef.current = chaveVersao(acao.parado);
+        if (acao.limparServidor) await publicarTimerParado(org, eu, acao.parado);
+      } else if (acao.tipo === "publicar") {
+        versaoPublicadaRef.current = chaveVersao(acao.estado);
+        if (ehTimerParado(acao.estado)) await publicarTimerParado(org, eu, acao.estado);
+        else await upsertTimerAtivo(org, eu, acao.estado);
+      }
+      sincronizadoRef.current = true;
+    } finally {
+      sincronizandoRef.current = false;
+      if (pendenteRef.current) {
+        pendenteRef.current = false;
+        void sincronizarRef.current();
+      }
+    }
+  }, [definirTimer]);
+  sincronizarRef.current = sincronizar;
+
+  // Ao abrir (registros carregados e login resolvido), compara com o servidor.
+  useEffect(() => {
+    if (pronto && autor.id !== "local") void sincronizar();
+  }, [pronto, autor.id, orgId, sincronizar]);
+
+  // Voltou para o app (celular desbloqueado, aba trocada, internet de volta): no
+  // celular o tempo real para em segundo plano, entao confere na volta.
+  useEffect(() => {
+    const aoVoltar = () => {
+      if (document.visibilityState === "visible") void sincronizarRef.current();
+    };
+    document.addEventListener("visibilitychange", aoVoltar);
+    window.addEventListener("online", aoVoltar);
+    window.addEventListener("focus", aoVoltar);
+    return () => {
+      document.removeEventListener("visibilitychange", aoVoltar);
+      window.removeEventListener("online", aoVoltar);
+      window.removeEventListener("focus", aoVoltar);
+    };
+  }, []);
+
+  // Publica cada mudanca do MEU timer (rodando, ou o marcador de parado). So
+  // depois da primeira sincronizacao: senao um timer velho deste aparelho poderia
+  // sobrescrever a versao mais nova que esta no servidor.
+  useEffect(() => {
+    if (!supabaseConfigurado() || !orgId || !sincronizadoRef.current) return;
+    const estado: TimerAtivo | TimerParado | null = timerAtivo ?? paradaRef.current;
+    if (!estado) return;
+    const userId = timerAtivo ? timerAtivo.autorId : autorRef.current.id;
+    if (userId === "local") return;
+    const chave = chaveVersao(estado);
+    if (versaoPublicadaRef.current === chave) return; // ja esta la (inclusive o que veio de la)
+    versaoPublicadaRef.current = chave;
+    if (ehTimerParado(estado)) void publicarTimerParado(orgId, userId, estado);
+    else void upsertTimerAtivo(orgId, userId, estado);
   }, [timerAtivo, orgId]);
 
-  // Batimento (60s): enquanto meu timer existe, reescreve a linha para ela nao
-  // virar "fantasma"; e re-le os timers da equipe para sumir com linhas orfas de
-  // quem fechou o app sem parar.
+  // Batimento (60s): confere a minha linha, reescreve o meu timer para ele nao
+  // virar "fantasma" para a equipe, e re-le os timers da equipe para sumir com
+  // linhas orfas de quem fechou o app sem parar.
   useEffect(() => {
     if (!supabaseConfigurado() || !orgId) return;
     const org = orgId;
-    const bater = () => {
+    const bater = async () => {
+      await sincronizarRef.current();
       const t = timerRef.current;
-      if (t && t.autorId !== "local") void upsertTimerAtivo(org, t.autorId, t);
+      if (t && t.autorId !== "local" && sincronizadoRef.current) void upsertTimerAtivo(org, t.autorId, t);
       void lerTimersAtivos(org).then((x) => setTimersEquipe(x));
     };
-    const id = window.setInterval(bater, 60_000);
+    const id = window.setInterval(() => void bater(), 60_000);
     return () => window.clearInterval(id);
   }, [orgId]);
 

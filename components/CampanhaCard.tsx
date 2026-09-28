@@ -73,7 +73,7 @@ export default function CampanhaCard({
             e.stopPropagation();
             onEditar(campanha.id);
           }}
-          className="rounded-marca p-1.5 text-marca-cinza opacity-0 transition hover:bg-marca-branco hover:text-marca-azulEscuro focus-visible:opacity-100 group-hover:opacity-100"
+          className="rounded-marca p-2 text-marca-cinza transition hover:bg-marca-branco hover:text-marca-azulEscuro focus-visible:opacity-100 espacoso:p-1.5 espacoso:opacity-0 espacoso:group-hover:opacity-100"
         >
           <Pencil size={15} aria-hidden />
         </button>

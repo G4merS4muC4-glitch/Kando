@@ -163,24 +163,25 @@ export default function PaginaHoras() {
 
   return (
     <div className="h-full min-w-0 overflow-y-auto overflow-x-hidden">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 espacoso:py-6">
         {/* Cabecalho */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
+            <h1 className="font-titulo text-xl font-bold uppercase tracking-wide text-marca-azulEscuro espacoso:text-2xl">
               Horas
             </h1>
-            <p className="text-sm text-marca-cinza">
+            <p className="hidden text-sm text-marca-cinza espacoso:block">
               Controle de horas e eficiência por projeto e por pessoa. Inicie o timer (dá para
               começar sem projeto e ir anotando) ou lance manualmente.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* No celular o timer fica no botao do meio da barra de baixo */}
             {!timerAtivo && (
               <button
                 type="button"
                 onClick={() => iniciarTimer(SEM_PROJETO)}
-                className="flex items-center gap-1.5 rounded-marca border border-marca-azulEscuro/30 bg-white px-4 py-2 text-sm font-bold text-marca-azulEscuro transition hover:border-marca-laranja hover:text-marca-laranja"
+                className="hidden items-center gap-1.5 rounded-marca border border-marca-azulEscuro/30 bg-white px-4 py-2 text-sm font-bold text-marca-azulEscuro transition hover:border-marca-laranja hover:text-marca-laranja espacoso:flex"
                 title="Começa sem projeto: vá anotando e digite o nome de um card para vincular"
               >
                 <Play size={16} aria-hidden /> Iniciar timer
@@ -190,7 +191,7 @@ export default function PaginaHoras() {
               type="button"
               onClick={() => setEditar("novo")}
               disabled={campanhas.length === 0}
-              className="flex items-center gap-1.5 rounded-marca bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="pressionavel flex items-center gap-1.5 rounded-full bg-marca-laranja px-4 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40 espacoso:rounded-marca"
               title={campanhas.length > 0 ? "Lançar horas manualmente" : "Crie uma campanha primeiro"}
             >
               <Plus size={16} aria-hidden /> Lançar manual
@@ -198,8 +199,8 @@ export default function PaginaHoras() {
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* KPIs: faixa que desliza de lado no celular; grade no desktop */}
+        <div className="sem-barra -mx-4 mb-4 flex snap-x snap-mandatory scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 espacoso:mx-0 espacoso:grid espacoso:grid-cols-2 espacoso:gap-3 espacoso:overflow-visible espacoso:px-0 espacoso:pb-0 lg:grid-cols-4">
           <Kpi indice={0} rotulo="Hoje" ms={kpis.hojeMs} />
           <Kpi indice={1} rotulo="Esta semana" ms={kpis.semanaMs} />
           <Kpi indice={2} rotulo={rotuloMes} ms={mesExibidoMs} variacao={variacaoMes} />
@@ -416,10 +417,14 @@ function Kpi({
   return (
     <div
       style={{ animationDelay: `${indice * 70}ms` }}
-      className="rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card transition hover:shadow-cardHover motion-safe:animate-slideUp"
+      className="min-w-[9.5rem] max-w-[14rem] shrink-0 snap-start rounded-2xl border border-marca-cinza/30 bg-white p-3 shadow-card transition hover:shadow-cardHover motion-safe:animate-slideUp espacoso:min-w-0 espacoso:max-w-none espacoso:rounded-marca espacoso:p-4"
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-marca-cinza">{rotulo}</p>
-      <p className="mt-1 font-titulo text-3xl font-bold tabular-nums text-marca-azulEscuro">{valor}</p>
+      <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-marca-cinza espacoso:text-xs">
+        {rotulo}
+      </p>
+      <p className="mt-1 font-titulo text-2xl font-bold tabular-nums text-marca-azulEscuro espacoso:text-3xl">
+        {valor}
+      </p>
       {sub ? (
         <p className="mt-0.5 truncate text-xs text-marca-cinza" title={sub}>
           {sub}

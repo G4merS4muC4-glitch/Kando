@@ -8,11 +8,14 @@
  *     (reaproveita a tabela e o RLS; nao mexe no quadro principal). Nao precisa
  *     de SQL novo.
  * - Timer ativo: localStorage por aparelho (fora da memoria da aba), para
- *   sobreviver a fechar a aba, suspender o PC ou bloquear o celular.
+ *   sobreviver a fechar a aba, suspender o PC ou bloquear o celular. Com login,
+ *   tambem na linha da pessoa em timers_ativos (a equipe ve ao vivo e os outros
+ *   aparelhos dela seguem o mesmo timer; ver lib/sincroniaTimer.ts).
  */
 
-import type { ApontamentosDoc, RegistroTempo, TimerAtivo } from "./types";
+import type { ApontamentosDoc, RegistroTempo, TimerAtivo, TimerParado } from "./types";
 import { criarClienteNavegador, supabaseConfigurado } from "./supabase/client";
+import { ehTimerParado } from "./sincroniaTimer";
 
 const idLinha = (orgId: string) => `apontamentos:${orgId}`; // linha por organizacao
 const CHAVE_REGISTROS = "kando:apontamentos"; // fallback localStorage
@@ -167,6 +170,54 @@ export interface TimerEquipe {
   timer: TimerAtivo;
 }
 
+function ehTimerAtivo(d: unknown): d is TimerAtivo {
+  const t = d as TimerAtivo | null;
+  return Boolean(t && typeof t.cardId === "string" && typeof t.inicio === "string");
+}
+
+/**
+ * Le o MEU timer na organizacao (sem o filtro de "fantasma": se a linha diz que
+ * esta rodando, esta, mesmo que o outro aparelho esteja fechado). Devolve o timer,
+ * o marcador de parado, null (sem linha) ou undefined (falhou: tentar depois).
+ */
+export async function lerMeuTimer(
+  orgId: string,
+  userId: string
+): Promise<TimerAtivo | TimerParado | null | undefined> {
+  if (!supabaseConfigurado()) return null;
+  try {
+    const sb = criarClienteNavegador();
+    const { data, error } = await sb
+      .from(TABELA_TIMERS)
+      .select("dados")
+      .eq("org_id", orgId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    const d = (data as { dados?: unknown } | null)?.dados;
+    if (ehTimerParado(d) || ehTimerAtivo(d)) return d;
+    return null;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Grava o marcador de parado na minha linha (os outros aparelhos encerram o timer). */
+export async function publicarTimerParado(orgId: string, userId: string, parado: TimerParado): Promise<void> {
+  if (!supabaseConfigurado()) return;
+  try {
+    const sb = criarClienteNavegador();
+    await sb.from(TABELA_TIMERS).upsert({
+      org_id: orgId,
+      user_id: userId,
+      dados: parado,
+      atualizado_em: new Date().toISOString(),
+    });
+  } catch {
+    // sem servidor: os outros aparelhos descobrem pelo registro gravado
+  }
+}
+
 /** Publica/atualiza o meu timer em andamento na organizacao (compartilhado). */
 export async function upsertTimerAtivo(orgId: string, userId: string, timer: TimerAtivo): Promise<void> {
   if (!supabaseConfigurado()) return;
@@ -180,17 +231,6 @@ export async function upsertTimerAtivo(orgId: string, userId: string, timer: Tim
     });
   } catch {
     // sem servidor: o timer segue apenas local
-  }
-}
-
-/** Remove o meu timer compartilhado (ao parar/descartar). */
-export async function deleteTimerAtivo(orgId: string, userId: string): Promise<void> {
-  if (!supabaseConfigurado()) return;
-  try {
-    const sb = criarClienteNavegador();
-    await sb.from(TABELA_TIMERS).delete().eq("org_id", orgId).eq("user_id", userId);
-  } catch {
-    // ignora
   }
 }
 
@@ -209,7 +249,7 @@ export async function lerTimersAtivos(orgId: string): Promise<TimerEquipe[]> {
     return linhas
       .map((r) => {
         const t = r.dados;
-        if (!t || typeof t.cardId !== "string" || typeof t.inicio !== "string") return null;
+        if (!ehTimerAtivo(t)) return null; // inclui o marcador de parado
         // Ignora timers "fantasma" (sem batimento recente: aparelho do dono saiu).
         const at = new Date(r.atualizado_em).getTime();
         if (Number.isFinite(at) && agora - at > TIMER_FANTASMA_MS) return null;
@@ -223,11 +263,13 @@ export async function lerTimersAtivos(orgId: string): Promise<TimerEquipe[]> {
 
 /**
  * Assina em tempo real os timers ativos da organizacao. No evento, RE-LE a lista
- * (nao confia no payload) e entrega ao assinante. Devolve uma funcao para cancelar.
+ * (nao confia no payload) e entrega ao assinante, junto com de quem era a linha
+ * que mudou (para o app sincronizar o proprio timer entre aparelhos). Devolve uma
+ * funcao para cancelar.
  */
 export function assinarTimersAtivos(
   orgId: string,
-  aoMudar: (timers: TimerEquipe[]) => void
+  aoMudar: (timers: TimerEquipe[], userIdMudou?: string) => void
 ): (() => void) | undefined {
   if (!supabaseConfigurado()) return undefined;
   const sb = criarClienteNavegador();
@@ -236,8 +278,9 @@ export function assinarTimersAtivos(
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: TABELA_TIMERS, filter: `org_id=eq.${orgId}` },
-      () => {
-        void lerTimersAtivos(orgId).then(aoMudar);
+      (payload: { new?: { user_id?: string }; old?: { user_id?: string } }) => {
+        const quem = payload.new?.user_id ?? payload.old?.user_id;
+        void lerTimersAtivos(orgId).then((t) => aoMudar(t, quem));
       }
     )
     .subscribe();

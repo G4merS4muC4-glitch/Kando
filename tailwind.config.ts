@@ -5,6 +5,9 @@ import type { Config } from "tailwindcss";
  * As cores da marca ficam acessiveis como classes utilitarias (ex: bg-marca-laranja).
  */
 const config: Config = {
+  // hover: so em aparelho com mouse. No toque, o hover "gruda" depois do toque
+  // (card fica levantado, botao fica aceso) e confunde.
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -92,6 +95,16 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(24px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Folha inteira subindo do rodape (card aberto no celular).
+        folhaSobe: {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        // Pagina nova entrando (troca de aba da navegacao).
+        entrarPagina: {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         // Card que acabou de ser solto numa coluna: cresce de leve e um anel
         // laranja pulsa e some (feedback de "chegou aqui").
         chegou: {
@@ -111,6 +124,10 @@ const config: Config = {
         entraDir: "entraDir 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
         entraEsq: "entraEsq 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
         subirSheet: "subirSheet 0.28s cubic-bezier(0.22, 1, 0.36, 1)",
+        folhaSobe: "folhaSobe 0.36s cubic-bezier(0.22, 1, 0.36, 1)",
+        // Sem "fill-mode": no fim o transform sai, senao os modais (position: fixed)
+        // ficariam presos dentro da pagina.
+        entrarPagina: "entrarPagina 0.32s cubic-bezier(0.22, 1, 0.36, 1)",
         chegou: "chegou 0.5s cubic-bezier(0.2, 0.9, 0.3, 1)",
       },
       transitionTimingFunction: {

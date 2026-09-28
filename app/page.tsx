@@ -226,14 +226,16 @@ export default function Painel() {
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
       {/* Cabecalho: titulo + alternador Painel/Quadro geral (mesma pagina) + Campanhas */}
-      <div className="w-full px-4 pb-4 pt-6 sm:px-6 lg:px-8">
+      <div className="w-full px-4 pb-3 pt-4 sm:px-6 espacoso:pb-4 espacoso:pt-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {vista === "painel" ? (
             <div>
-              <h1 className="font-titulo text-2xl font-bold uppercase tracking-wide text-marca-azulEscuro">
+              <h1 className="font-titulo text-xl font-bold uppercase tracking-wide text-marca-azulEscuro espacoso:text-2xl">
                 Painel
               </h1>
-              <p className="text-sm text-marca-cinza">Visão geral dos conteúdos de todas as marcas.</p>
+              <p className="hidden text-sm text-marca-cinza espacoso:block">
+                Visão geral dos conteúdos de todas as marcas.
+              </p>
             </div>
           ) : (
             <div />
@@ -270,8 +272,9 @@ export default function Painel() {
               <p className="text-sm text-marca-cinza">Carregando painel...</p>
             ) : (
               <>
-                {/* KPIs */}
-                <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                {/* KPIs: no celular, faixa compacta que desliza de lado (o trabalho
+                    do dia aparece logo abaixo, sem rolar); no desktop, a grade. */}
+                <div className="sem-barra -mx-4 mb-5 flex snap-x snap-mandatory scroll-px-4 gap-2.5 overflow-x-auto px-4 pb-1 espacoso:mx-0 espacoso:mb-6 espacoso:grid espacoso:grid-cols-2 espacoso:gap-3 espacoso:overflow-visible espacoso:px-0 espacoso:pb-0 lg:grid-cols-4">
                   <Kpi icone={Layers} rotulo="Conteúdos ativos" valor={dados.total} cor="#044B8C" />
                   <Kpi icone={Clock} rotulo="Em produção" valor={dados.emProducao} cor="#FA611E" />
                   <Kpi icone={CheckCircle2} rotulo="Publicados" valor={dados.publicados} cor="#16A34A" />
@@ -405,17 +408,24 @@ function Kpi({
   cor: string;
 }) {
   return (
-    <div className="rounded-marca border border-marca-cinza/30 bg-white p-4 shadow-card">
-      <div className="mb-2 flex items-center gap-2">
+    <div className="flex min-w-[9.5rem] shrink-0 snap-start items-center gap-3 rounded-2xl border border-marca-cinza/30 bg-white p-3 shadow-card espacoso:block espacoso:min-w-0 espacoso:rounded-marca espacoso:p-4">
+      <div className="flex items-center gap-2 espacoso:mb-2">
         <span
-          className="flex h-8 w-8 items-center justify-center rounded-marca text-white"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-white espacoso:h-8 espacoso:w-8 espacoso:rounded-marca"
           style={{ backgroundColor: cor }}
         >
           <Icone size={16} aria-hidden />
         </span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-marca-cinza">{rotulo}</span>
+        <span className="hidden text-xs font-semibold uppercase tracking-wide text-marca-cinza espacoso:inline">
+          {rotulo}
+        </span>
       </div>
-      <p className="text-2xl font-bold text-marca-azulEscuro">{valor}</p>
+      <div className="min-w-0">
+        <p className="text-xl font-bold leading-tight text-marca-azulEscuro espacoso:text-2xl">{valor}</p>
+        <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-marca-cinza espacoso:hidden">
+          {rotulo}
+        </p>
+      </div>
     </div>
   );
 }

@@ -364,7 +364,9 @@ export default function Calendario() {
             </div>
           </div>
 
-          <div className="grid min-w-0 gap-4 lg:grid-cols-[1fr_300px]">
+          {/* grid-cols-1 (minmax(0,1fr)): sem ele a coluna do mobile cresce ate o
+              item mais largo da lista lateral e o sabado do mes fica cortado. */}
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
             <div className="min-w-0">
               {visao === "mes" ? (
                 <div onTouchStart={aoToqueInicio} onTouchEnd={aoToqueFim}>

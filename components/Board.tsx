@@ -19,8 +19,10 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useBoard } from "@/lib/store";
 import type { CardConteudo, Etapa } from "@/lib/types";
+import { useEhCelular } from "@/lib/useEhCelular";
 import Coluna from "./Coluna";
 import { CardVisual } from "./Card";
+import QuadroMobile from "./QuadroMobile";
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
@@ -35,6 +37,9 @@ const ANIMACAO_SOLTAR: DropAnimation = {
  * (mouse e teclado). O card arrastado segue o cursor com fisica de inclinacao:
  * ele "pende" para o lado do movimento (forca de arrasto) e volta ao normal
  * quando para (gravidade), sem mudar de tamanho nem perder informacao.
+ *
+ * No celular o quadro e outro (QuadroMobile): etapas em abas que deslizam, e as
+ * acoes (mover, postar, timer) ao segurar o card, no lugar do arrastar.
  */
 export default function Board({
   cards,
@@ -46,6 +51,7 @@ export default function Board({
   onNovo: (etapa: Etapa) => void;
 }) {
   const { moverCard, pronto, etapas } = useBoard();
+  const celular = useEhCelular();
   const [arrastandoId, setArrastandoId] = useState<string | null>(null);
   const [larguraArrasto, setLarguraArrasto] = useState<number | undefined>(undefined);
   // Card recem-solto: recebe o pop de "chegou" por ~meio segundo.
@@ -153,6 +159,16 @@ export default function Board({
   function aoCancelar() {
     pararFisica();
     setArrastandoId(null);
+  }
+
+  // Celular: etapas em abas que deslizam, com acoes no segurar (sem arrastar).
+  if (celular === null) return null; // ainda medindo a tela (evita piscar o layout errado)
+  if (celular) {
+    return pronto ? (
+      <QuadroMobile cards={cards} onAbrir={onAbrir} onNovo={onNovo} />
+    ) : (
+      <p className="px-4 py-6 text-sm text-marca-cinza">Carregando o quadro...</p>
+    );
   }
 
   return (

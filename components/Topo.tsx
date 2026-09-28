@@ -10,6 +10,7 @@ import { useUltimaCampanha } from "@/lib/ultimaCampanha";
 import BotaoSair from "./BotaoSair";
 import IndicadorTimerTopo from "./apontamentos/IndicadorTimerTopo";
 import SeletorOrg from "./org/SeletorOrg";
+import { SinoLembretes } from "./CentralNotificacoes";
 
 /**
  * Cabecalho global fixo, presente em todas as telas: wordmark a esquerda e
@@ -42,7 +43,7 @@ export default function Topo() {
         noCampanhaDetalhe ? "hidden espacoso:block" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 px-4 py-2 espacoso:py-3">
         {/* Esquerda: logo + seletor da organizacao ativa. */}
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Simbolo laranja + logo completa (Kando by Brusoft) lado a lado */}
@@ -71,12 +72,15 @@ export default function Topo() {
           <SeletorOrg />
         </div>
 
-        {/* Indicador de timer + navegacao. No mobile, a navegacao migra para a
-            barra inferior (ao alcance do polegar) e o timer para uma faixa acima
-            dela: aqui o topo fica enxuto (so a logo e o sair). */}
+        {/* Indicador de timer + navegacao. No mobile, a navegacao e o timer migram
+            para a barra inferior (ao alcance do polegar): aqui o topo fica enxuto
+            (logo, lembretes e sair). */}
         <div className="flex items-center gap-2">
           <div className="hidden espacoso:block">
             <IndicadorTimerTopo />
+          </div>
+          <div className="espacoso:hidden">
+            <SinoLembretes />
           </div>
           <nav className="hidden items-center gap-1 espacoso:flex">
             <LinkNav href="/" ativo={!!naInicial} icone={<LayoutDashboard size={16} aria-hidden />}>

@@ -11,6 +11,38 @@ import ModalCard from "./ModalCard";
 
 const CHAVE_DISP = "kando:notif-dispensadas"; // { [cardId]: "yyyy-mm-dd" } dispensado no dia
 
+// O sino do topo (celular) so mostra o contador e pede para abrir: a central e a
+// unica dona do estado e avisa o contador por evento (sem estado duplicado).
+const EVENTO_CONTADOR = "kando:lembretes-contador";
+const EVENTO_ABRIR = "kando:lembretes-abrir";
+let ultimoContador = 0;
+
+/** Sino de lembretes para o topo do celular (a central flutuante fica so no desktop). */
+export function SinoLembretes() {
+  const [urgentes, setUrgentes] = useState(ultimoContador);
+  useEffect(() => {
+    const aoMudar = (e: Event) => setUrgentes((e as CustomEvent<number>).detail);
+    window.addEventListener(EVENTO_CONTADOR, aoMudar);
+    setUrgentes(ultimoContador);
+    return () => window.removeEventListener(EVENTO_CONTADOR, aoMudar);
+  }, []);
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event(EVENTO_ABRIR))}
+      aria-label={`Lembretes${urgentes > 0 ? ` (${urgentes})` : ""}`}
+      className="pressionavel relative flex h-10 w-10 items-center justify-center rounded-full text-white/90 transition hover:bg-white/10"
+    >
+      <Bell size={20} aria-hidden />
+      {urgentes > 0 && (
+        <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-marca-vermelho px-1 text-[10px] font-bold text-white ring-2 ring-marca-azulEscuro">
+          {urgentes > 9 ? "9+" : urgentes}
+        </span>
+      )}
+    </button>
+  );
+}
+
 /** Dias entre uma data (yyyy-mm-dd) e hoje (yyyy-mm-dd): negativo = atrasado. */
 function diasAte(data: string, hoje: string): number {
   const d = new Date(`${data}T00:00:00`).getTime();
@@ -79,6 +111,17 @@ export default function CentralNotificacoes() {
   // Urgentes = atrasados + ate 3 dias (movem o contador vermelho).
   const urgentes = visiveis.filter((n) => n.dias <= 3).length;
 
+  // Avisa o sino do topo (celular) e atende o pedido dele para abrir a lista.
+  useEffect(() => {
+    ultimoContador = urgentes;
+    window.dispatchEvent(new CustomEvent(EVENTO_CONTADOR, { detail: urgentes }));
+  }, [urgentes]);
+  useEffect(() => {
+    const abrir = () => setAberto(true);
+    window.addEventListener(EVENTO_ABRIR, abrir);
+    return () => window.removeEventListener(EVENTO_ABRIR, abrir);
+  }, []);
+
   function dispensar(cardId: string) {
     setDispensadas((d) => {
       const novo = { ...d, [cardId]: hoje };
@@ -97,13 +140,14 @@ export default function CentralNotificacoes() {
 
   return (
     <>
-      {/* Sino flutuante (canto inferior esquerdo; acima da barra do mobile) */}
+      {/* Sino flutuante (canto inferior esquerdo, so no desktop: no celular ele
+          fica no topo, sem cobrir o conteudo) */}
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
         aria-label={`Notificações${urgentes > 0 ? ` (${urgentes})` : ""}`}
         title="Lembretes e prazos"
-        className="fixed bottom-[88px] left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-marca-azulEscuro text-white shadow-modal transition hover:brightness-110 active:scale-95 espacoso:bottom-5 espacoso:left-5"
+        className="fixed bottom-5 left-5 z-40 hidden h-12 w-12 items-center justify-center rounded-full bg-marca-azulEscuro text-white shadow-modal transition hover:brightness-110 active:scale-95 espacoso:flex"
       >
         {urgentes > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-marca-vermelho px-1 text-[11px] font-bold text-white ring-2 ring-marca-branco">
@@ -120,11 +164,15 @@ export default function CentralNotificacoes() {
       {aberto && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-transparent"
+            className="fixed inset-0 z-40 bg-marca-preto/40 animate-fadeIn espacoso:bg-transparent"
             onClick={() => setAberto(false)}
             aria-hidden
           />
-          <div className="fixed bottom-[152px] left-4 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-marca bg-white shadow-modal animate-fadeIn espacoso:bottom-20 espacoso:left-5">
+          {/* Celular: folha que sobe do rodape. Desktop: painel acima do sino. */}
+          <div className="fixed inset-x-0 bottom-0 z-50 overflow-hidden rounded-t-3xl bg-white pb-[env(safe-area-inset-bottom)] shadow-modal animate-folhaSobe espacoso:inset-x-auto espacoso:bottom-20 espacoso:left-5 espacoso:w-[min(22rem,calc(100vw-2rem))] espacoso:rounded-marca espacoso:pb-0 espacoso:animate-fadeIn">
+            <div className="flex justify-center bg-marca-azulEscuro pt-2 espacoso:hidden" aria-hidden>
+              <span className="h-1 w-10 rounded-full bg-white/30" />
+            </div>
             <div className="flex items-center justify-between gap-2 bg-marca-azulEscuro px-4 py-3 text-white">
               <span className="flex items-center gap-2 text-sm font-bold">
                 <Bell size={16} aria-hidden /> Lembretes
@@ -240,7 +288,7 @@ function ItemNotificacao({
         onClick={onDispensar}
         aria-label="Dispensar"
         title="Dispensar (some até amanhã)"
-        className="shrink-0 rounded-marca p-1 text-marca-cinza opacity-0 transition hover:bg-marca-branco hover:text-marca-azulEscuro focus-visible:opacity-100 group-hover:opacity-100"
+        className="shrink-0 rounded-marca p-2 text-marca-cinza transition hover:bg-marca-branco hover:text-marca-azulEscuro focus-visible:opacity-100 espacoso:p-1 espacoso:opacity-0 espacoso:group-hover:opacity-100"
       >
         <X size={14} aria-hidden />
       </button>

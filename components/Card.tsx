@@ -32,7 +32,7 @@ type CardVisualProps = ComponentPropsWithoutRef<"div"> & {
  * garantindo que o card arrastado tenha exatamente o mesmo tamanho e conteudo.
  */
 export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function CardVisual(
-  { card, onAbrir, className = "", ...rest },
+  { card, onAbrir, className = "", onPointerMove, onPointerLeave, ...rest },
   ref
 ) {
   const { marcarPostado, reabrirCard, etapaPostado } = useBoard();
@@ -61,7 +61,8 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
   const interiorRef = useRef<HTMLDivElement>(null);
   function aoMover(e: React.PointerEvent<HTMLDivElement>) {
     const el = interiorRef.current;
-    if (!el) return;
+    // So com mouse: no toque, o dedo rolando a lista faria o card balancar.
+    if (!el || e.pointerType !== "mouse") return;
     const r = el.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width - 0.5;
     const py = (e.clientY - r.top) / r.height - 0.5;
@@ -77,8 +78,15 @@ export const CardVisual = forwardRef<HTMLDivElement, CardVisualProps>(function C
       ref={ref}
       className={`group relative shrink-0 cursor-grab rounded-marca outline-none active:cursor-grabbing ${className}`}
       {...rest}
-      onPointerMove={aoMover}
-      onPointerLeave={aoSair}
+      // Soma a inclinacao aos handlers de quem usa o card (ex.: segurar no celular).
+      onPointerMove={(e) => {
+        aoMover(e);
+        onPointerMove?.(e);
+      }}
+      onPointerLeave={(e) => {
+        aoSair();
+        onPointerLeave?.(e);
+      }}
     >
       <div
         ref={interiorRef}

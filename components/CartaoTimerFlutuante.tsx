@@ -32,6 +32,7 @@ import {
   type SugestaoCard,
 } from "@/lib/sugestaoCards";
 import { ALTURA_PILULA, useArrasteCartao } from "@/lib/useArrasteCartao";
+import { useEhCelular } from "@/lib/useEhCelular";
 import type { TipoConteudo } from "@/lib/types";
 import TituloRolante from "./TituloRolante";
 import { ModalAjustarParada } from "./apontamentos/IndicadorTimerTopo";
@@ -78,6 +79,13 @@ export default function CartaoTimerFlutuante() {
   const [realce, setRealce] = useState(-1); // sugestao marcada pelas setas (-1 = nenhuma)
   const inputRef = useRef<HTMLInputElement>(null);
   const blurRef = useRef<number | null>(null);
+  const celular = useEhCelular();
+
+  // No celular a abinha comeca recolhida: a tela e pequena e o timer ja aparece
+  // no botao do meio da barra de baixo (tocar nele abre a abinha).
+  useEffect(() => {
+    if (celular) setAberto(false);
+  }, [celular]);
 
   const rodando = Boolean(timerAtivo);
   const inicio = timerAtivo?.inicio;
@@ -99,15 +107,25 @@ export default function CartaoTimerFlutuante() {
     return () => window.clearInterval(id);
   }, [rodando, inicio]);
 
-  // Recem-iniciado sem projeto (clicou em Iniciar): abre a abinha e ja foca o
-  // campo, para escrever o que esta fazendo ou escolher o card.
+  // Comecou sem projeto NESTE aparelho (Iniciar, ou Soltar) ou tocou no timer da
+  // barra do celular: abre a abinha e ja foca o campo, para escrever o que esta
+  // fazendo ou escolher o card. Timer que chega de outro aparelho nao foca (no
+  // celular, abriria o teclado do nada).
   useEffect(() => {
-    if (!semProjeto || !inicio || !arraste.montado) return;
-    if (Date.now() - new Date(inicio).getTime() > 5000) return;
-    setAberto(true);
-    const id = window.setTimeout(() => inputRef.current?.focus(), 50);
-    return () => window.clearTimeout(id);
-  }, [semProjeto, inicio, arraste.montado]);
+    let id = 0;
+    const abrirEFocar = () => {
+      setAberto(true);
+      window.clearTimeout(id);
+      id = window.setTimeout(() => inputRef.current?.focus(), 60);
+    };
+    window.addEventListener("kando:timer-livre", abrirEFocar);
+    window.addEventListener("kando:abrir-timer", abrirEFocar);
+    return () => {
+      window.removeEventListener("kando:timer-livre", abrirEFocar);
+      window.removeEventListener("kando:abrir-timer", abrirEFocar);
+      window.clearTimeout(id);
+    };
+  }, []);
 
   // Parou o timer com o campo em foco: o campo some sem disparar o blur.
   useEffect(() => {
@@ -231,6 +249,9 @@ export default function CartaoTimerFlutuante() {
     blurRef.current = window.setTimeout(() => {
       setFocado(false);
       setRealce(-1);
+      // Celular: sem nada escrito, a abinha recolhe (fica so a pilula, sem cobrir
+      // a tela). Abre de novo pelo botao do timer da barra ou pela setinha.
+      if (celular && !inputRef.current?.value.trim()) setAberto(false);
     }, ESPERA_BLUR_MS);
   }
 

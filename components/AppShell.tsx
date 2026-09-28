@@ -61,10 +61,14 @@ function ShellComOrg({ children }: { children: ReactNode }) {
             <AvisoErroCarregar />
             <div className="flex h-dvh flex-col bg-marca-branco">
               <Topo />
-              <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-              {/* Barra de navegacao do mobile (no desktop some e a navegacao fica
-                  no topo). O timer em andamento e o prazo fixado aparecem nos
-                  cards flutuantes, sobre qualquer pagina. */}
+              {/* Cada pagina entra deslizando de leve ao trocar de aba (a chave e o
+                  caminho: so anima quando a pagina muda). */}
+              <div key={caminho} className="flex min-h-0 flex-1 flex-col motion-safe:animate-entrarPagina">
+                {children}
+              </div>
+              {/* Barra de navegacao do mobile, com o timer no meio (no desktop some
+                  e a navegacao fica no topo). O timer em andamento e o prazo
+                  fixado aparecem nos cards flutuantes, sobre qualquer pagina. */}
               <BarraNavInferior />
               <CartaoTimerFlutuante />
               <CartaoContagemFlutuante />
